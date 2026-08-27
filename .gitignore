@@ -1,0 +1,12 @@
+.gradle/
+build/
+.idea/
+.kotlin/
+*.iml
+*.mv.db
+*.trace.db
+docs/
+node_modules/
+dist/
+.env*
+motos.api/src/main/resources/application.yaml
