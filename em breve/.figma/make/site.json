@@ -1,0 +1,10 @@
+{
+  "description": "Create a stylish coming soon page featuring your logo, perfect for businesses and projects to build anticipation and engage visitors before launch.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
