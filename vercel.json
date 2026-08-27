@@ -1,0 +1,6 @@
+{
+  "framework": null,
+  "installCommand": "npm install --prefix \"./em breve\"",
+  "buildCommand": "npm run build --prefix \"./em breve\"",
+  "outputDirectory": "em breve/dist"
+}
