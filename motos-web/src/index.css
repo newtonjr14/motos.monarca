@@ -1,0 +1,265 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme inline {
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border, #1e2840) transparent;
+}
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--color-border, #1e2840); border-radius: 2px; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ── Dark theme (default) ── */
+:root {
+  --bg:          #0b0e1a;
+  --bg-sidebar:  #0d1020;
+  --card:        #131825;
+  --card2:       #1a2035;
+  --border:      #1e2840;
+  --text:        #e8e9ef;
+  --text-sub:    #b0bbd4;
+  --text-muted:  #8490ad;
+  --gold:        #e4b412;
+  --gold-dim:    #c49a10;
+  --gold-bg:     rgba(228,180,18,0.12);
+  --gold-border: rgba(228,180,18,0.45);
+  --gold-btn:    #e4b412;
+  --gold-btn-text:#14110a;
+  --topbar-bg:   rgba(11,14,26,0.85);
+  --success:     #34d399;
+  --success-bg:  rgba(52,211,153,0.12);
+  --success-border: rgba(52,211,153,0.35);
+  --danger:      #f87171;
+  --danger-border: rgba(248,113,113,0.45);
+  --danger-bg:   rgba(248,113,113,0.1);
+}
+
+/* ── Light theme — contraste reforçado ── */
+:root.light {
+  --bg:          #eef0f5;
+  --bg-sidebar:  #ffffff;
+  --card:        #ffffff;
+  --card2:       #f3f4f8;
+  --border:      #d1d5e0;
+  --text:        #0f1419;
+  --text-sub:    #374151;
+  --text-muted:  #6b7280;
+  --gold:        #9a7209;
+  --gold-dim:    #7a5a07;
+  --gold-bg:     rgba(228,180,18,0.16);
+  --gold-border: rgba(154,114,9,0.45);
+  --gold-btn:    #c9a012;
+  --gold-btn-text:#14110a;
+  --topbar-bg:   rgba(238,240,245,0.92);
+  --success:     #15803d;
+  --success-bg:  rgba(21,128,61,0.1);
+  --success-border: rgba(21,128,61,0.35);
+  --danger:      #b91c1c;
+  --danger-border: rgba(185,28,28,0.4);
+  --danger-bg:   rgba(185,28,28,0.08);
+}
+
+.field {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  width: 100%;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.field:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-bg);
+}
+
+.btn-gold {
+  background: var(--gold-btn);
+  color: var(--gold-btn-text);
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.btn-gold:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.btn-gold:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--text-sub);
+  background: transparent;
+  border: none;
+}
+.menu-item:hover {
+  background: var(--card2);
+  color: var(--text);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-sub);
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--gold-border);
+  color: var(--text);
+}
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Listas estilo Google Drive */
+.drive-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.drive-th {
+  padding: 0.65rem 1.25rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.drive-td {
+  padding: 0.9rem 1.25rem;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.drive-table tbody tr {
+  transition: background 0.12s ease;
+}
+.drive-table tbody tr.drive-row-clickable {
+  cursor: pointer;
+}
+.drive-table tbody tr.drive-row-clickable:hover {
+  background: var(--card2);
+}
+.drive-table tbody tr.drive-row-selected {
+  background: var(--gold-bg);
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+.drive-table tbody tr:last-child .drive-td {
+  border-bottom: none;
+}
+
+.drive-table-papel {
+  table-layout: fixed;
+}
+.drive-td-nowrap {
+  white-space: nowrap;
+}
+.drive-td-clip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
+}
+.drive-td-name {
+  word-break: break-word;
+  line-height: 1.35;
+  hyphens: auto;
+}
+
+/* Botões de ação na ficha */
+.btn-action-edit {
+  background: transparent;
+  border: 1.5px solid var(--gold-border);
+  color: var(--gold);
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-action-edit:hover:not(:disabled) {
+  background: var(--gold-bg);
+  border-color: var(--gold);
+}
+
+.btn-action-secondary {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-sub);
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.btn-action-secondary:hover:not(:disabled) {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+.btn-action-secondary:disabled,
+.btn-action-danger:disabled,
+.btn-action-edit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-action-danger {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-action-danger:hover:not(:disabled) {
+  background: rgba(185, 28, 28, 0.14);
+  border-color: var(--danger);
+}
+.form-grid-2 {
+  display: grid;
+  gap: 1.25rem;
+}
+@media (min-width: 960px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}

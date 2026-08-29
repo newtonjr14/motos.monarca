@@ -1,0 +1,10 @@
+{
+  "description": "Manage motorcycle inventory and sales with payment tracking to streamline operations and financial control for motorcycle dealerships.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

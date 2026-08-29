@@ -1,0 +1,29 @@
+ktor:
+  deployment:
+    port: 8080
+  application:
+    modules:
+      - com.monarca.HttpKt.configureHttp
+      - com.monarca.SerializationKt.configureSerialization
+      - com.monarca.StatusPagesKt.configureStatusPages
+      - com.monarca.KoinKt.configureKoin
+      - com.monarca.ResourcesKt.configureResources
+      - com.monarca.HealthKt.configureHealth
+      - com.monarca.auth.AuthKt.configureAuthentication
+      - com.monarca.auth.http.AuthRoutingKt.configureAuthRoutes
+      - com.monarca.localidade.http.LocalidadeRoutingKt.configureLocalidade
+      - com.monarca.pessoa.http.PessoaRoutingKt.configurePessoa
+      - com.monarca.usuario.http.UsuarioRoutingKt.configureUsuario
+
+database:
+  url: "r2dbc:h2:mem:///localidade_test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
+  user: root
+  password: ""
+
+jwt:
+  secret: "monarca-motos-test-secret-min-32-characters-long"
+  issuer: "monarca-motos"
+  audience: "monarca-motos-api"
+  realm: "Monarca Motos"
+  accessExpirationMinutes: 60
+  refreshExpirationDays: 7
