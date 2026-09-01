@@ -38,3 +38,15 @@ fun ApplicationCall.podeConsultarPessoa() {
 fun ApplicationCall.podeGerenciarPessoa() {
     requirePermissao(Permissao.PESSOA_GERENCIAR)
 }
+
+fun ApplicationCall.podeConsultarEmpresa() {
+    requireQualquerPermissao(
+        Permissao.CONFIGURACAO,
+        Permissao.PESSOA_CONSULTAR,
+        Permissao.PESSOA_GERENCIAR,
+    )
+}
+
+fun ApplicationCall.podeGerenciarEmpresa() {
+    requirePermissao(Permissao.CONFIGURACAO)
+}

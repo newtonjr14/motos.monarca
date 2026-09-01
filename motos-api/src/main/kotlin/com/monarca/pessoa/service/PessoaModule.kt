@@ -7,5 +7,5 @@ import org.koin.dsl.module
 val pessoaModule = module {
     single<PessoaRepository> { ExposedPessoaRepository(get()) }
     single { PessoaService(get(), get()) }
-    single { PapelService(get(), get()) }
+    single { PapelService(get(), get(), get()) }
 }

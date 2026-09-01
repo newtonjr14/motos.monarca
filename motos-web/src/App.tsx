@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import monarcaLogo from "@/imports/Monarca.png";
 import { useAuth } from "@/auth/AuthContext";
 import LoginPage, { LanguageSelector, ThemeToggle, UserMenu } from "@/components/AuthUi";
 import CidadeSearchSelect from "@/components/CidadeSearchSelect";
 import DdiSearchSelect from "@/components/DdiSearchSelect";
+import EmpresaPage from "@/components/EmpresaPage";
 import PapelFicha from "@/components/PapelFicha";
+import PessoaPreviewModal from "@/components/PessoaPreviewModal";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useSystemHeartbeat } from "@/hooks/useSystemHeartbeat";
 import { useI18n } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
+import { mensagemConflitoDocumento, mensagemErroApi } from "@/i18n/apiMessages";
+import { tf } from "@/i18n/format";
+import { pessoaParaAtualizacao } from "@/papelUtils";
 import type { SystemStatus } from "@/systemStatus";
 import { APP_VERSION } from "@/version";
 import {
@@ -47,10 +53,13 @@ import {
   type TipoPessoa,
   type Usuario,
   type PerfilUsuario,
+  type VinculoFilialConflito,
 } from "@/api";
+import { obterFilialAtivaId } from "@/filialContext";
 import {
   PAGE_SIZE,
   apenasDigitos,
+  formatarCidade,
   formatarDocumentoEntrada,
   formatarDocumentoExibicao,
   formatarTelefoneExibicao,
@@ -206,15 +215,17 @@ const Icon = {
   divisoes: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>,
   cidades: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>,
   usuarios: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  empresa: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M6 21V7l6-4 6 4v14"/><path d="M9 21v-6h6v6"/></svg>,
   search: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   sun: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
   moon: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>,
   phone: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.7A2 2 0 012.18 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 8.15a16 16 0 006.94 6.94l1.51-1.52a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
   mail: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
   pin: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+  more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "clientes" | "fornecedores" | "usuarios" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "clientes" | "fornecedores" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 
 const navOperacao: { id: View; label: string; icon: keyof typeof Icon }[] = [
@@ -224,6 +235,7 @@ const navOperacao: { id: View; label: string; icon: keyof typeof Icon }[] = [
 ];
 
 const navCadastros: { id: View; label: string; icon: keyof typeof Icon }[] = [
+  { id: "empresa", label: "Empresa", icon: "empresa" },
   { id: "usuarios", label: "Usuários", icon: "usuarios" },
   { id: "paises", label: "Países", icon: "paises" },
   { id: "documentos", label: "Tipos de documento", icon: "divisoes" },
@@ -318,31 +330,23 @@ function Dashboard({ clientes, fornecedores, systemOnline }: { clientes: Papel[]
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>Dashboard</h1>
-        <p className="text-sm mt-0.5" style={{ color: v("--text-muted") }}>O que já está no sistema · {t("app.name")}</p>
+        <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{t("nav.dashboard")}</h1>
+        <p className="text-sm mt-0.5" style={{ color: v("--text-muted") }}>{tf(t, "dashboard.subtitle", { app: t("app.name") })}</p>
       </div>
 
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-        <StatCard label="Clientes" value={!systemOnline ? "—" : String(clientes.length)} sub="Papel cliente ativo" />
-        <StatCard label="Fornecedores" value={!systemOnline ? "—" : String(fornecedores.length)} sub="Papel fornecedor ativo" />
-        <StatCard label="Estoque e vendas" value="—" sub="Ainda sem CRUD" />
+        <StatCard label={t("dashboard.stat.clientes")} value={!systemOnline ? "—" : String(clientes.length)} sub={t("dashboard.stat.clientesSub")} />
+        <StatCard label={t("dashboard.stat.fornecedores")} value={!systemOnline ? "—" : String(fornecedores.length)} sub={t("dashboard.stat.fornecedoresSub")} />
+        <StatCard label={t("dashboard.stat.estoque")} value="—" sub={t("dashboard.stat.estoqueSub")} />
       </div>
 
       <div className="rounded-lg p-8 text-center" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <p className="text-sm" style={{ color: v("--text-sub") }}>
-          Motos, vendas e parcelas entram no menu quando o cadastro existir. Por enquanto só o que a API já faz.
+          {t("dashboard.placeholder")}
         </p>
       </div>
     </div>
   );
-}
-
-function cidadeLabel(cidades: Cidade[], id: number | null) {
-  if (id == null) return "—";
-  const c = cidades.find((x) => x.id === id);
-  if (!c) return "—";
-  const divisao = c.divisaoSigla ?? c.divisaoNome;
-  return `${c.nome} · ${divisao} · ${c.paisNome}`;
 }
 
 function enderecoLinha(p: Pessoa, cidades: Cidade[]) {
@@ -352,13 +356,127 @@ function enderecoLinha(p: Pessoa, cidades: Cidade[]) {
     p.bairro,
     p.cep,
     p.complemento,
-    cidadeLabel(cidades, p.idCidade),
+    formatarCidade(cidades, p.idCidade),
   ].filter((x) => x && x !== "—");
   return parts.length ? parts.join(" · ") : "—";
 }
 
 function docPrincipal(p: Papel) {
   return p.pessoa.documentos[0];
+}
+
+const MENU_WIDTH = 176;
+const MENU_EST_HEIGHT = 196;
+
+function PapelRowMenu({
+  item, recurso, open, onToggle, onClose, onView, onEdit, onChanged,
+}: {
+  item: Papel;
+  recurso: Recurso;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onView: () => void;
+  onEdit: () => void;
+  onChanged: () => Promise<void>;
+}) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (!open || !btnRef.current) {
+      setMenuPos(null);
+      return;
+    }
+    function updatePos() {
+      const btn = btnRef.current;
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - r.bottom;
+      const openUp = spaceBelow < MENU_EST_HEIGHT && r.top > MENU_EST_HEIGHT;
+      setMenuPos({
+        top: openUp ? r.top - MENU_EST_HEIGHT - 4 : r.bottom + 4,
+        left: Math.min(Math.max(8, r.right - MENU_WIDTH), window.innerWidth - MENU_WIDTH - 8),
+      });
+    }
+    updatePos();
+    window.addEventListener("scroll", updatePos, true);
+    window.addEventListener("resize", updatePos);
+    return () => {
+      window.removeEventListener("scroll", updatePos, true);
+      window.removeEventListener("resize", updatePos);
+    };
+  }, [open]);
+
+  async function alternarStatus() {
+    const proximo = item.status === "ativo" ? "inativo" : "ativo";
+    const msg = proximo === "inativo" ? t("ficha.confirmInactivate") : t("ficha.confirmActivate");
+    if (!confirm(msg)) return;
+    setBusy(true);
+    onClose();
+    try {
+      await atualizarPapel(recurso, item.id, {
+        status: proximo,
+        pessoa: pessoaParaAtualizacao(item.pessoa),
+      });
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function excluir() {
+    if (!confirm(t("ficha.confirmDeleteBranch"))) return;
+    setBusy(true);
+    onClose();
+    try {
+      const idFilial = await obterFilialAtivaId();
+      await excluirPapel(recurso, item.id, idFilial);
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <td className="drive-td drive-td-actions" onClick={(e) => e.stopPropagation()}>
+      <button
+        ref={btnRef}
+        type="button"
+        className="btn-row-menu"
+        disabled={busy}
+        aria-label={t("papel.actionsMenu")}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={onToggle}
+      >
+        <Icon.more />
+      </button>
+      {open && menuPos && createPortal(
+        <>
+          <div className="fixed inset-0 z-[150]" onClick={onClose} aria-hidden />
+          <div
+            role="menu"
+            className="menu-popover fixed z-[151] w-44 rounded-lg py-1 shadow-xl"
+            style={{ top: menuPos.top, left: menuPos.left, background: v("--card"), border: `1px solid ${v("--border")}` }}
+          >
+            <button type="button" role="menuitem" className="menu-item" onClick={() => { onView(); onClose(); }}>{t("papel.viewSheet")}</button>
+            <button type="button" role="menuitem" className="menu-item" onClick={() => { onEdit(); onClose(); }}>{t("common.edit")}</button>
+            <div className="menu-divider" />
+            <button type="button" role="menuitem" className="menu-item" onClick={() => void alternarStatus()}>
+              {item.status === "ativo" ? t("ficha.inactivate") : t("ficha.activate")}
+            </button>
+            <button type="button" role="menuitem" className="menu-item menu-item-danger" onClick={() => void excluir()}>
+              {t("common.delete")}
+            </button>
+          </div>
+        </>,
+        document.body,
+      )}
+    </td>
+  );
 }
 
 function slicePage<T>(itens: T[], page: number) {
@@ -383,33 +501,52 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
   const [editando, setEditando] = useState<Papel | null>(null);
+  const [menuId, setMenuId] = useState<number | null>(null);
 
   const resetLista = useCallback(() => {
     setFormAberto(false);
     setEditando(null);
     setSelected(null);
+    setMenuId(null);
   }, []);
   useCrudReset(navReset, resetLista);
 
   async function carregar() {
     try {
       setErro(null);
-      setItens(await listarPapeis(recurso));
+      const idFilial = await obterFilialAtivaId();
+      setItens(await listarPapeis(recurso, idFilial));
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao carregar");
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }
-
-  useEffect(() => { void carregar(); }, [recurso]);
-  useEffect(() => { setPage(1); }, [search, recurso]);
 
   const filtered = itens.filter((p) => {
     const q = search.toLowerCase();
     const doc = docPrincipal(p);
     return `${p.pessoa.nomeRazaoSocial} ${p.pessoa.email ?? ""} ${p.pessoa.telefone ?? ""} ${doc?.numero ?? ""} ${doc?.tipoNome ?? ""}`.toLowerCase().includes(q);
   });
+
+  useEffect(() => { void carregar(); }, [recurso]);
+  useEffect(() => { setPage(1); }, [search, recurso]);
+  useEffect(() => {
+    if (selected != null && !filtered.some((p) => p.id === selected)) {
+      setSelected(null);
+    }
+  }, [filtered, selected]);
+
+  const navIds = useMemo(() => filtered.map((p) => p.id), [filtered]);
+  const navIndex = selected != null ? navIds.indexOf(selected) : -1;
+
+  function navegarPara(index: number) {
+    const id = navIds[index];
+    if (id == null) return;
+    setSelected(id);
+    setPage(Math.floor(index / PAGE_SIZE) + 1);
+  }
+
   const paged = slicePage(filtered, page);
-  const selecionado = itens.find((p) => p.id === selected) ?? null;
+  const selecionado = filtered.find((p) => p.id === selected) ?? null;
 
   if (formAberto) {
     return (
@@ -457,15 +594,16 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
               <col style={{ width: "14%" }} />
               <col style={{ width: "18%" }} />
               <col style={{ width: "5.5rem" }} />
+              <col style={{ width: "2.5rem" }} />
             </colgroup>
             <thead>
-              <TableHeadRow cols={["col.id", "common.name", "col.document", "col.phone", "common.email", "col.city", "common.status"]} />
+              <TableHeadRow cols={["col.id", "common.name", "col.document", "col.phone", "common.email", "col.city", "common.status", "col.actions"]} />
             </thead>
             <tbody>
               {paged.slice.map((p) => {
                 const doc = docPrincipal(p);
                 const sel = selected === p.id;
-                const cidade = cidadeLabel(cidades, p.pessoa.idCidade);
+                const cidade = formatarCidade(cidades, p.pessoa.idCidade, true);
                 const tel = formatarTelefoneExibicao(p.pessoa.ddi, p.pessoa.telefone);
                 return (
                   <tr
@@ -482,6 +620,16 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
                     <td className="drive-td">
                       <StatusBadge status={p.status} />
                     </td>
+                    <PapelRowMenu
+                      item={p}
+                      recurso={recurso}
+                      open={menuId === p.id}
+                      onToggle={() => setMenuId(menuId === p.id ? null : p.id)}
+                      onClose={() => setMenuId(null)}
+                      onView={() => setSelected(p.id)}
+                      onEdit={() => { setEditando(p); setFormAberto(true); }}
+                      onChanged={carregar}
+                    />
                   </tr>
                 );
               })}
@@ -497,6 +645,12 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
           recurso={recurso}
           singular={singular}
           cidades={cidades}
+          nav={navIndex >= 0 ? {
+            index: navIndex,
+            total: navIds.length,
+            onPrev: () => navegarPara(navIndex - 1),
+            onNext: () => navegarPara(navIndex + 1),
+          } : undefined}
           onClose={() => setSelected(null)}
           onEdit={() => { setEditando(selecionado); setSelected(null); setFormAberto(true); }}
           onChanged={carregar}
@@ -512,6 +666,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
 }) {
   const { t } = useI18n();
   const numeroRef = useRef<HTMLInputElement>(null);
+  const conflitoRef = useRef<HTMLDivElement>(null);
   const pessoa = editando?.pessoa;
   const [paises, setPaises] = useState<Pais[]>([]);
   const [tipos, setTipos] = useState<DocumentoTipo[]>([]);
@@ -536,7 +691,9 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
   );
   const [erro, setErro] = useState<string | null>(null);
   const [erroNumero, setErroNumero] = useState<string | null>(null);
-  const [conflito, setConflito] = useState<DocumentoConflito | null>(null);
+  const [conflito, setConflito] = useState<DocumentoConflito | VinculoFilialConflito | null>(null);
+  const [idPessoaPendente, setIdPessoaPendente] = useState<number | null>(null);
+  const [previewPessoaId, setPreviewPessoaId] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => { void listarPaises().then(setPaises); }, []);
@@ -581,6 +738,16 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
     numeroRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     numeroRef.current?.focus();
   }, [erroNumero]);
+
+  useEffect(() => {
+    if (!conflito) return;
+    conflitoRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [conflito]);
+
+  useEffect(() => {
+    if (!erro) return;
+    conflitoRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [erro]);
 
   function corpoPessoa() {
     const ddiDigits = apenasDigitos(ddi);
@@ -629,24 +796,38 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
     return true;
   }
 
-  async function salvar(idPessoaExistente?: number) {
+  async function salvar(idPessoaExistente?: number, confirmarVinculoFilial = false) {
     setErro(null);
     setErroNumero(null);
     if (idPessoaExistente == null && !validarLocal()) return;
     setSalvando(true);
     try {
+      const idFilialCadastro = await obterFilialAtivaId();
       if (editando) {
         await atualizarPapel(recurso, editando.id, { status, pessoa: corpoPessoa() });
       } else if (idPessoaExistente != null) {
-        await criarPapel(recurso, { idPessoa: idPessoaExistente, status });
+        await criarPapel(recurso, {
+          idPessoa: idPessoaExistente,
+          idFilialCadastro,
+          confirmarVinculoFilial,
+          status,
+        });
       } else {
-        await criarPapel(recurso, { status, pessoa: corpoPessoa() });
+        await criarPapel(recurso, { status, idFilialCadastro, pessoa: corpoPessoa() });
       }
+      setConflito(null);
+      setIdPessoaPendente(null);
       await onSaved();
     } catch (e) {
       const msg = e instanceof Error ? e.message : t("papel.error.saveFailed");
       if (e instanceof ApiError && e.status === 409) {
-        setConflito(e.body as DocumentoConflito);
+        const body = e.body as DocumentoConflito | VinculoFilialConflito;
+        setConflito(body);
+        if (body.codigo === "VINCULO_FILIAL") {
+          setIdPessoaPendente(body.pessoa.id);
+        } else if (idPessoaExistente != null) {
+          setIdPessoaPendente(idPessoaExistente);
+        }
       } else if (isErroCampoDocumento(msg)) {
         setErroNumero(msg);
       } else {
@@ -655,6 +836,10 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
     } finally {
       setSalvando(false);
     }
+  }
+
+  function filiaisConflitoTexto(filiais: { nome: string }[]) {
+    return filiais.map((f) => f.nome).join(", ");
   }
 
   return (
@@ -670,20 +855,6 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
 
       <form className="rounded-lg p-5 space-y-5" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
         onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
-        {erro && (
-          <p className="text-sm px-3 py-2 rounded-md" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)" }}>{erro}</p>
-        )}
-
-        {conflito && (
-          <div className="p-3 rounded-md space-y-2" style={{ background: v("--gold-bg"), border: `1px solid ${v("--gold-border")}` }}>
-            <p className="text-sm" style={{ color: v("--text") }}>{conflito.message}</p>
-            <p className="text-sm font-medium" style={{ color: v("--text-sub") }}>{conflito.pessoa.nomeRazaoSocial}</p>
-            <button type="button" className="btn-gold text-sm px-3 py-1.5"
-              onClick={() => void salvar(conflito.pessoa.id)}>
-              {t("papel.useExisting")} {singular.toLowerCase()}
-            </button>
-          </div>
-        )}
 
         <div className="form-grid-2">
           <Section title={t("papel.section.identification")}>
@@ -796,27 +967,81 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
           </div>
         </Section>
 
-        <div className="flex justify-end gap-2 pt-1" style={{ borderTop: `1px solid ${v("--border")}` }}>
+        {(erro || conflito) && (
+          <div ref={conflitoRef} className="space-y-2 pt-1" style={{ borderTop: `1px solid ${v("--border")}` }}>
+            {erro && (
+              <p className="text-sm px-3 py-2 rounded-md" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)" }}>{erro}</p>
+            )}
+
+            {conflito && (
+              <div className="p-3 rounded-md space-y-3" style={{ background: v("--gold-bg"), border: `1px solid ${v("--gold-border")}` }}>
+                <p className="text-sm" style={{ color: v("--text") }}>
+                  {conflito.codigo === "VINCULO_FILIAL"
+                    ? tf(t, "papel.conflict.linkBranch", {
+                        nome: conflito.pessoa.nomeRazaoSocial,
+                        filiais: filiaisConflitoTexto(conflito.filiaisVinculadas),
+                        filialAlvo: conflito.filialAlvoNome,
+                      })
+                    : mensagemConflitoDocumento(conflito, t)}
+                </p>
+                {conflito.filiaisVinculadas && conflito.filiaisVinculadas.length > 0 && conflito.codigo !== "VINCULO_FILIAL" && (
+                  <p className="text-xs" style={{ color: v("--text-muted") }}>
+                    {t("papel.registeredBranches")}: {filiaisConflitoTexto(conflito.filiaisVinculadas)}
+                  </p>
+                )}
+                <p className="text-sm font-medium" style={{ color: v("--text-sub") }}>{conflito.pessoa.nomeRazaoSocial}</p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className="btn-ghost text-sm px-3 py-1.5"
+                    onClick={() => setPreviewPessoaId(conflito.pessoa.id)}>
+                    {t("papel.viewExisting")}
+                  </button>
+                  {conflito.codigo === "VINCULO_FILIAL" ? (
+                    <button type="button" className="btn-gold text-sm px-3 py-1.5"
+                      onClick={() => void salvar(idPessoaPendente ?? conflito.pessoa.id, true)}>
+                      {t("papel.confirmLinkBranch")}
+                    </button>
+                  ) : (
+                    <button type="button" className="btn-gold text-sm px-3 py-1.5"
+                      onClick={() => void salvar(conflito.pessoa.id)}>
+                      {t("papel.useExisting")} {singular.toLowerCase()}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost px-4 py-2.5 text-sm" onClick={onClose}>{t("common.cancel")}</button>
           <button type="submit" disabled={salvando} className="btn-gold px-5 py-2.5 text-sm min-w-28">
             {salvando ? t("common.saving") : t("common.save")}
           </button>
         </div>
       </form>
+
+      {previewPessoaId != null && (
+        <PessoaPreviewModal
+          idPessoa={previewPessoaId}
+          cidades={cidades}
+          onClose={() => setPreviewPessoaId(null)}
+        />
+      )}
     </div>
   );
 }
 
-function CatalogHeader({ titulo, count, singular, onNovo }: {
-  titulo: string; count: number; singular: string; onNovo: () => void;
+function CatalogHeader({ titulo, count, novoLabel, onNovo }: {
+  titulo: string; count: number; novoLabel: string; onNovo: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-start justify-between">
       <div>
         <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{titulo}</h1>
-        <p className="text-sm mt-0.5" style={{ color: v("--text-muted") }}>{count} cadastrados</p>
+        <p className="text-sm mt-0.5" style={{ color: v("--text-muted") }}>{count} {t("common.registered")}</p>
       </div>
-      <button className="btn-gold px-4 py-2 text-sm" onClick={onNovo}>Novo {singular}</button>
+      <button className="btn-gold px-4 py-2 text-sm" onClick={onNovo}>{novoLabel}</button>
     </div>
   );
 }
@@ -847,7 +1072,7 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
       setErro(null);
       setItens(await listarTipos());
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao carregar");
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }
   useEffect(() => { void carregar(); }, []);
@@ -867,7 +1092,7 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
   async function salvar() {
     setErro(null);
     if (idPais === "" || !codigo.trim() || !nome.trim()) {
-      setErro("Informe país, código e nome");
+      setErro(t("documento.error.required"));
       return;
     }
     setSalvando(true);
@@ -884,7 +1109,7 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
       setFormAberto(false);
       await carregar();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao salvar");
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
       setSalvando(false);
     }
@@ -894,15 +1119,15 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
     return (
       <div className="space-y-5 max-w-xl">
         <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={() => setFormAberto(false)}>
-          ← Voltar para a lista
+          ← {t("common.back")}
         </button>
         <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
-          {editando ? "Editar tipo de documento" : "Novo tipo de documento"}
+          {editando ? t("documento.edit") : t("documento.new")}
         </h1>
         <form className="rounded-lg p-5 space-y-4" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
           onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-          <Field label="País" required>
+          <Field label={t("papel.country")} required>
             <select className="field" value={idPais} onChange={(e) => setIdPais(Number(e.target.value))}>
               {paises.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
@@ -913,19 +1138,19 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
               <option value="juridica">{t("tipoPessoa.juridica")}</option>
             </select>
           </Field>
-          <Field label="Código" required hint="Ex.: CPF, RUC, DNI">
+          <Field label={t("documento.code")} required hint={t("documento.codeHint")}>
             <input className="field font-mono uppercase" value={codigo} onChange={(e) => setCodigo(e.target.value.toUpperCase())} placeholder="CPF" />
           </Field>
-          <Field label="Nome exibido" required>
+          <Field label={t("documento.displayName")} required>
             <input className="field" value={nome} onChange={(e) => setNome(e.target.value)} onBlur={() => setNome((x) => toTitleCase(x))} />
           </Field>
           <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: v("--text-sub") }}>
             <input type="checkbox" checked={unico} onChange={(e) => setUnico(e.target.checked)} />
-            Documento único (não permite duplicar número no sistema)
+            {t("documento.uniqueLabel")}
           </label>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>Cancelar</button>
-            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? "Salvando..." : "Salvar"}</button>
+            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>{t("common.cancel")}</button>
+            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? t("common.saving") : t("common.save")}</button>
           </div>
         </form>
       </div>
@@ -940,7 +1165,7 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
 
   return (
     <div className="space-y-5">
-      <CatalogHeader titulo={t("nav.documentos")} count={itens.length} singular="tipo" onNovo={() => abrir()} />
+      <CatalogHeader titulo={t("nav.documentos")} count={itens.length} novoLabel={t("documento.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("col.searchDocTypes")}
         className="px-3 py-2 text-sm rounded-md outline-none w-72"
@@ -963,9 +1188,9 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(item)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async () => {
-                      if (!confirm(`Excluir ${item.codigo}?`)) return;
+                      if (!confirm(tf(t, "documento.confirmDelete", { code: item.codigo }))) return;
                       try { await excluirTipoDocumento(item.id); await carregar(); }
-                      catch (e) { setErro(e instanceof Error ? e.message : "Falha ao excluir"); }
+                      catch (e) { setErro(mensagemErroApi(e, t, "common.error.deleteFailed")); }
                     }}>{t("common.delete")}</button>
                 </td>
               </tr>
@@ -1018,7 +1243,7 @@ function UsuariosPage({ navReset }: { navReset: number }) {
       setErro(null);
       setItens(await listarUsuarios());
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao carregar");
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }
   useEffect(() => { void carregar(); }, []);
@@ -1039,15 +1264,15 @@ function UsuariosPage({ navReset }: { navReset: number }) {
   async function salvar() {
     setErro(null);
     if (!nome.trim() || !loginField.trim() || !email.trim()) {
-      setErro("Informe nome, login e e-mail");
+      setErro(t("usuario.error.required"));
       return;
     }
     if (!editando && !senha.trim()) {
-      setErro("Senha é obrigatória");
+      setErro(t("usuario.error.passwordRequired"));
       return;
     }
     if (senha.trim() && senha.trim().length < 8) {
-      setErro("Senha deve ter pelo menos 8 caracteres");
+      setErro(t("usuario.error.passwordMin"));
       return;
     }
     setSalvando(true);
@@ -1065,7 +1290,7 @@ function UsuariosPage({ navReset }: { navReset: number }) {
       setFormAberto(false);
       await carregar();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao salvar");
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
       setSalvando(false);
     }
@@ -1075,10 +1300,10 @@ function UsuariosPage({ navReset }: { navReset: number }) {
     return (
       <div className="space-y-5 max-w-xl">
         <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={() => setFormAberto(false)}>
-          ← Voltar para a lista
+          ← {t("common.back")}
         </button>
         <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
-          {editando ? "Editar usuário" : "Novo usuário"}
+          {editando ? t("usuario.edit") : t("usuario.new")}
         </h1>
         <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
           onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
@@ -1095,7 +1320,7 @@ function UsuariosPage({ navReset }: { navReset: number }) {
             <input className="field" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               onBlur={() => setEmail((x) => toEmailLower(x))} placeholder="maria@exemplo.com" />
           </Field>
-          <Field label={t("common.password")} required={!editando} hint={editando ? t("usuario.passwordHint") : "Mínimo 8 caracteres"}>
+          <Field label={t("common.password")} required={!editando} hint={editando ? t("usuario.passwordHint") : t("common.passwordMinHint")}>
             <input className="field" type="password" autoComplete="new-password" value={senha}
               onChange={(e) => setSenha(e.target.value)} placeholder={editando ? "••••••••" : ""} />
           </Field>
@@ -1126,7 +1351,7 @@ function UsuariosPage({ navReset }: { navReset: number }) {
 
   return (
     <div className="space-y-5">
-      <CatalogHeader titulo={t("usuario.title")} count={itens.length} singular="usuário" onNovo={() => abrir()} />
+      <CatalogHeader titulo={t("usuario.title")} count={itens.length} novoLabel={t("usuario.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
         className="px-3 py-2 text-sm rounded-md outline-none w-64"
@@ -1149,9 +1374,9 @@ function UsuariosPage({ navReset }: { navReset: number }) {
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(u)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async () => {
-                      if (!confirm(`Excluir ${u.nome}?`)) return;
+                      if (!confirm(tf(t, "common.confirmDelete", { name: u.nome }))) return;
                       try { await excluirUsuario(u.id); await carregar(); }
-                      catch (e) { setErro(e instanceof Error ? e.message : "Falha ao excluir"); }
+                      catch (e) { setErro(mensagemErroApi(e, t, "common.error.deleteFailed")); }
                     }}>{t("common.delete")}</button>
                 </td>
               </tr>
@@ -1190,7 +1415,7 @@ function PaisesPage({ navReset }: { navReset: number }) {
       setErro(null);
       setItens(await listarPaises());
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao carregar");
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }
   useEffect(() => { void carregar(); }, []);
@@ -1209,7 +1434,7 @@ function PaisesPage({ navReset }: { navReset: number }) {
   async function salvar() {
     setErro(null);
     if (!nome.trim() || !sigla.trim()) {
-      setErro("Informe nome e sigla");
+      setErro(t("pais.error.required"));
       return;
     }
     setSalvando(true);
@@ -1220,7 +1445,7 @@ function PaisesPage({ navReset }: { navReset: number }) {
       setFormAberto(false);
       await carregar();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao salvar");
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
       setSalvando(false);
     }
@@ -1230,39 +1455,39 @@ function PaisesPage({ navReset }: { navReset: number }) {
     return (
       <div className="space-y-5 max-w-xl">
         <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={() => setFormAberto(false)}>
-          ← Voltar para a lista
+          ← {t("common.back")}
         </button>
         <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
-          {editando ? "Editar país" : "Novo país"}
+          {editando ? t("pais.edit") : t("pais.new")}
         </h1>
         <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
           onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-          <Field label="Nome" required>
+          <Field label={t("common.name")} required>
             <input className="field" autoFocus value={nome} onChange={(e) => setNome(e.target.value)}
-              onBlur={() => setNome((x) => toTitleCase(x))} placeholder="Brasil" />
+              onBlur={() => setNome((x) => toTitleCase(x))} placeholder={t("pais.placeholderName")} />
           </Field>
-          <Field label="Sigla ISO" required hint="Duas letras, ex. BR">
+          <Field label={t("pais.isoSigla")} required hint={t("pais.isoHint")}>
             <input className="field font-mono uppercase" maxLength={2} value={sigla}
               onChange={(e) => setSigla(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())} />
           </Field>
-          <Field label="Usa sigla na divisão">
+          <Field label={t("pais.useDivisionSigla")}>
             <select className="field" value={usaSigla ? "sim" : "nao"} onChange={(e) => setUsaSigla(e.target.value === "sim")}>
-              <option value="sim">Sim (UF)</option>
-              <option value="nao">Não (departamento)</option>
+              <option value="sim">{t("pais.divisionSiglaUf")}</option>
+              <option value="nao">{t("pais.divisionSiglaDept")}</option>
             </select>
           </Field>
           {editando && (
-            <Field label="Status">
+            <Field label={t("common.status")}>
               <select className="field" value={status} onChange={(e) => setStatus(e.target.value as "ativo" | "inativo")}>
-                <option value="ativo">Ativo</option>
-                <option value="inativo">Inativo</option>
+                <option value="ativo">{t("common.active")}</option>
+                <option value="inativo">{t("common.inactive")}</option>
               </select>
             </Field>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>Cancelar</button>
-            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? "Salvando..." : "Salvar"}</button>
+            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>{t("common.cancel")}</button>
+            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? t("common.saving") : t("common.save")}</button>
           </div>
         </form>
       </div>
@@ -1274,7 +1499,7 @@ function PaisesPage({ navReset }: { navReset: number }) {
 
   return (
     <div className="space-y-5">
-      <CatalogHeader titulo={t("nav.paises")} count={itens.length} singular="país" onNovo={() => abrir()} />
+      <CatalogHeader titulo={t("nav.paises")} count={itens.length} novoLabel={t("pais.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
         className="px-3 py-2 text-sm rounded-md outline-none w-64"
@@ -1290,15 +1515,15 @@ function PaisesPage({ navReset }: { navReset: number }) {
                 <Td mono gold>{p.id}</Td>
                 <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{p.nome}</td>
                 <Td mono>{p.sigla}</Td>
-                <Td sub>{p.usaSiglaDivisao ? "UF (sigla)" : "Departamento"}</Td>
+                <Td sub>{p.usaSiglaDivisao ? t("pais.divisionTypeUf") : t("pais.divisionTypeDept")}</Td>
                 <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                 <td className="px-4 py-3 text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(p)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async () => {
-                      if (!confirm(`Excluir ${p.nome}?`)) return;
+                      if (!confirm(tf(t, "common.confirmDelete", { name: p.nome }))) return;
                       try { await excluirPais(p.id); await carregar(); }
-                      catch (e) { setErro(e instanceof Error ? e.message : "Falha ao excluir"); }
+                      catch (e) { setErro(mensagemErroApi(e, t, "common.error.deleteFailed")); }
                     }}>{t("common.delete")}</button>
                 </td>
               </tr>
@@ -1337,7 +1562,7 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
       setErro(null);
       setItens(await listarDivisoes());
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao carregar");
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }
   useEffect(() => { void carregar(); }, []);
@@ -1359,7 +1584,7 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
   async function salvar() {
     setErro(null);
     if (!nome.trim() || idPais === "") {
-      setErro("Informe país e nome");
+      setErro(t("divisao.error.required"));
       return;
     }
     setSalvando(true);
@@ -1370,7 +1595,7 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
       setFormAberto(false);
       await carregar();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao salvar");
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
       setSalvando(false);
     }
@@ -1380,38 +1605,38 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
     return (
       <div className="space-y-5 max-w-xl">
         <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={() => setFormAberto(false)}>
-          ← Voltar para a lista
+          ← {t("common.back")}
         </button>
         <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
-          {editando ? "Editar UF / departamento" : "Nova UF / departamento"}
+          {editando ? t("divisao.edit") : t("divisao.new")}
         </h1>
         <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
           onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-          <Field label="País" required>
+          <Field label={t("papel.country")} required>
             <select className="field" value={idPais} onChange={(e) => setIdPais(Number(e.target.value))}>
               {paises.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
           </Field>
-          <Field label="Nome" required>
+          <Field label={t("common.name")} required>
             <input className="field" autoFocus value={nome} onChange={(e) => setNome(e.target.value)}
-              onBlur={() => setNome((x) => toTitleCase(x))} placeholder="Mato Grosso Do Sul" />
+              onBlur={() => setNome((x) => toTitleCase(x))} placeholder={t("divisao.placeholderName")} />
           </Field>
-          <Field label="Sigla" hint="Opcional. Ex. MS. Deixe vazio para departamento.">
+          <Field label={t("col.initials")} hint={t("divisao.siglaHint")}>
             <input className="field font-mono uppercase" maxLength={10} value={sigla}
               onChange={(e) => setSigla(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())} />
           </Field>
           {editando && (
-            <Field label="Status">
+            <Field label={t("common.status")}>
               <select className="field" value={status} onChange={(e) => setStatus(e.target.value as "ativo" | "inativo")}>
-                <option value="ativo">Ativo</option>
-                <option value="inativo">Inativo</option>
+                <option value="ativo">{t("common.active")}</option>
+                <option value="inativo">{t("common.inactive")}</option>
               </select>
             </Field>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>Cancelar</button>
-            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? "Salvando..." : "Salvar"}</button>
+            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>{t("common.cancel")}</button>
+            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? t("common.saving") : t("common.save")}</button>
           </div>
         </form>
       </div>
@@ -1423,7 +1648,7 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
 
   return (
     <div className="space-y-5">
-      <CatalogHeader titulo={t("nav.divisoes")} count={itens.length} singular="divisão" onNovo={() => abrir()} />
+      <CatalogHeader titulo={t("nav.divisoes")} count={itens.length} novoLabel={t("divisao.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
         className="px-3 py-2 text-sm rounded-md outline-none w-64"
@@ -1445,9 +1670,9 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(d)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async () => {
-                      if (!confirm(`Excluir ${d.nome}?`)) return;
+                      if (!confirm(tf(t, "common.confirmDelete", { name: d.nome }))) return;
                       try { await excluirDivisao(d.id); await carregar(); }
-                      catch (e) { setErro(e instanceof Error ? e.message : "Falha ao excluir"); }
+                      catch (e) { setErro(mensagemErroApi(e, t, "common.error.deleteFailed")); }
                     }}>{t("common.delete")}</button>
                 </td>
               </tr>
@@ -1461,10 +1686,12 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
   );
 }
 
-function CidadesPage({ paises, navReset }: { paises: Pais[]; navReset: number }) {
+function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navReset: number }) {
   const { t } = useI18n();
   const [itens, setItens] = useState<Cidade[]>([]);
   const [divisoes, setDivisoes] = useState<Divisao[]>([]);
+  const [paisesLocal, setPaisesLocal] = useState<Pais[]>([]);
+  const paises = paisesProp.length > 0 ? paisesProp : paisesLocal;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
@@ -1489,14 +1716,25 @@ function CidadesPage({ paises, navReset }: { paises: Pais[]; navReset: number })
       setItens(c);
       setDivisoes(d);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao carregar");
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }
   useEffect(() => { void carregar(); }, []);
   useEffect(() => { setPage(1); }, [search]);
 
+  useEffect(() => {
+    if (paisesProp.length > 0) return;
+    void listarPaises({ logoutOn401: false }).then(setPaisesLocal).catch(() => {});
+  }, [paisesProp.length]);
+
   const paisPadrao = paises.find((p) => p.sigla === "BR") ?? paises[0];
   const divisoesDoPais = divisoes.filter((d) => d.idPais === idPais);
+  const idPaisSelect = paises.some((p) => p.id === idPais) ? idPais : "";
+
+  useEffect(() => {
+    if (!formAberto || idPais !== "" || !paisPadrao) return;
+    setIdPais(paisPadrao.id);
+  }, [formAberto, idPais, paisPadrao]);
 
   function abrir(item?: Cidade) {
     setEditando(item ?? null);
@@ -1518,7 +1756,7 @@ function CidadesPage({ paises, navReset }: { paises: Pais[]; navReset: number })
   async function salvar() {
     setErro(null);
     if (!nome.trim() || idDivisao === "") {
-      setErro("Informe divisão e nome");
+      setErro(t("cidade.error.required"));
       return;
     }
     setSalvando(true);
@@ -1529,7 +1767,7 @@ function CidadesPage({ paises, navReset }: { paises: Pais[]; navReset: number })
       setFormAberto(false);
       await carregar();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao salvar");
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
       setSalvando(false);
     }
@@ -1539,42 +1777,48 @@ function CidadesPage({ paises, navReset }: { paises: Pais[]; navReset: number })
     return (
       <div className="space-y-5 max-w-xl">
         <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={() => setFormAberto(false)}>
-          ← Voltar para a lista
+          ← {t("common.back")}
         </button>
         <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
-          {editando ? "Editar cidade" : "Nova cidade"}
+          {editando ? t("cidade.edit") : t("cidade.new")}
         </h1>
         <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
           onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-          <Field label="País" required>
-            <select className="field" value={idPais} onChange={(e) => setIdPais(Number(e.target.value))}>
+          <Field label={t("papel.country")} required>
+            <select
+              className="field"
+              value={idPaisSelect}
+              disabled={paises.length === 0}
+              onChange={(e) => setIdPais(e.target.value ? Number(e.target.value) : "")}
+            >
+              <option value="">{paises.length === 0 ? t("system.checking") : t("cidade.selectDivision")}</option>
               {paises.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
           </Field>
-          <Field label="UF / departamento" required>
+          <Field label={t("col.divisionRegion")} required>
             <select className="field" value={idDivisao} onChange={(e) => setIdDivisao(e.target.value ? Number(e.target.value) : "")}>
-              <option value="">Selecione</option>
+              <option value="">{t("cidade.selectDivision")}</option>
               {divisoesDoPais.map((d) => (
                 <option key={d.id} value={d.id}>{d.sigla ? `${d.nome} (${d.sigla})` : d.nome}</option>
               ))}
             </select>
           </Field>
-          <Field label="Nome" required>
+          <Field label={t("common.name")} required>
             <input className="field" autoFocus value={nome} onChange={(e) => setNome(e.target.value)}
-              onBlur={() => setNome((x) => toTitleCase(x))} placeholder="Ponta Porã" />
+              onBlur={() => setNome((x) => toTitleCase(x))} placeholder={t("cidade.placeholderName")} />
           </Field>
           {editando && (
-            <Field label="Status">
+            <Field label={t("common.status")}>
               <select className="field" value={status} onChange={(e) => setStatus(e.target.value as "ativo" | "inativo")}>
-                <option value="ativo">Ativo</option>
-                <option value="inativo">Inativo</option>
+                <option value="ativo">{t("common.active")}</option>
+                <option value="inativo">{t("common.inactive")}</option>
               </select>
             </Field>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>Cancelar</button>
-            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? "Salvando..." : "Salvar"}</button>
+            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>{t("common.cancel")}</button>
+            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? t("common.saving") : t("common.save")}</button>
           </div>
         </form>
       </div>
@@ -1587,7 +1831,7 @@ function CidadesPage({ paises, navReset }: { paises: Pais[]; navReset: number })
 
   return (
     <div className="space-y-5">
-      <CatalogHeader titulo={t("nav.cidades")} count={itens.length} singular="cidade" onNovo={() => abrir()} />
+      <CatalogHeader titulo={t("nav.cidades")} count={itens.length} novoLabel={t("cidade.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
         className="px-3 py-2 text-sm rounded-md outline-none w-64"
@@ -1609,9 +1853,9 @@ function CidadesPage({ paises, navReset }: { paises: Pais[]; navReset: number })
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(c)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async () => {
-                      if (!confirm(`Excluir ${c.nome}?`)) return;
+                      if (!confirm(tf(t, "common.confirmDelete", { name: c.nome }))) return;
                       try { await excluirCidade(c.id); await carregar(); }
-                      catch (e) { setErro(e instanceof Error ? e.message : "Falha ao excluir"); }
+                      catch (e) { setErro(mensagemErroApi(e, t, "common.error.deleteFailed")); }
                     }}>{t("common.delete")}</button>
                 </td>
               </tr>
@@ -1637,13 +1881,12 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
   const [paises, setPaises] = useState<Pais[]>([]);
 
   useEffect(() => {
-    if (!systemOnline) return;
     void (async () => {
       try {
         const opts = { logoutOn401: false as const };
         const [c, f, cid, p] = await Promise.all([
-          listarPapeis("clientes", opts),
-          listarPapeis("fornecedores", opts),
+          listarPapeis("clientes", undefined, opts),
+          listarPapeis("fornecedores", undefined, opts),
           listarCidades(undefined, undefined, opts),
           listarPaises(opts),
         ]);
@@ -1652,18 +1895,19 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
         setCidades(cid);
         setPaises(p);
       } catch {
-        /* dados do dashboard ficam como estão */
+        /* mantém dados já carregados */
       }
     })();
-  }, [view, systemOnline]);
+  }, [view]);
 
   const titles: Record<View, string> = {
     dashboard: t("nav.dashboard"),
     clientes: t("nav.clientes"),
     fornecedores: t("nav.fornecedores"),
     usuarios: t("nav.usuarios"),
+    empresa: t("nav.empresa"),
     paises: t("nav.paises"),
-    documentos: "Tipos de documento",
+    documentos: t("nav.documentos"),
     divisoes: t("nav.divisoes"),
     cidades: t("nav.cidades"),
   };
@@ -1692,9 +1936,10 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
         </div>
         <div className="px-8 py-6">
           {view === "dashboard" && <Dashboard clientes={clientes} fornecedores={fornecedores} systemOnline={systemOnline} />}
-          {view === "clientes" && <PapelPage recurso="clientes" titulo="Clientes" singular="Cliente" cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
-          {view === "fornecedores" && <PapelPage recurso="fornecedores" titulo="Fornecedores" singular="Fornecedor" cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
+          {view === "clientes" && <PapelPage recurso="clientes" titulo={t("nav.clientes")} singular={t("entity.cliente")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
+          {view === "fornecedores" && <PapelPage recurso="fornecedores" titulo={t("nav.fornecedores")} singular={t("entity.fornecedor")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
           {view === "usuarios" && <UsuariosPage navReset={navReset} />}
+          {view === "empresa" && <EmpresaPage cidades={cidades} navReset={navReset} />}
           {view === "paises" && <PaisesPage navReset={navReset} />}
           {view === "documentos" && <DocumentosTiposPage paises={paises} navReset={navReset} />}
           {view === "divisoes" && <DivisoesPage paises={paises} navReset={navReset} />}

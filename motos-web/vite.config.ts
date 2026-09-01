@@ -42,6 +42,8 @@ export default defineConfig(({ mode }) => {
         '/documentos-tipos': 'http://localhost:8080',
         '/clientes': 'http://localhost:8080',
         '/fornecedores': 'http://localhost:8080',
+        '/empresas': 'http://localhost:8080',
+        '/filiais': 'http://localhost:8080',
         '/usuarios': 'http://localhost:8080',
         '/auth': 'http://localhost:8080',
         '/health': 'http://localhost:8080',

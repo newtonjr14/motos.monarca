@@ -2,6 +2,7 @@ package com.monarca.pessoa.repository
 
 import com.monarca.common.enums.Status
 import com.monarca.pessoa.domain.DocumentoTipo
+import com.monarca.pessoa.domain.FilialVinculo
 import com.monarca.pessoa.domain.PapelCompleto
 import com.monarca.pessoa.domain.Pessoa
 import com.monarca.pessoa.domain.PessoaCompleta
@@ -38,19 +39,25 @@ interface PessoaRepository {
         ignorarPessoaId: Long? = null,
     ): Pessoa?
 
-    suspend fun listarClientes(): List<PapelCompleto>
+    suspend fun listarClientes(idFilial: Long?, filtrarPorFilial: Boolean): List<PapelCompleto>
     suspend fun buscarCliente(id: Long): PapelCompleto?
     suspend fun buscarClientePorPessoa(idPessoa: Long): PapelCompleto?
-    suspend fun inserirCliente(idPessoa: Long, status: Status): Long
+    suspend fun inserirCliente(idPessoa: Long, status: Status, idFilialCadastro: Long): Long
     suspend fun atualizarCliente(id: Long, status: Status): Boolean
-    suspend fun excluirCliente(id: Long): Boolean
+    suspend fun excluirCliente(id: Long, idFilial: Long?): Boolean
     suspend fun contarClientes(): Long
+    suspend fun vincularClienteFilial(idCliente: Long, idFilial: Long): Boolean
+    suspend fun existeVinculoClienteFilial(idCliente: Long, idFilial: Long): Boolean
+    suspend fun listarFiliaisDoCliente(idCliente: Long): List<FilialVinculo>
 
-    suspend fun listarFornecedores(): List<PapelCompleto>
+    suspend fun listarFornecedores(idFilial: Long?, filtrarPorFilial: Boolean): List<PapelCompleto>
     suspend fun buscarFornecedor(id: Long): PapelCompleto?
     suspend fun buscarFornecedorPorPessoa(idPessoa: Long): PapelCompleto?
-    suspend fun inserirFornecedor(idPessoa: Long, status: Status): Long
+    suspend fun inserirFornecedor(idPessoa: Long, status: Status, idFilialCadastro: Long): Long
     suspend fun atualizarFornecedor(id: Long, status: Status): Boolean
-    suspend fun excluirFornecedor(id: Long): Boolean
+    suspend fun excluirFornecedor(id: Long, idFilial: Long?): Boolean
     suspend fun contarFornecedores(): Long
+    suspend fun vincularFornecedorFilial(idFornecedor: Long, idFilial: Long): Boolean
+    suspend fun existeVinculoFornecedorFilial(idFornecedor: Long, idFilial: Long): Boolean
+    suspend fun listarFiliaisDoFornecedor(idFornecedor: Long): List<FilialVinculo>
 }

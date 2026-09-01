@@ -31,19 +31,25 @@ export function markSystemChecking() {
   emit("checking");
 }
 
+export const HEARTBEAT_MS = 30_000;
+const OFFLINE_AFTER_FAILURES = 2;
+
+let healthFailures = 0;
+
 export async function checkSystemHealth(): Promise<boolean> {
   try {
     const res = await fetch("/health", { method: "GET" });
     if (!res.ok) {
-      markSystemOffline();
+      healthFailures += 1;
+      if (healthFailures >= OFFLINE_AFTER_FAILURES) markSystemOffline();
       return false;
     }
+    healthFailures = 0;
     markSystemOnline();
     return true;
   } catch {
-    markSystemOffline();
+    healthFailures += 1;
+    if (healthFailures >= OFFLINE_AFTER_FAILURES) markSystemOffline();
     return false;
   }
 }
-
-export const HEARTBEAT_MS = 60_000;

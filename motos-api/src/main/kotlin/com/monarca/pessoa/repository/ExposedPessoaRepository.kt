@@ -1,8 +1,10 @@
 package com.monarca.pessoa.repository
 
 import com.monarca.common.enums.Status
+import com.monarca.empresa.repository.FiliaisTable
 import com.monarca.localidade.repository.PaisesTable
 import com.monarca.pessoa.domain.DocumentoTipo
+import com.monarca.pessoa.domain.FilialVinculo
 import com.monarca.pessoa.domain.PapelCompleto
 import com.monarca.pessoa.domain.Pessoa
 import com.monarca.pessoa.domain.PessoaCompleta
@@ -220,71 +222,163 @@ class ExposedPessoaRepository(
             .singleOrNull()
     }
 
-    override suspend fun listarClientes(): List<PapelCompleto> = listarPapeis(clientesPapel)
+    override suspend fun listarClientes(idFilial: Long?, filtrarPorFilial: Boolean): List<PapelCompleto> =
+        listarPapeis(clientesPapel, idFilial, filtrarPorFilial)
 
     override suspend fun buscarCliente(id: Long): PapelCompleto? = buscarPapel(clientesPapel, id)
 
     override suspend fun buscarClientePorPessoa(idPessoa: Long): PapelCompleto? =
         buscarPapelPorPessoa(clientesPapel, idPessoa)
 
-    override suspend fun inserirCliente(idPessoa: Long, status: Status): Long =
-        inserirPapel(clientesPapel, idPessoa, status)
+    override suspend fun inserirCliente(idPessoa: Long, status: Status, idFilialCadastro: Long): Long =
+        inserirPapel(clientesPapel, idPessoa, status, idFilialCadastro)
 
     override suspend fun atualizarCliente(id: Long, status: Status): Boolean =
         atualizarPapel(clientesPapel, id, status)
 
-    override suspend fun excluirCliente(id: Long): Boolean = excluirPapel(clientesPapel, id)
+    override suspend fun excluirCliente(id: Long, idFilial: Long?): Boolean =
+        excluirPapel(clientesPapel, id, idFilial)
 
     override suspend fun contarClientes(): Long = contarPapeis(clientesPapel)
 
-    override suspend fun listarFornecedores(): List<PapelCompleto> = listarPapeis(fornecedoresPapel)
+    override suspend fun vincularClienteFilial(idCliente: Long, idFilial: Long): Boolean =
+        vincularFilial(clientesPapel, idCliente, idFilial)
+
+    override suspend fun existeVinculoClienteFilial(idCliente: Long, idFilial: Long): Boolean =
+        existeVinculoFilial(clientesPapel, idCliente, idFilial)
+
+    override suspend fun listarFiliaisDoCliente(idCliente: Long): List<FilialVinculo> =
+        listarFiliaisVinculadas(clientesPapel, idCliente)
+
+    override suspend fun listarFornecedores(idFilial: Long?, filtrarPorFilial: Boolean): List<PapelCompleto> =
+        listarPapeis(fornecedoresPapel, idFilial, filtrarPorFilial)
 
     override suspend fun buscarFornecedor(id: Long): PapelCompleto? = buscarPapel(fornecedoresPapel, id)
 
     override suspend fun buscarFornecedorPorPessoa(idPessoa: Long): PapelCompleto? =
         buscarPapelPorPessoa(fornecedoresPapel, idPessoa)
 
-    override suspend fun inserirFornecedor(idPessoa: Long, status: Status): Long =
-        inserirPapel(fornecedoresPapel, idPessoa, status)
+    override suspend fun inserirFornecedor(idPessoa: Long, status: Status, idFilialCadastro: Long): Long =
+        inserirPapel(fornecedoresPapel, idPessoa, status, idFilialCadastro)
 
     override suspend fun atualizarFornecedor(id: Long, status: Status): Boolean =
         atualizarPapel(fornecedoresPapel, id, status)
 
-    override suspend fun excluirFornecedor(id: Long): Boolean = excluirPapel(fornecedoresPapel, id)
+    override suspend fun excluirFornecedor(id: Long, idFilial: Long?): Boolean =
+        excluirPapel(fornecedoresPapel, id, idFilial)
 
     override suspend fun contarFornecedores(): Long = contarPapeis(fornecedoresPapel)
+
+    override suspend fun vincularFornecedorFilial(idFornecedor: Long, idFilial: Long): Boolean =
+        vincularFilial(fornecedoresPapel, idFornecedor, idFilial)
+
+    override suspend fun existeVinculoFornecedorFilial(idFornecedor: Long, idFilial: Long): Boolean =
+        existeVinculoFilial(fornecedoresPapel, idFornecedor, idFilial)
+
+    override suspend fun listarFiliaisDoFornecedor(idFornecedor: Long): List<FilialVinculo> =
+        listarFiliaisVinculadas(fornecedoresPapel, idFornecedor)
 
     private data class PapelSchema(
         val table: org.jetbrains.exposed.v1.core.dao.id.LongIdTable,
         val idPessoa: org.jetbrains.exposed.v1.core.Column<org.jetbrains.exposed.v1.core.dao.id.EntityID<Long>>,
+        val idFilialCadastro: org.jetbrains.exposed.v1.core.Column<org.jetbrains.exposed.v1.core.dao.id.EntityID<Long>?>,
         val status: org.jetbrains.exposed.v1.core.Column<String>,
+        val vinculoTable: org.jetbrains.exposed.v1.core.dao.id.LongIdTable,
+        val vinculoIdPapel: org.jetbrains.exposed.v1.core.Column<org.jetbrains.exposed.v1.core.dao.id.EntityID<Long>>,
+        val vinculoIdFilial: org.jetbrains.exposed.v1.core.Column<org.jetbrains.exposed.v1.core.dao.id.EntityID<Long>>,
+        val vinculoStatus: org.jetbrains.exposed.v1.core.Column<String>,
     )
 
-    private val clientesPapel = PapelSchema(ClientesTable, ClientesTable.idPessoa, ClientesTable.status)
-    private val fornecedoresPapel = PapelSchema(FornecedoresTable, FornecedoresTable.idPessoa, FornecedoresTable.status)
+    private val clientesPapel = PapelSchema(
+        ClientesTable,
+        ClientesTable.idPessoa,
+        ClientesTable.idFilialCadastro,
+        ClientesTable.status,
+        ClienteFilialTable,
+        ClienteFilialTable.idCliente,
+        ClienteFilialTable.idFilial,
+        ClienteFilialTable.status,
+    )
+    private val fornecedoresPapel = PapelSchema(
+        FornecedoresTable,
+        FornecedoresTable.idPessoa,
+        FornecedoresTable.idFilialCadastro,
+        FornecedoresTable.status,
+        FornecedorFilialTable,
+        FornecedorFilialTable.idFornecedor,
+        FornecedorFilialTable.idFilial,
+        FornecedorFilialTable.status,
+    )
 
-    private suspend fun listarPapeis(schema: PapelSchema): List<PapelCompleto> = suspendTransaction(database) {
-        val rows = schema.table.innerJoin(PessoasTable).selectAll()
-            .where {
-                (schema.status neq Status.DELETADO.name.lowercase()) and
-                    (PessoasTable.status neq Status.DELETADO.name.lowercase())
-            }
-            .orderBy(PessoasTable.nomeRazaoSocial to SortOrder.ASC)
-            .toList()
+    private fun queryPapeis(schema: PapelSchema) = schema.table
+        .innerJoin(PessoasTable)
+        .join(FiliaisTable, JoinType.LEFT, schema.idFilialCadastro, FiliaisTable.id)
+        .selectAll()
+
+    private suspend fun listarPapeis(
+        schema: PapelSchema,
+        idFilial: Long?,
+        filtrarPorFilial: Boolean,
+    ): List<PapelCompleto> = suspendTransaction(database) {
+        val filtrar = filtrarPorFilial && idFilial != null
+        val rows = if (filtrar) {
+            schema.table
+                .innerJoin(PessoasTable)
+                .innerJoin(schema.vinculoTable)
+                .join(FiliaisTable, JoinType.LEFT, schema.idFilialCadastro, FiliaisTable.id)
+                .selectAll()
+                .where {
+                    (schema.vinculoIdFilial eq idFilial!!) and
+                        (schema.vinculoStatus neq Status.DELETADO.name.lowercase()) and
+                        (schema.status neq Status.DELETADO.name.lowercase()) and
+                        (PessoasTable.status neq Status.DELETADO.name.lowercase())
+                }
+                .orderBy(PessoasTable.nomeRazaoSocial to SortOrder.ASC)
+                .toList()
+        } else {
+            queryPapeis(schema)
+                .where {
+                    (schema.status neq Status.DELETADO.name.lowercase()) and
+                        (PessoasTable.status neq Status.DELETADO.name.lowercase())
+                }
+                .orderBy(PessoasTable.nomeRazaoSocial to SortOrder.ASC)
+                .toList()
+        }
         if (rows.isEmpty()) return@suspendTransaction emptyList()
         val pessoas = completar(rows.map { it.toPessoa() }).associateBy { it.pessoa.id }
+        val idsPapel = rows.map { it[schema.table.id].value }
+        val filiaisPorPapel = if (idsPapel.isEmpty()) {
+            emptyMap()
+        } else {
+            schema.vinculoTable
+                .innerJoin(FiliaisTable)
+                .selectAll()
+                .where {
+                    (schema.vinculoIdPapel inList idsPapel) and
+                        (schema.vinculoStatus neq Status.DELETADO.name.lowercase()) and
+                        (FiliaisTable.status neq Status.DELETADO.name.lowercase())
+                }
+                .map {
+                    it[schema.vinculoIdPapel].value to FilialVinculo(
+                        id = it[FiliaisTable.id].value,
+                        nome = it[FiliaisTable.nome],
+                    )
+                }
+                .toList()
+                .groupBy({ it.first }, { it.second })
+        }
         rows.map { row ->
-            PapelCompleto(
-                id = row[schema.table.id].value,
-                idPessoa = row[schema.idPessoa].value,
-                status = Status.valueOf(row[schema.status].uppercase()),
-                pessoa = pessoas.getValue(row[schema.idPessoa].value),
+            val idPapel = row[schema.table.id].value
+            row.toPapelCompleto(
+                schema,
+                pessoas.getValue(row[schema.idPessoa].value),
+                filiaisPorPapel[idPapel].orEmpty(),
             )
         }
     }
 
     private suspend fun buscarPapel(schema: PapelSchema, id: Long): PapelCompleto? = suspendTransaction(database) {
-        val row = schema.table.innerJoin(PessoasTable).selectAll()
+        val row = queryPapeis(schema)
             .where {
                 (schema.table.id eq id) and
                     (schema.status neq Status.DELETADO.name.lowercase()) and
@@ -294,17 +388,26 @@ class ExposedPessoaRepository(
             .singleOrNull()
             ?: return@suspendTransaction null
         val pessoa = completar(listOf(row.toPessoa())).first()
-        PapelCompleto(
-            id = row[schema.table.id].value,
-            idPessoa = row[schema.idPessoa].value,
-            status = Status.valueOf(row[schema.status].uppercase()),
-            pessoa = pessoa,
-        )
+        val idPapel = row[schema.table.id].value
+        val filiais = schema.vinculoTable
+            .innerJoin(FiliaisTable)
+            .selectAll()
+            .where {
+                (schema.vinculoIdPapel eq idPapel) and
+                    (schema.vinculoStatus neq Status.DELETADO.name.lowercase()) and
+                    (FiliaisTable.status neq Status.DELETADO.name.lowercase())
+            }
+            .orderBy(FiliaisTable.nome to SortOrder.ASC)
+            .map { FilialVinculo(id = it[FiliaisTable.id].value, nome = it[FiliaisTable.nome]) }
+            .toList()
+        row.toPapelCompleto(schema, pessoa, filiais)
     }
 
     private suspend fun buscarPapelPorPessoa(schema: PapelSchema, idPessoa: Long): PapelCompleto? =
         suspendTransaction(database) {
-            val row = schema.table.innerJoin(PessoasTable).selectAll()
+            val row = schema.table.innerJoin(PessoasTable)
+                .join(FiliaisTable, JoinType.LEFT, schema.idFilialCadastro, FiliaisTable.id)
+                .selectAll()
                 .where {
                     (schema.idPessoa eq idPessoa) and
                         (PessoasTable.status neq Status.DELETADO.name.lowercase())
@@ -313,23 +416,34 @@ class ExposedPessoaRepository(
                 .singleOrNull()
                 ?: return@suspendTransaction null
             val pessoa = completar(listOf(row.toPessoa())).first()
-            PapelCompleto(
-                id = row[schema.table.id].value,
-                idPessoa = row[schema.idPessoa].value,
-                status = Status.valueOf(row[schema.status].uppercase()),
-                pessoa = pessoa,
-            )
+            val idPapel = row[schema.table.id].value
+            val filiais = schema.vinculoTable
+                .innerJoin(FiliaisTable)
+                .selectAll()
+                .where {
+                    (schema.vinculoIdPapel eq idPapel) and
+                        (schema.vinculoStatus neq Status.DELETADO.name.lowercase()) and
+                        (FiliaisTable.status neq Status.DELETADO.name.lowercase())
+                }
+                .orderBy(FiliaisTable.nome to SortOrder.ASC)
+                .map { FilialVinculo(id = it[FiliaisTable.id].value, nome = it[FiliaisTable.nome]) }
+                .toList()
+            row.toPapelCompleto(schema, pessoa, filiais)
         }
 
     private suspend fun inserirPapel(
         schema: PapelSchema,
         idPessoa: Long,
         status: Status,
+        idFilialCadastro: Long,
     ): Long = suspendTransaction(database) {
-        schema.table.insert {
+        val id = schema.table.insert {
             it[schema.idPessoa] = idPessoa
+            it[schema.idFilialCadastro] = idFilialCadastro
             it[schema.status] = status.name.lowercase()
         }[schema.table.id].value
+        vincularFilialInterno(schema, id, idFilialCadastro)
+        id
     }
 
     private suspend fun atualizarPapel(
@@ -344,13 +458,89 @@ class ExposedPessoaRepository(
         } > 0
     }
 
-    private suspend fun excluirPapel(schema: PapelSchema, id: Long): Boolean = suspendTransaction(database) {
-        schema.table.update({
-            (schema.table.id eq id) and (schema.status neq Status.DELETADO.name.lowercase())
-        }) {
-            it[schema.status] = Status.DELETADO.name.lowercase()
-        } > 0
+    private suspend fun excluirPapel(schema: PapelSchema, id: Long, idFilial: Long?): Boolean =
+        suspendTransaction(database) {
+            if (idFilial != null) {
+                schema.vinculoTable.update({
+                    (schema.vinculoIdPapel eq id) and
+                        (schema.vinculoIdFilial eq idFilial) and
+                        (schema.vinculoStatus neq Status.DELETADO.name.lowercase())
+                }) {
+                    it[schema.vinculoStatus] = Status.DELETADO.name.lowercase()
+                } > 0
+            } else {
+                schema.vinculoTable.update({
+                    (schema.vinculoIdPapel eq id) and (schema.vinculoStatus neq Status.DELETADO.name.lowercase())
+                }) {
+                    it[schema.vinculoStatus] = Status.DELETADO.name.lowercase()
+                }
+                schema.table.update({
+                    (schema.table.id eq id) and (schema.status neq Status.DELETADO.name.lowercase())
+                }) {
+                    it[schema.status] = Status.DELETADO.name.lowercase()
+                } > 0
+            }
+        }
+
+    private suspend fun vincularFilial(schema: PapelSchema, idPapel: Long, idFilial: Long): Boolean =
+        suspendTransaction(database) {
+            vincularFilialInterno(schema, idPapel, idFilial)
+            true
+        }
+
+    private suspend fun vincularFilialInterno(schema: PapelSchema, idPapel: Long, idFilial: Long) {
+        val existente = schema.vinculoTable.selectAll()
+            .where {
+                (schema.vinculoIdPapel eq idPapel) and (schema.vinculoIdFilial eq idFilial)
+            }
+            .toList()
+            .singleOrNull()
+        if (existente != null) {
+            if (existente[schema.vinculoStatus] == Status.DELETADO.name.lowercase()) {
+                schema.vinculoTable.update({ schema.vinculoTable.id eq existente[schema.vinculoTable.id].value }) {
+                    it[schema.vinculoStatus] = Status.ATIVO.name.lowercase()
+                }
+            }
+            return
+        }
+        schema.vinculoTable.insert {
+            it[schema.vinculoIdPapel] = idPapel
+            it[schema.vinculoIdFilial] = idFilial
+            it[schema.vinculoStatus] = Status.ATIVO.name.lowercase()
+        }
     }
+
+    private suspend fun existeVinculoFilial(schema: PapelSchema, idPapel: Long, idFilial: Long): Boolean =
+        suspendTransaction(database) {
+            schema.vinculoTable.selectAll()
+                .where {
+                    (schema.vinculoIdPapel eq idPapel) and
+                        (schema.vinculoIdFilial eq idFilial) and
+                        (schema.vinculoStatus neq Status.DELETADO.name.lowercase())
+                }
+                .toList()
+                .isNotEmpty()
+        }
+
+    private suspend fun listarFiliaisVinculadas(schema: PapelSchema, idPapel: Long): List<FilialVinculo> =
+        suspendTransaction(database) {
+            schema.vinculoTable
+                .innerJoin(FiliaisTable)
+                .selectAll()
+                .where {
+                    (schema.vinculoIdPapel eq idPapel) and
+                        (schema.vinculoStatus neq Status.DELETADO.name.lowercase()) and
+                        (FiliaisTable.status neq Status.DELETADO.name.lowercase())
+                }
+                .orderBy(FiliaisTable.nome to SortOrder.ASC)
+                .map {
+                    FilialVinculo(
+                        id = it[FiliaisTable.id].value,
+                        nome = it[FiliaisTable.nome],
+                    )
+                }
+                .toList()
+        }
 
     private suspend fun contarPapeis(schema: PapelSchema): Long = suspendTransaction(database) {
         schema.table.innerJoin(PessoasTable).selectAll()
@@ -449,6 +639,20 @@ class ExposedPessoaRepository(
         codigo = this[DocumentoTiposTable.codigo],
         nome = this[DocumentoTiposTable.nome],
         unico = this[DocumentoTiposTable.unico],
+    )
+
+    private fun ResultRow.toPapelCompleto(
+        schema: PapelSchema,
+        pessoa: PessoaCompleta,
+        filiaisVinculadas: List<FilialVinculo>,
+    ) = PapelCompleto(
+        id = this[schema.table.id].value,
+        idPessoa = this[schema.idPessoa].value,
+        idFilialCadastro = this[schema.idFilialCadastro]?.value,
+        filialNome = getOrNull(FiliaisTable.nome),
+        filiaisVinculadas = filiaisVinculadas,
+        status = Status.valueOf(this[schema.status].uppercase()),
+        pessoa = pessoa,
     )
 
     private fun ResultRow.toPessoa() = Pessoa(

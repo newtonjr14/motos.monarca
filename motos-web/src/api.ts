@@ -5,7 +5,6 @@ import {
   notifyUnauthorized,
   setAuthTokens,
 } from "@/auth/tokens";
-import { markSystemOffline, markSystemOnline } from "@/systemStatus";
 
 export type TipoPessoa = "fisica" | "juridica";
 export type Status = "ativo" | "inativo" | "deletado";
@@ -88,17 +87,77 @@ export interface Pessoa {
   documentos: Documento[];
 }
 
+export interface FilialVinculo {
+  id: number;
+  nome: string;
+}
+
 export interface Papel {
   id: number;
   idPessoa: number;
+  idFilialCadastro: number | null;
+  filialNome?: string | null;
+  filiaisVinculadas?: FilialVinculo[];
   status: Status;
   pessoa: Pessoa;
+}
+
+export interface Empresa {
+  id: number;
+  razaoSocial: string;
+  nomeFantasia: string;
+  ruc: string;
+  representanteNome: string | null;
+  representanteDocumento: string | null;
+  status: Status;
+}
+
+export interface Filial {
+  id: number;
+  idEmpresa: number;
+  empresaRazaoSocial: string;
+  empresaNomeFantasia: string;
+  nome: string;
+  ddi: string | null;
+  telefone: string | null;
+  email: string | null;
+  tipoLogradouro: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  bairro: string | null;
+  cep: string | null;
+  complemento: string | null;
+  idCidade: number | null;
+  cidadeNome: string | null;
+  divisaoSigla: string | null;
+  paisNome: string | null;
+  timbrado: string | null;
+  timbradoVigenciaInicio: string | null;
+  timbradoVigenciaFim: string | null;
+  estabelecimentoNumero: string | null;
+  pontoExpedicao: string | null;
+  listarApenasClientesFilial: boolean;
+  listarApenasFornecedoresFilial: boolean;
+  principal: boolean;
+  status: Status;
 }
 
 export interface DocumentoConflito {
   codigo: string;
   message: string;
   pessoa: { id: number; nomeRazaoSocial: string; tipoPessoa: TipoPessoa };
+  idPapel?: number | null;
+  filiaisVinculadas?: FilialVinculo[];
+}
+
+export interface VinculoFilialConflito {
+  codigo: "VINCULO_FILIAL";
+  message: string;
+  idPapel: number;
+  pessoa: { id: number; nomeRazaoSocial: string; tipoPessoa: TipoPessoa };
+  filiaisVinculadas: FilialVinculo[];
+  idFilialAlvo: number;
+  filialAlvoNome: string;
 }
 
 export class ApiError extends Error {
@@ -148,11 +207,8 @@ export async function api<T>(
   try {
     res = await fetch(path, { ...init, headers });
   } catch {
-    if (path !== "/health") markSystemOffline();
     throw new ApiError(0, { message: "Sem conexão com o servidor" });
   }
-
-  if (res.status >= 500 && path !== "/health") markSystemOffline();
 
   if (res.status === 401 && retry && path !== "/auth/login" && path !== "/auth/refresh") {
     if (!refreshing) refreshing = refreshAccessToken().finally(() => { refreshing = null; });
@@ -165,13 +221,11 @@ export async function api<T>(
   }
 
   if (res.status === 204) {
-    if (path !== "/health") markSystemOnline();
     return undefined as T;
   }
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) throw new ApiError(res.status, data);
-  if (path !== "/health") markSystemOnline();
   return data as T;
 }
 
@@ -267,15 +321,24 @@ export const atualizarTipoDocumento = (
 ) => api<DocumentoTipo>(`/documentos-tipos/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const excluirTipoDocumento = (id: number) => api<void>(`/documentos-tipos/${id}`, { method: "DELETE" });
 
-export const listarPapeis = (recurso: "clientes" | "fornecedores", options?: { logoutOn401?: boolean }) =>
-  api<Papel[]>(`/${recurso}`, undefined, options);
+export const listarPapeis = (
+  recurso: "clientes" | "fornecedores",
+  idFilial?: number,
+  options?: { logoutOn401?: boolean },
+) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<Papel[]>(`/${recurso}${q}`, undefined, options);
+};
 export const buscarPapel = (recurso: "clientes" | "fornecedores", id: number) => api<Papel>(`/${recurso}/${id}`);
+export const buscarPessoa = (id: number) => api<Pessoa>(`/pessoas/${id}`);
 export const criarPapel = (recurso: "clientes" | "fornecedores", body: unknown) =>
   api<Papel>(`/${recurso}`, { method: "POST", body: JSON.stringify(body) });
 export const atualizarPapel = (recurso: "clientes" | "fornecedores", id: number, body: unknown) =>
   api<Papel>(`/${recurso}/${id}`, { method: "PUT", body: JSON.stringify(body) });
-export const excluirPapel = (recurso: "clientes" | "fornecedores", id: number) =>
-  api<void>(`/${recurso}/${id}`, { method: "DELETE" });
+export const excluirPapel = (recurso: "clientes" | "fornecedores", id: number, idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<void>(`/${recurso}/${id}${q}`, { method: "DELETE" });
+};
 
 export const listarUsuarios = () => api<Usuario[]>("/usuarios");
 export const criarUsuario = (body: unknown) =>
@@ -283,3 +346,19 @@ export const criarUsuario = (body: unknown) =>
 export const atualizarUsuario = (id: number, body: unknown) =>
   api<Usuario>(`/usuarios/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const excluirUsuario = (id: number) => api<void>(`/usuarios/${id}`, { method: "DELETE" });
+
+export const listarEmpresas = () => api<Empresa[]>("/empresas");
+export const buscarEmpresa = (id: number) => api<Empresa>(`/empresas/${id}`);
+export const criarEmpresa = (body: unknown) => api<Empresa>("/empresas", { method: "POST", body: JSON.stringify(body) });
+export const atualizarEmpresa = (id: number, body: unknown) =>
+  api<Empresa>(`/empresas/${id}`, { method: "PUT", body: JSON.stringify(body) });
+
+export const listarFiliais = (idEmpresa?: number) => {
+  const q = idEmpresa != null ? `?idEmpresa=${idEmpresa}` : "";
+  return api<Filial[]>(`/filiais${q}`);
+};
+export const buscarFilialPrincipal = () => api<Filial>("/filiais/principal");
+export const criarFilial = (body: unknown) => api<Filial>("/filiais", { method: "POST", body: JSON.stringify(body) });
+export const atualizarFilial = (id: number, body: unknown) =>
+  api<Filial>(`/filiais/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const excluirFilial = (id: number) => api<void>(`/filiais/${id}`, { method: "DELETE" });

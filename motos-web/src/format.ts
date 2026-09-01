@@ -1,3 +1,5 @@
+import type { Cidade, Pessoa } from "@/api";
+
 const LOCALE = "pt-BR";
 
 export function toTitleCase(valor: string): string {
@@ -143,3 +145,30 @@ export function formatarTelefoneExibicao(ddi: string | null | undefined, numero:
 }
 
 export const PAGE_SIZE = 10;
+
+export function cidadePorId(cidades: Cidade[], id: number | null): Cidade | undefined {
+  if (id == null) return undefined;
+  return cidades.find((x) => x.id === id);
+}
+
+export function formatarCidade(cidades: Cidade[], id: number | null, curto = false): string {
+  const c = cidadePorId(cidades, id);
+  if (!c) return "—";
+  const divisao = c.divisaoSigla ?? c.divisaoNome;
+  if (curto) return `${c.nome} · ${divisao} · ${c.paisSigla}`;
+  return `${c.nome} · ${divisao} · ${c.paisNome}`;
+}
+
+export function formatarEndereco(p: Pessoa, cidades: Cidade[]): string | null {
+  const logradouro = [p.tipoLogradouro, p.logradouro].filter(Boolean).join(" ");
+  const linha1 = [logradouro, p.numero].filter(Boolean).join(", ");
+  const cidade = formatarCidade(cidades, p.idCidade);
+  const parts = [
+    linha1 || null,
+    p.bairro?.trim() || null,
+    p.cep?.trim() ? `CEP ${p.cep.trim()}` : null,
+    p.complemento?.trim() || null,
+    cidade !== "—" ? cidade : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}

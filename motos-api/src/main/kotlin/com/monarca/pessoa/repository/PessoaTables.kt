@@ -1,5 +1,6 @@
 package com.monarca.pessoa.repository
 
+import com.monarca.empresa.repository.FiliaisTable
 import com.monarca.localidade.repository.CidadesTable
 import com.monarca.localidade.repository.PaisesTable
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
@@ -34,6 +35,7 @@ object PessoasTable : LongIdTable("pessoa") {
 
 object ClientesTable : LongIdTable("cliente") {
     val idPessoa = reference("id_pessoa", PessoasTable)
+    val idFilialCadastro = optReference("id_filial_cadastro", FiliaisTable)
     val status = varchar("status", 20).default("ativo")
 
     init {
@@ -43,10 +45,31 @@ object ClientesTable : LongIdTable("cliente") {
 
 object FornecedoresTable : LongIdTable("fornecedor") {
     val idPessoa = reference("id_pessoa", PessoasTable)
+    val idFilialCadastro = optReference("id_filial_cadastro", FiliaisTable)
     val status = varchar("status", 20).default("ativo")
 
     init {
         uniqueIndex(idPessoa)
+    }
+}
+
+object ClienteFilialTable : LongIdTable("cliente_filial") {
+    val idCliente = reference("id_cliente", ClientesTable)
+    val idFilial = reference("id_filial", FiliaisTable)
+    val status = varchar("status", 20).default("ativo")
+
+    init {
+        uniqueIndex(idCliente, idFilial)
+    }
+}
+
+object FornecedorFilialTable : LongIdTable("fornecedor_filial") {
+    val idFornecedor = reference("id_fornecedor", FornecedoresTable)
+    val idFilial = reference("id_filial", FiliaisTable)
+    val status = varchar("status", 20).default("ativo")
+
+    init {
+        uniqueIndex(idFornecedor, idFilial)
     }
 }
 

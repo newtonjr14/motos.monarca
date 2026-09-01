@@ -12,6 +12,8 @@ import com.monarca.pessoa.dto.MensagemErro
 import com.monarca.pessoa.dto.PapelRequest
 import com.monarca.pessoa.dto.PessoaRequest
 import com.monarca.pessoa.service.DocumentoConflito
+import com.monarca.pessoa.service.TipoPapel
+import com.monarca.pessoa.service.VinculoFilialConflito
 import com.monarca.pessoa.service.PapelService
 import com.monarca.pessoa.service.PessoaService
 import io.ktor.http.HttpStatusCode
@@ -35,19 +37,19 @@ suspend fun Application.configurePessoa() {
     routing {
         authenticate(JWT_AUTH) {
             get<DocumentosTipos> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeConsultarPessoa()
                     call.respond(service.listarTipos(resource.idPais, resource.tipoPessoa))
                 }
             }
             get<DocumentosTipos.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeConsultarPessoa()
                     call.respond(service.buscarTipo(resource.id))
                 }
             }
             post<DocumentosTipos> {
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeGerenciarPessoa()
                     val request = call.receive<DocumentoTipoRequest>()
                     call.withAudit {
@@ -56,7 +58,7 @@ suspend fun Application.configurePessoa() {
                 }
             }
             put<DocumentosTipos.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeGerenciarPessoa()
                     val request = call.receive<DocumentoTipoRequest>()
                     call.withAudit {
@@ -65,7 +67,7 @@ suspend fun Application.configurePessoa() {
                 }
             }
             delete<DocumentosTipos.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeGerenciarPessoa()
                     call.withAudit {
                         service.excluirTipo(resource.id)
@@ -74,19 +76,19 @@ suspend fun Application.configurePessoa() {
                 }
             }
             get<Pessoas> {
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeConsultarPessoa()
                     call.respond(service.listar())
                 }
             }
             get<Pessoas.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeConsultarPessoa()
                     call.respond(service.buscar(resource.id))
                 }
             }
             post<Pessoas> {
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeGerenciarPessoa()
                     val request = call.receive<PessoaRequest>()
                     call.withAudit {
@@ -95,7 +97,7 @@ suspend fun Application.configurePessoa() {
                 }
             }
             put<Pessoas.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeGerenciarPessoa()
                     val request = call.receive<PessoaRequest>()
                     call.withAudit {
@@ -104,7 +106,7 @@ suspend fun Application.configurePessoa() {
                 }
             }
             delete<Pessoas.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel) {
                     call.podeGerenciarPessoa()
                     call.withAudit {
                         service.excluir(resource.id)
@@ -113,20 +115,20 @@ suspend fun Application.configurePessoa() {
                 }
             }
 
-            get<Clientes> {
-                call.handlePessoa(service) {
+            get<Clientes> { resource ->
+                call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
                     call.podeConsultarPessoa()
-                    call.respond(papel.listarClientes())
+                    call.respond(papel.listarClientes(resource.idFilial))
                 }
             }
             get<Clientes.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
                     call.podeConsultarPessoa()
                     call.respond(papel.buscarCliente(resource.id))
                 }
             }
             post<Clientes> {
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
                     call.podeGerenciarPessoa()
                     val request = call.receive<PapelRequest>()
                     call.withAudit {
@@ -135,7 +137,7 @@ suspend fun Application.configurePessoa() {
                 }
             }
             put<Clientes.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
                     call.podeGerenciarPessoa()
                     val request = call.receive<PapelRequest>()
                     call.withAudit {
@@ -144,29 +146,30 @@ suspend fun Application.configurePessoa() {
                 }
             }
             delete<Clientes.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
                     call.podeGerenciarPessoa()
+                    val idFilial = call.request.queryParameters["idFilial"]?.toLongOrNull()
                     call.withAudit {
-                        papel.excluirCliente(resource.id)
+                        papel.excluirCliente(resource.id, idFilial)
                         call.respond(HttpStatusCode.NoContent)
                     }
                 }
             }
 
-            get<Fornecedores> {
-                call.handlePessoa(service) {
+            get<Fornecedores> { resource ->
+                call.handlePessoa(service, papel, TipoPapel.FORNECEDOR) {
                     call.podeConsultarPessoa()
-                    call.respond(papel.listarFornecedores())
+                    call.respond(papel.listarFornecedores(resource.idFilial))
                 }
             }
             get<Fornecedores.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel, TipoPapel.FORNECEDOR) {
                     call.podeConsultarPessoa()
                     call.respond(papel.buscarFornecedor(resource.id))
                 }
             }
             post<Fornecedores> {
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel, TipoPapel.FORNECEDOR) {
                     call.podeGerenciarPessoa()
                     val request = call.receive<PapelRequest>()
                     call.withAudit {
@@ -175,7 +178,7 @@ suspend fun Application.configurePessoa() {
                 }
             }
             put<Fornecedores.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel, TipoPapel.FORNECEDOR) {
                     call.podeGerenciarPessoa()
                     val request = call.receive<PapelRequest>()
                     call.withAudit {
@@ -184,10 +187,11 @@ suspend fun Application.configurePessoa() {
                 }
             }
             delete<Fornecedores.Id> { resource ->
-                call.handlePessoa(service) {
+                call.handlePessoa(service, papel, TipoPapel.FORNECEDOR) {
                     call.podeGerenciarPessoa()
+                    val idFilial = call.request.queryParameters["idFilial"]?.toLongOrNull()
                     call.withAudit {
-                        papel.excluirFornecedor(resource.id)
+                        papel.excluirFornecedor(resource.id, idFilial)
                         call.respond(HttpStatusCode.NoContent)
                     }
                 }
@@ -196,7 +200,12 @@ suspend fun Application.configurePessoa() {
     }
 }
 
-private suspend fun ApplicationCall.handlePessoa(service: PessoaService, block: suspend () -> Unit) {
+private suspend fun ApplicationCall.handlePessoa(
+    service: PessoaService,
+    papel: PapelService,
+    tipoPapel: TipoPapel? = null,
+    block: suspend () -> Unit,
+) {
     try {
         block()
     } catch (e: RecursoNaoEncontrado) {
@@ -206,6 +215,13 @@ private suspend fun ApplicationCall.handlePessoa(service: PessoaService, block: 
     } catch (e: AcessoNegado) {
         respond(HttpStatusCode.Forbidden, MensagemErro(e.message ?: "Acesso negado"))
     } catch (e: DocumentoConflito) {
-        respond(HttpStatusCode.Conflict, service.toConflitoResponse(e))
+        val body = if (tipoPapel != null) {
+            papel.enriquecerConflitoDocumento(e, tipoPapel)
+        } else {
+            service.toConflitoResponse(e)
+        }
+        respond(HttpStatusCode.Conflict, body)
+    } catch (e: VinculoFilialConflito) {
+        respond(HttpStatusCode.Conflict, papel.toVinculoFilialResponse(e))
     }
 }

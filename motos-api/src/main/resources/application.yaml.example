@@ -10,6 +10,7 @@ ktor:
       - com.monarca.auth.AuthKt.configureAuthentication
       - com.monarca.auth.http.AuthRoutingKt.configureAuthRoutes
       - com.monarca.localidade.http.LocalidadeRoutingKt.configureLocalidade
+      - com.monarca.empresa.http.EmpresaRoutingKt.configureEmpresa
       - com.monarca.pessoa.http.PessoaRoutingKt.configurePessoa
       - com.monarca.usuario.http.UsuarioRoutingKt.configureUsuario
 

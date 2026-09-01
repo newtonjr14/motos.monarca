@@ -3,6 +3,7 @@ package com.monarca
 import com.monarca.audit.service.auditModule
 import com.monarca.auth.jwtConfig
 import com.monarca.auth.service.authModule
+import com.monarca.empresa.service.empresaModule
 import com.monarca.localidade.service.localidadeModule
 import com.monarca.pessoa.service.pessoaModule
 import com.monarca.usuario.service.usuarioModule
@@ -40,6 +41,7 @@ fun Application.configureKoin() {
             auditModule,
             authModule,
             localidadeModule,
+            empresaModule,
             pessoaModule,
             usuarioModule,
         )

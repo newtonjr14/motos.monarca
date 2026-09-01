@@ -84,10 +84,13 @@ body {
   font-size: 14px;
   line-height: 1.4;
 }
-.field:focus {
-  outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px var(--gold-bg);
+select.field {
+  appearance: auto;
+  cursor: pointer;
+}
+select.field:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .btn-gold {
@@ -121,6 +124,21 @@ body {
 .menu-item:hover {
   background: var(--card2);
   color: var(--text);
+}
+.menu-item-danger {
+  color: var(--danger);
+}
+.menu-item-danger:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.menu-divider {
+  height: 1px;
+  margin: 0.25rem 0;
+  background: var(--border);
+}
+.menu-popover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
 .btn-ghost {
@@ -204,6 +222,47 @@ body {
   word-break: break-word;
   line-height: 1.35;
   hyphens: auto;
+}
+.drive-td-actions {
+  width: 2.5rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  text-align: center;
+  vertical-align: middle;
+}
+.btn-row-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.btn-row-menu:hover:not(:disabled) {
+  background: var(--card2);
+  color: var(--text);
+}
+.btn-row-menu:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Modal ficha — altura pelo conteúdo; topo fixo evita salto da navegação */
+.ficha-modal-overlay {
+  padding-top: 6vh;
+}
+.ficha-modal {
+  max-height: calc(94vh - 6vh);
+  overflow: hidden;
+}
+.ficha-modal-body {
+  overflow-y: auto;
+  max-height: min(22rem, 50vh);
 }
 
 /* Botões de ação na ficha */

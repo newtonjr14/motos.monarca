@@ -1,58 +1,29 @@
-import { atualizarPapel, excluirPapel, type Cidade, type Papel, type Pessoa } from "@/api";
+import { atualizarPapel, excluirPapel, type Cidade, type Papel } from "@/api";
+import { obterFilialAtivaId } from "@/filialContext";
 import { Section } from "@/components/crud/Field";
-import { formatarDocumentoExibicao, formatarTelefoneExibicao } from "@/format";
+import { formatarDocumentoExibicao, formatarEndereco, formatarTelefoneExibicao } from "@/format";
 import { useI18n } from "@/i18n";
-import { useEffect, useState } from "react";
+import { pessoaParaAtualizacao } from "@/papelUtils";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const v = (name: string) => `var(${name})`;
 const border1 = () => `1px solid ${v("--border")}`;
 
-function cidadeLabel(cidades: Cidade[], id: number | null) {
-  if (id == null) return null;
-  const c = cidades.find((x) => x.id === id);
-  if (!c) return null;
-  const divisao = c.divisaoSigla ?? c.divisaoNome;
-  return `${c.nome} · ${divisao} · ${c.paisNome}`;
-}
-
-function pessoaParaAtualizacao(p: Pessoa) {
-  return {
-    nomeRazaoSocial: p.nomeRazaoSocial,
-    tipoPessoa: p.tipoPessoa,
-    ddi: p.ddi,
-    telefone: p.telefone,
-    email: p.email,
-    tipoLogradouro: p.tipoLogradouro,
-    logradouro: p.logradouro,
-    numero: p.numero,
-    bairro: p.bairro,
-    cep: p.cep,
-    complemento: p.complemento,
-    idCidade: p.idCidade,
-    status: "ativo" as const,
-    documentos: p.documentos.map((d) => ({
-      idPais: d.idPais,
-      idTipoDocumento: d.idTipoDocumento,
-      numero: d.numero,
-    })),
-  };
-}
-
-function FichaField({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
-  const { t } = useI18n();
-  const vazio = !value?.trim();
-  const display = vazio ? t("ficha.notInformed") : value!;
+function NavBtn({ label, disabled, onClick, children }: {
+  label: string; disabled?: boolean; onClick: () => void; children: ReactNode;
+}) {
   return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{label}</p>
-      <p
-        className={`text-sm mt-1 break-words${mono ? " font-mono" : ""}${vazio ? " italic" : ""}`}
-        style={{ color: vazio ? v("--text-muted") : v("--text") }}
-      >
-        {display}
-      </p>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+      style={{ color: v("--text-muted"), background: v("--card2"), border: border1() }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -78,6 +49,7 @@ export default function PapelFicha({
   recurso,
   singular,
   cidades,
+  nav,
   onClose,
   onEdit,
   onChanged,
@@ -86,6 +58,7 @@ export default function PapelFicha({
   recurso: "clientes" | "fornecedores";
   singular: string;
   cidades: Cidade[];
+  nav?: { index: number; total: number; onPrev: () => void; onNext: () => void };
   onClose: () => void;
   onEdit: () => void;
   onChanged: () => Promise<void>;
@@ -95,10 +68,25 @@ export default function PapelFicha({
   const p = item.pessoa;
   const telefone = formatarTelefoneExibicao(p.ddi, p.telefone);
   const telDisplay = telefone === "—" ? null : telefone;
+  const email = p.email?.trim() || null;
+  const temContato = Boolean(telDisplay || email);
+  const endereco = formatarEndereco(p, cidades);
+  const docPrincipal = p.documentos[0];
+  const outrosDocs = p.documentos.slice(1);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
+      if (nav && !loading) {
+        if (e.key === "ArrowUp" && nav.index > 0) {
+          e.preventDefault();
+          nav.onPrev();
+        }
+        if (e.key === "ArrowDown" && nav.index < nav.total - 1) {
+          e.preventDefault();
+          nav.onNext();
+        }
+      }
     }
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -107,7 +95,7 @@ export default function PapelFicha({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose]);
+  }, [onClose, nav, loading]);
 
   async function alternarStatus() {
     const proximo = item.status === "ativo" ? "inativo" : "ativo";
@@ -126,10 +114,11 @@ export default function PapelFicha({
   }
 
   async function excluir() {
-    if (!confirm(t("ficha.confirmDelete"))) return;
+    if (!confirm(t("ficha.confirmDeleteBranch"))) return;
     setLoading("delete");
     try {
-      await excluirPapel(recurso, item.id);
+      const idFilial = await obterFilialAtivaId();
+      await excluirPapel(recurso, item.id, idFilial);
       onClose();
       await onChanged();
     } finally {
@@ -139,7 +128,7 @@ export default function PapelFicha({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6"
+      className="ficha-modal-overlay fixed inset-0 z-[200] flex items-start justify-center p-4 sm:p-6 overflow-y-auto"
       style={{ background: "rgba(0,0,0,0.5)" }}
       onClick={onClose}
       role="dialog"
@@ -147,12 +136,12 @@ export default function PapelFicha({
       aria-labelledby="ficha-title"
     >
       <div
-        className="w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[min(90vh,720px)]"
+        className="ficha-modal w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
         style={{ background: v("--card"), border: border1() }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
-        <div className="px-6 py-5 flex items-start justify-between gap-4 shrink-0" style={{ borderBottom: border1() }}>
+        <div className="ficha-modal-header px-6 py-4 flex items-start justify-between gap-4 shrink-0" style={{ borderBottom: border1() }}>
           <div className="min-w-0 space-y-2">
             <p id="ficha-title" className="text-lg font-semibold leading-snug truncate" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
               {p.nomeRazaoSocial}
@@ -164,30 +153,88 @@ export default function PapelFicha({
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-lg leading-none"
-            style={{ color: v("--text-muted"), background: v("--card2"), border: border1() }}
-            aria-label={t("ficha.close")}
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {nav && nav.total > 1 && (
+              <>
+                <NavBtn label={t("ficha.prev")} disabled={nav.index <= 0} onClick={nav.onPrev}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                </NavBtn>
+                <span className="text-xs tabular-nums px-1 min-w-[3rem] text-center" style={{ color: v("--text-muted") }}>
+                  {nav.index + 1} / {nav.total}
+                </span>
+                <NavBtn label={t("ficha.next")} disabled={nav.index >= nav.total - 1} onClick={nav.onNext}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                </NavBtn>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-lg leading-none"
+              style={{ color: v("--text-muted"), background: v("--card2"), border: border1() }}
+              aria-label={t("ficha.close")}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
-        {/* Conteúdo — grid 2 colunas, sem scroll na maioria dos casos */}
-        <div className="px-6 py-5 overflow-y-auto flex-1 space-y-5">
-          <div className="grid gap-5 sm:grid-cols-2">
+        {/* Resumo */}
+        <div
+          className="px-6 py-3 shrink-0"
+          style={{ background: v("--card2"), borderBottom: border1() }}
+        >
+          {docPrincipal ? (
+            <>
+              <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>
+                {docPrincipal.tipoNome} · {docPrincipal.paisNome}
+              </p>
+              <p className="text-sm font-mono mt-0.5" style={{ color: v("--text") }}>
+                {formatarDocumentoExibicao(docPrincipal.tipoCodigo, docPrincipal.numero)}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("ficha.notInformed")}</p>
+          )}
+        </div>
+
+        {/* Conteúdo */}
+        <div className="ficha-modal-body px-6 py-5 space-y-5">
+          <div className="grid gap-5 sm:grid-cols-2 sm:items-start">
             <Section title={t("papel.section.contact")}>
-              <div className="space-y-3">
-                <FichaField label={t("ddi.phone")} value={telDisplay} mono />
-                <FichaField label={t("common.email")} value={p.email} />
-              </div>
+              {temContato ? (
+                <div className="space-y-3">
+                  {telDisplay && (
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("ddi.phone")}</p>
+                      <p className="text-sm mt-1 font-mono break-words" style={{ color: v("--text") }}>{telDisplay}</p>
+                    </div>
+                  )}
+                  {email && (
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("common.email")}</p>
+                      <p className="text-sm mt-1 break-words" style={{ color: v("--text") }}>{email}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("ficha.noContact")}</p>
+              )}
             </Section>
 
-            <Section title={t("papel.section.document")}>
+            <Section title={t("papel.section.address")}>
+              {endereco ? (
+                <p className="text-sm leading-relaxed break-words" style={{ color: v("--text") }}>{endereco}</p>
+              ) : (
+                <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("ficha.noAddress")}</p>
+              )}
+            </Section>
+          </div>
+
+          {outrosDocs.length > 0 && (
+            <Section title={t("ficha.moreDocuments")}>
               <div className="space-y-2">
-                {p.documentos.map((d) => (
+                {outrosDocs.map((d) => (
                   <div key={d.id} className="p-3 rounded-md" style={{ background: v("--card2"), border: border1() }}>
                     <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>
                       {d.tipoNome} · {d.paisNome}
@@ -199,42 +246,32 @@ export default function PapelFicha({
                 ))}
               </div>
             </Section>
-          </div>
-
-          <Section title={t("papel.section.address")}>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <FichaField label={t("papel.streetType")} value={p.tipoLogradouro} />
-              <FichaField label={t("papel.street")} value={p.logradouro} />
-              <FichaField label={t("papel.number")} value={p.numero} />
-              <FichaField label={t("papel.neighborhood")} value={p.bairro} />
-              <FichaField label={t("papel.postalCode")} value={p.cep} mono />
-              <FichaField label={t("papel.complement")} value={p.complemento} />
-              <FichaField label={t("papel.city")} value={cidadeLabel(cidades, p.idCidade)} />
-            </div>
-          </Section>
+          )}
         </div>
 
-        {/* Ações */}
-        <div className="px-6 py-4 shrink-0 flex flex-col sm:flex-row gap-2" style={{ borderTop: border1(), background: v("--card2") }}>
-          <button type="button" className="btn-action-edit flex-1 py-2.5 text-sm" onClick={onEdit}>
-            {t("common.edit")}
-          </button>
-          <button
-            type="button"
-            className="btn-action-secondary flex-1 py-2.5 text-sm"
-            disabled={loading != null}
-            onClick={() => void alternarStatus()}
-          >
-            {loading === "status" ? t("common.saving") : item.status === "ativo" ? t("ficha.inactivate") : t("ficha.activate")}
-          </button>
-          <button
-            type="button"
-            className="btn-action-danger flex-1 py-2.5 text-sm"
-            disabled={loading != null}
-            onClick={() => void excluir()}
-          >
-            {loading === "delete" ? t("common.saving") : t("common.delete")}
-          </button>
+        {/* Ações — linha única: primário + secundários */}
+        <div className="ficha-modal-actions px-6 py-3 shrink-0" style={{ borderTop: border1(), background: v("--card2") }}>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button type="button" className="btn-action-edit flex-1 py-2 text-sm order-1" onClick={onEdit}>
+              {t("common.edit")}
+            </button>
+            <button
+              type="button"
+              className="btn-action-secondary flex-1 py-2 text-sm order-2"
+              disabled={loading != null}
+              onClick={() => void alternarStatus()}
+            >
+              {loading === "status" ? t("common.saving") : item.status === "ativo" ? t("ficha.inactivate") : t("ficha.activate")}
+            </button>
+            <button
+              type="button"
+              className="btn-action-danger flex-1 py-2 text-sm order-3"
+              disabled={loading != null}
+              onClick={() => void excluir()}
+            >
+              {loading === "delete" ? t("common.saving") : t("common.delete")}
+            </button>
+          </div>
         </div>
       </div>
     </div>,

@@ -25,7 +25,9 @@ class DocumentosTipos(
 
 @Serializable
 @Resource("/clientes")
-class Clientes {
+class Clientes(
+    val idFilial: Long? = null,
+) {
     @Serializable
     @Resource("{id}")
     class Id(val parent: Clientes = Clientes(), val id: Long)
@@ -33,7 +35,9 @@ class Clientes {
 
 @Serializable
 @Resource("/fornecedores")
-class Fornecedores {
+class Fornecedores(
+    val idFilial: Long? = null,
+) {
     @Serializable
     @Resource("{id}")
     class Id(val parent: Fornecedores = Fornecedores(), val id: Long)

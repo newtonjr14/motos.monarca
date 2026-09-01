@@ -90,15 +90,36 @@ data class PessoaResumoResponse(
 )
 
 @Serializable
+data class FilialVinculoResponse(
+    val id: Long,
+    val nome: String,
+)
+
+@Serializable
 data class DocumentoConflitoResponse(
     val codigo: String,
     val message: String,
     val pessoa: PessoaResumoResponse,
+    val idPapel: Long? = null,
+    val filiaisVinculadas: List<FilialVinculoResponse> = emptyList(),
+)
+
+@Serializable
+data class VinculoFilialConflitoResponse(
+    val codigo: String,
+    val message: String,
+    val idPapel: Long,
+    val pessoa: PessoaResumoResponse,
+    val filiaisVinculadas: List<FilialVinculoResponse>,
+    val idFilialAlvo: Long,
+    val filialAlvoNome: String,
 )
 
 @Serializable
 data class PapelRequest(
     val idPessoa: Long? = null,
+    val idFilialCadastro: Long? = null,
+    val confirmarVinculoFilial: Boolean = false,
     val status: Status = Status.ATIVO,
     val pessoa: PessoaRequest? = null,
 )
@@ -107,6 +128,9 @@ data class PapelRequest(
 data class PapelResponse(
     val id: Long,
     val idPessoa: Long,
+    val idFilialCadastro: Long?,
+    val filialNome: String? = null,
+    val filiaisVinculadas: List<FilialVinculoResponse> = emptyList(),
     val status: Status,
     val pessoa: PessoaResponse,
 )
