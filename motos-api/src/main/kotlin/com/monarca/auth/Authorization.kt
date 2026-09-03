@@ -2,24 +2,24 @@ package com.monarca.auth
 
 import com.monarca.auth.domain.Permissao
 import com.monarca.auth.domain.UsuarioAutenticado
-import com.monarca.localidade.service.AcessoNegado
+import com.monarca.localidade.service.acesso
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.principal
 
 fun ApplicationCall.usuarioAutenticado(): UsuarioAutenticado =
-    principal<UsuarioAutenticado>() ?: throw AcessoNegado("Não autenticado")
+    principal<UsuarioAutenticado>() ?: throw acesso("NAO_AUTENTICADO", "Não autenticado")
 
 fun ApplicationCall.requirePermissao(permissao: Permissao) {
     val usuario = usuarioAutenticado()
     if (permissao.codigo !in usuario.permissoes) {
-        throw AcessoNegado("Permissão insuficiente: ${permissao.codigo}")
+        throw acesso("PERMISSAO_INSUFICIENTE", "Permissão insuficiente: ${permissao.codigo}", "permissao" to permissao.codigo)
     }
 }
 
 fun ApplicationCall.requireQualquerPermissao(vararg permissoes: Permissao) {
     val usuario = usuarioAutenticado()
     if (permissoes.none { it.codigo in usuario.permissoes }) {
-        throw AcessoNegado("Permissão insuficiente")
+        throw acesso("PERMISSAO_INSUFICIENTE", "Permissão insuficiente")
     }
 }
 
@@ -39,14 +39,33 @@ fun ApplicationCall.podeGerenciarPessoa() {
     requirePermissao(Permissao.PESSOA_GERENCIAR)
 }
 
+fun ApplicationCall.podeGerenciarDocumento() {
+    requirePermissao(Permissao.DOCUMENTO_GERENCIAR)
+}
+
 fun ApplicationCall.podeConsultarEmpresa() {
     requireQualquerPermissao(
         Permissao.CONFIGURACAO,
-        Permissao.PESSOA_CONSULTAR,
-        Permissao.PESSOA_GERENCIAR,
+        Permissao.USUARIO_LISTAR,
     )
 }
 
 fun ApplicationCall.podeGerenciarEmpresa() {
     requirePermissao(Permissao.CONFIGURACAO)
+}
+
+fun ApplicationCall.podeConsultarProduto() {
+    requireQualquerPermissao(Permissao.PRODUTO_CONSULTAR, Permissao.PRODUTO_GERENCIAR)
+}
+
+fun ApplicationCall.podeGerenciarProduto() {
+    requirePermissao(Permissao.PRODUTO_GERENCIAR)
+}
+
+fun ApplicationCall.podeConsultarEstoque() {
+    requireQualquerPermissao(Permissao.ESTOQUE_CONSULTAR, Permissao.ESTOQUE_GERENCIAR)
+}
+
+fun ApplicationCall.podeGerenciarEstoque() {
+    requirePermissao(Permissao.ESTOQUE_GERENCIAR)
 }

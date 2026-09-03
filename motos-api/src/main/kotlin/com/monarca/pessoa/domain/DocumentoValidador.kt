@@ -1,6 +1,7 @@
 package com.monarca.pessoa.domain
 
-import com.monarca.localidade.service.RequisicaoInvalida
+import com.monarca.localidade.service.invalido
+import com.monarca.localidade.service.invalido
 
 /**
  * Normaliza e valida documentos de catálogo conhecidos (BR/PY).
@@ -22,13 +23,13 @@ object DocumentoValidador {
     fun normalizarCpf(numero: String): String {
         val digits = numero.filter { it.isDigit() }
         if (digits.length != 11) {
-            throw RequisicaoInvalida("CPF deve ter 11 dígitos")
+            throw invalido("CPF_TAMANHO", "CPF deve ter 11 dígitos")
         }
         if (digits.all { it == digits[0] }) {
-            throw RequisicaoInvalida("CPF inválido")
+            throw invalido("CPF_INVALIDO", "CPF inválido")
         }
         if (!cpfDigitoVerificadorValido(digits)) {
-            throw RequisicaoInvalida("CPF inválido")
+            throw invalido("CPF_INVALIDO", "CPF inválido")
         }
         return digits
     }
@@ -36,22 +37,22 @@ object DocumentoValidador {
     fun normalizarCnpj(numero: String): String {
         val limpo = numero.filter { it.isLetterOrDigit() }.uppercase()
         if (limpo.length != 14) {
-            throw RequisicaoInvalida("CNPJ deve ter 14 caracteres")
+            throw invalido("CNPJ_TAMANHO", "CNPJ deve ter 14 caracteres")
         }
         val base = limpo.substring(0, 12)
         val dv = limpo.substring(12)
         if (!base.all { it.isDigit() || it in 'A'..'Z' }) {
-            throw RequisicaoInvalida("CNPJ inválido")
+            throw invalido("CNPJ_INVALIDO", "CNPJ inválido")
         }
         if (!dv.all { it.isDigit() }) {
-            throw RequisicaoInvalida("CNPJ inválido: os dois últimos caracteres devem ser numéricos")
+            throw invalido("CNPJ_DV_NUMERICO", "CNPJ inválido: os dois últimos caracteres devem ser numéricos")
         }
         if (limpo.all { it == '0' }) {
-            throw RequisicaoInvalida("CNPJ inválido")
+            throw invalido("CNPJ_INVALIDO", "CNPJ inválido")
         }
         val dvCalculado = calcularDvCnpj(base)
         if (dv != dvCalculado) {
-            throw RequisicaoInvalida("CNPJ inválido")
+            throw invalido("CNPJ_INVALIDO", "CNPJ inválido")
         }
         return limpo
     }
@@ -59,7 +60,7 @@ object DocumentoValidador {
     fun normalizarCi(numero: String): String {
         val digits = numero.filter { it.isDigit() }
         if (digits.length !in 6..10) {
-            throw RequisicaoInvalida("Cédula (CI) deve ter entre 6 e 10 dígitos")
+            throw invalido("CI_TAMANHO", "Cédula (CI) deve ter entre 6 e 10 dígitos")
         }
         return digits
     }
@@ -70,26 +71,26 @@ object DocumentoValidador {
             '-' in semEspaco -> {
                 val partes = semEspaco.split('-').filter { it.isNotEmpty() }
                 if (partes.size != 2) {
-                    throw RequisicaoInvalida("RUC inválido: use formato 1234567-8")
+                    throw invalido("RUC_FORMATO", "RUC inválido: use formato 1234567-8")
                 }
                 partes[0] to partes[1]
             }
             else -> {
                 if (semEspaco.length < 2) {
-                    throw RequisicaoInvalida("RUC inválido")
+                    throw invalido("RUC_INVALIDO", "RUC inválido")
                 }
                 semEspaco.dropLast(1) to semEspaco.takeLast(1)
             }
         }
         if (!base.all { it.isDigit() } || base.length !in 3..8) {
-            throw RequisicaoInvalida("RUC inválido: base deve ter 3 a 8 dígitos")
+            throw invalido("RUC_BASE", "RUC inválido: base deve ter 3 a 8 dígitos")
         }
         if (dv.length != 1 || !dv[0].isDigit()) {
-            throw RequisicaoInvalida("RUC inválido: dígito verificador incorreto")
+            throw invalido("RUC_DV", "RUC inválido: dígito verificador incorreto")
         }
         val dvCalculado = calcularDvRucParaguay(base)
         if (dv.toInt() != dvCalculado) {
-            throw RequisicaoInvalida("RUC inválido")
+            throw invalido("RUC_INVALIDO", "RUC inválido")
         }
         return "$base-$dv"
     }

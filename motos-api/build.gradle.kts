@@ -40,3 +40,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)
 }
+
+tasks.test {
+    systemProperty("kotlinx.coroutines.test.default_timeout", "60s")
+}

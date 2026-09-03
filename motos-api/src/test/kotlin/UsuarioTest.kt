@@ -53,6 +53,7 @@ class UsuarioTest {
             assertEquals("ativo", usuario["status"]!!.jsonPrimitive.content)
             assertNull(usuario["senha"])
             assertNull(usuario["senhaHash"])
+            assertTrue(usuario["filiais"]!!.jsonArray.isNotEmpty())
 
             assertEquals(HttpStatusCode.OK, client.get("/usuarios/$id") { auth(token) }.status)
 
@@ -153,6 +154,7 @@ class UsuarioTest {
                 )
             }
             assertEquals(HttpStatusCode.BadRequest, duplicada.status)
+            assertEquals("USUARIO_EMAIL_DUPLICADO", Json.parseToJsonElement(duplicada.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
             assertTrue(duplicada.bodyAsText().contains("Já existe um usuário"))
 
             val semSenha = client.post("/usuarios") {
@@ -163,6 +165,7 @@ class UsuarioTest {
                 )
             }
             assertEquals(HttpStatusCode.BadRequest, semSenha.status)
+            assertEquals("SENHA_OBRIGATORIA", Json.parseToJsonElement(semSenha.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
             assertTrue(semSenha.bodyAsText().contains("Senha é obrigatória"))
             assertFalse(semSenha.bodyAsText().contains("segredo"))
         }
@@ -194,6 +197,59 @@ class UsuarioTest {
 
             val del = client.delete("/usuarios/$id") { auth(token) }
             assertEquals(HttpStatusCode.Forbidden, del.status)
+        }
+    }
+
+    @Test
+    fun `usuario recebe filiais informadas`() = testApplication {
+        configure()
+        withAuth { token ->
+            val empresaId = Json.parseToJsonElement(client.get("/empresas") { auth(token) }.bodyAsText())
+                .jsonArray.first().jsonObject["id"]!!.jsonPrimitive.long
+            val n = System.nanoTime()
+            val filial2 = client.post("/filiais") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idEmpresa":$empresaId,"nome":"Loja $n","principal":false}""")
+            }
+            assertEquals(HttpStatusCode.Created, filial2.status)
+            val idFilial2 = Json.parseToJsonElement(filial2.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+
+            val created = client.post("/usuarios") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"nome":"Vendedor $n","login":"vend.$n","email":"vend.$n@exemplo.com","senha":"segredo12","perfil":"vendedor","idsFiliais":[$idFilial2]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, created.status)
+            val usuario = Json.parseToJsonElement(created.bodyAsText()).jsonObject
+            val filiais = usuario["filiais"]!!.jsonArray
+            assertEquals(1, filiais.size)
+            assertEquals(idFilial2, filiais.first().jsonObject["id"]!!.jsonPrimitive.long)
+
+            val id = usuario["id"]!!.jsonPrimitive.long
+            val vazio = client.put("/usuarios/$id") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"nome":"Vendedor $n","login":"vend.$n","email":"vend.$n@exemplo.com","perfil":"vendedor","idsFiliais":[]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, vazio.status)
+
+            val principal = Json.parseToJsonElement(
+                client.get("/filiais/principal") { auth(token) }.bodyAsText(),
+            ).jsonObject["id"]!!.jsonPrimitive.long
+            val duas = client.put("/usuarios/$id") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"nome":"Vendedor $n","login":"vend.$n","email":"vend.$n@exemplo.com","perfil":"vendedor","idsFiliais":[$principal,$idFilial2]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.OK, duas.status)
+            assertEquals(2, Json.parseToJsonElement(duas.bodyAsText()).jsonObject["filiais"]!!.jsonArray.size)
         }
     }
 }

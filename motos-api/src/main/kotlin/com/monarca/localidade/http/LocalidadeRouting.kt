@@ -4,9 +4,11 @@ import com.monarca.auth.JWT_AUTH
 import com.monarca.auth.podeConsultarLocalidade
 import com.monarca.auth.podeGerenciarLocalidade
 import com.monarca.auth.withAudit
+import com.monarca.common.http.respondBadRequest
+import com.monarca.common.http.respondForbidden
+import com.monarca.common.http.respondNotFound
 import com.monarca.localidade.dto.CidadeRequest
 import com.monarca.localidade.dto.DivisaoRequest
-import com.monarca.localidade.dto.MensagemErro
 import com.monarca.localidade.dto.PaisRequest
 import com.monarca.localidade.service.AcessoNegado
 import com.monarca.localidade.service.LocalidadeService
@@ -162,10 +164,10 @@ private suspend fun ApplicationCall.handleLocalidade(block: suspend () -> Unit) 
     try {
         block()
     } catch (e: RecursoNaoEncontrado) {
-        respond(HttpStatusCode.NotFound, MensagemErro(e.message ?: "Não encontrado"))
+        respondNotFound(e)
     } catch (e: RequisicaoInvalida) {
-        respond(HttpStatusCode.BadRequest, MensagemErro(e.message ?: "Requisição inválida"))
+        respondBadRequest(e)
     } catch (e: AcessoNegado) {
-        respond(HttpStatusCode.Forbidden, MensagemErro(e.message ?: "Acesso negado"))
+        respondForbidden(e)
     }
 }

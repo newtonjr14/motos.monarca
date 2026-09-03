@@ -99,6 +99,7 @@ data class FilialVinculoResponse(
 data class DocumentoConflitoResponse(
     val codigo: String,
     val message: String,
+    val params: Map<String, String> = emptyMap(),
     val pessoa: PessoaResumoResponse,
     val idPapel: Long? = null,
     val filiaisVinculadas: List<FilialVinculoResponse> = emptyList(),
@@ -133,9 +134,4 @@ data class PapelResponse(
     val filiaisVinculadas: List<FilialVinculoResponse> = emptyList(),
     val status: Status,
     val pessoa: PessoaResponse,
-)
-
-@Serializable
-data class MensagemErro(
-    val message: String,
 )

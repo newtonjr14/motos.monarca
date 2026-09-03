@@ -11,6 +11,7 @@ import com.monarca.pessoa.repository.ClienteFilialTable
 import com.monarca.pessoa.repository.ClientesTable
 import com.monarca.pessoa.repository.FornecedorFilialTable
 import com.monarca.pessoa.repository.FornecedoresTable
+import com.monarca.produto.repository.ProdutoFilialTable
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.singleOrNull
 import kotlinx.coroutines.flow.toList
@@ -138,6 +139,7 @@ class ExposedEmpresaRepository(
             it[principal] = filial.principal
             it[listarApenasClientesFilial] = filial.listarApenasClientesFilial
             it[listarApenasFornecedoresFilial] = filial.listarApenasFornecedoresFilial
+            it[listarApenasProdutosFilial] = filial.listarApenasProdutosFilial
             it[status] = filial.status.name.lowercase()
         }
         inserted[FiliaisTable.id].value
@@ -167,6 +169,7 @@ class ExposedEmpresaRepository(
             it[principal] = filial.principal
             it[listarApenasClientesFilial] = filial.listarApenasClientesFilial
             it[listarApenasFornecedoresFilial] = filial.listarApenasFornecedoresFilial
+            it[listarApenasProdutosFilial] = filial.listarApenasProdutosFilial
             it[status] = filial.status.name.lowercase()
         } > 0
     }
@@ -200,10 +203,18 @@ class ExposedEmpresaRepository(
             .toList()
             .isNotEmpty()
         if (emCliente) return@suspendTransaction true
-        FornecedorFilialTable.selectAll()
+        val emFornecedor = FornecedorFilialTable.selectAll()
             .where {
                 (FornecedorFilialTable.idFilial eq id) and
                     (FornecedorFilialTable.status neq Status.DELETADO.name.lowercase())
+            }
+            .toList()
+            .isNotEmpty()
+        if (emFornecedor) return@suspendTransaction true
+        ProdutoFilialTable.selectAll()
+            .where {
+                (ProdutoFilialTable.idFilial eq id) and
+                    (ProdutoFilialTable.status neq Status.DELETADO.name.lowercase())
             }
             .toList()
             .isNotEmpty()
@@ -253,6 +264,7 @@ class ExposedEmpresaRepository(
         principal = this[FiliaisTable.principal],
         listarApenasClientesFilial = this[FiliaisTable.listarApenasClientesFilial],
         listarApenasFornecedoresFilial = this[FiliaisTable.listarApenasFornecedoresFilial],
+        listarApenasProdutosFilial = this[FiliaisTable.listarApenasProdutosFilial],
         status = Status.valueOf(this[FiliaisTable.status].uppercase()),
     )
 

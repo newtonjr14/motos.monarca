@@ -2,8 +2,10 @@ package com.monarca.usuario.repository
 
 import com.monarca.audit.service.AuditService
 import com.monarca.common.enums.Status
+import com.monarca.empresa.repository.FiliaisTable
 import com.monarca.usuario.Senha
 import com.monarca.usuario.SystemUser
+import com.monarca.usuario.domain.FilialAcesso
 import com.monarca.usuario.domain.IdiomaUsuario
 import com.monarca.usuario.domain.PerfilUsuario
 import com.monarca.usuario.domain.Usuario
@@ -28,6 +30,7 @@ class ExposedUsuarioRepository(
 
     override suspend fun inicializar() {
         seedSystemUser()
+        sincronizarSystemComFiliaisAtivas()
     }
 
     override suspend fun listar(): List<Usuario> = suspendTransaction(database) {
@@ -183,6 +186,124 @@ class ExposedUsuarioRepository(
             )
         }
         return ok
+    }
+
+    override suspend fun listarFiliais(idUsuario: Long): List<FilialAcesso> = suspendTransaction(database) {
+        UsuarioFiliaisTable
+            .innerJoin(FiliaisTable)
+            .selectAll()
+            .where {
+                (UsuarioFiliaisTable.idUsuario eq idUsuario) and
+                    (UsuarioFiliaisTable.status neq Status.DELETADO.name.lowercase()) and
+                    (FiliaisTable.status eq Status.ATIVO.name.lowercase())
+            }
+            .orderBy(FiliaisTable.principal to SortOrder.DESC, FiliaisTable.nome to SortOrder.ASC)
+            .map {
+                FilialAcesso(
+                    id = it[FiliaisTable.id].value,
+                    nome = it[FiliaisTable.nome],
+                    principal = it[FiliaisTable.principal],
+                )
+            }
+            .toList()
+    }
+
+    override suspend fun temAcessoFilial(idUsuario: Long, idFilial: Long): Boolean =
+        suspendTransaction(database) {
+            UsuarioFiliaisTable
+                .innerJoin(FiliaisTable)
+                .selectAll()
+                .where {
+                    (UsuarioFiliaisTable.idUsuario eq idUsuario) and
+                        (UsuarioFiliaisTable.idFilial eq idFilial) and
+                        (UsuarioFiliaisTable.status neq Status.DELETADO.name.lowercase()) and
+                        (FiliaisTable.status eq Status.ATIVO.name.lowercase())
+                }
+                .toList()
+                .isNotEmpty()
+        }
+
+    override suspend fun substituirFiliais(idUsuario: Long, idsFiliais: List<Long>) {
+        suspendTransaction(database) {
+            val atuais = UsuarioFiliaisTable.selectAll()
+                .where { UsuarioFiliaisTable.idUsuario eq idUsuario }
+                .toList()
+            val porFilial = atuais.associateBy { it[UsuarioFiliaisTable.idFilial].value }
+
+            for (row in atuais) {
+                val idFilial = row[UsuarioFiliaisTable.idFilial].value
+                if (idFilial !in idsFiliais && row[UsuarioFiliaisTable.status] != Status.DELETADO.name.lowercase()) {
+                    UsuarioFiliaisTable.update({ UsuarioFiliaisTable.id eq row[UsuarioFiliaisTable.id].value }) {
+                        it[status] = Status.DELETADO.name.lowercase()
+                    }
+                }
+            }
+
+            for (idFilial in idsFiliais) {
+                val existente = porFilial[idFilial]
+                if (existente == null) {
+                    UsuarioFiliaisTable.insert {
+                        it[UsuarioFiliaisTable.idUsuario] = idUsuario
+                        it[UsuarioFiliaisTable.idFilial] = idFilial
+                        it[status] = Status.ATIVO.name.lowercase()
+                    }
+                } else if (existente[UsuarioFiliaisTable.status] != Status.ATIVO.name.lowercase()) {
+                    UsuarioFiliaisTable.update({ UsuarioFiliaisTable.id eq existente[UsuarioFiliaisTable.id].value }) {
+                        it[status] = Status.ATIVO.name.lowercase()
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun vincularFilial(idUsuario: Long, idFilial: Long) {
+        suspendTransaction(database) {
+            val existente = UsuarioFiliaisTable.selectAll()
+                .where {
+                    (UsuarioFiliaisTable.idUsuario eq idUsuario) and (UsuarioFiliaisTable.idFilial eq idFilial)
+                }
+                .toList()
+                .singleOrNull()
+            if (existente == null) {
+                UsuarioFiliaisTable.insert {
+                    it[UsuarioFiliaisTable.idUsuario] = idUsuario
+                    it[UsuarioFiliaisTable.idFilial] = idFilial
+                    it[status] = Status.ATIVO.name.lowercase()
+                }
+            } else if (existente[UsuarioFiliaisTable.status] != Status.ATIVO.name.lowercase()) {
+                UsuarioFiliaisTable.update({ UsuarioFiliaisTable.id eq existente[UsuarioFiliaisTable.id].value }) {
+                    it[status] = Status.ATIVO.name.lowercase()
+                }
+            }
+        }
+    }
+
+    override suspend fun desativarVinculosDaFilial(idFilial: Long) {
+        suspendTransaction(database) {
+            UsuarioFiliaisTable.update({
+                (UsuarioFiliaisTable.idFilial eq idFilial) and
+                    (UsuarioFiliaisTable.status neq Status.DELETADO.name.lowercase())
+            }) {
+                it[status] = Status.DELETADO.name.lowercase()
+            }
+        }
+    }
+
+    override suspend fun sincronizarSystemComFiliaisAtivas() {
+        val system = buscarPorLogin(SystemUser.LOGIN) ?: return
+        val ids = suspendTransaction(database) {
+            FiliaisTable.selectAll()
+                .where { FiliaisTable.status eq Status.ATIVO.name.lowercase() }
+                .map { it[FiliaisTable.id].value }
+                .toList()
+        }
+        if (ids.isEmpty()) return
+        val atuais = listarFiliais(system.id).map { it.id }.toSet()
+        for (idFilial in ids) {
+            if (idFilial !in atuais) {
+                vincularFilial(system.id, idFilial)
+            }
+        }
     }
 
     private suspend fun seedSystemUser() {

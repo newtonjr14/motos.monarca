@@ -1,5 +1,5 @@
 import { atualizarPapel, excluirPapel, type Cidade, type Papel } from "@/api";
-import { obterFilialAtivaId } from "@/filialContext";
+import { useFilialId } from "@/auth/FilialContext";
 import { Section } from "@/components/crud/Field";
 import { formatarDocumentoExibicao, formatarEndereco, formatarTelefoneExibicao } from "@/format";
 import { useI18n } from "@/i18n";
@@ -64,6 +64,7 @@ export default function PapelFicha({
   onChanged: () => Promise<void>;
 }) {
   const { t } = useI18n();
+  const idFilial = useFilialId();
   const [loading, setLoading] = useState<"status" | "delete" | null>(null);
   const p = item.pessoa;
   const telefone = formatarTelefoneExibicao(p.ddi, p.telefone);
@@ -117,7 +118,6 @@ export default function PapelFicha({
     if (!confirm(t("ficha.confirmDeleteBranch"))) return;
     setLoading("delete");
     try {
-      const idFilial = await obterFilialAtivaId();
       await excluirPapel(recurso, item.id, idFilial);
       onClose();
       await onChanged();

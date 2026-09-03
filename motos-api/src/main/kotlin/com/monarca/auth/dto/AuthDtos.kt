@@ -2,6 +2,7 @@ package com.monarca.auth.dto
 
 import com.monarca.usuario.domain.IdiomaUsuario
 import com.monarca.usuario.domain.PerfilUsuario
+import com.monarca.usuario.dto.FilialAcessoResponse
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -32,6 +33,7 @@ data class PerfilAutenticadoResponse(
     val perfil: PerfilUsuario,
     val idioma: IdiomaUsuario,
     val permissoes: List<String>,
+    val filiais: List<FilialAcessoResponse> = emptyList(),
 )
 
 @Serializable
@@ -44,9 +46,4 @@ data class AlterarSenhaRequest(
 data class EditarPerfilRequest(
     val nome: String,
     val idioma: IdiomaUsuario,
-)
-
-@Serializable
-data class MensagemErro(
-    val message: String,
 )

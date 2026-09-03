@@ -3,7 +3,8 @@ package com.monarca.pessoa.service
 import com.monarca.common.enums.Status
 import com.monarca.empresa.service.EmpresaService
 import com.monarca.localidade.service.RecursoNaoEncontrado
-import com.monarca.localidade.service.RequisicaoInvalida
+import com.monarca.localidade.service.acesso
+import com.monarca.localidade.service.invalido
 import com.monarca.pessoa.domain.FilialVinculo
 import com.monarca.pessoa.domain.PapelCompleto
 import com.monarca.pessoa.domain.Pessoa
@@ -14,6 +15,7 @@ import com.monarca.pessoa.dto.PapelResponse
 import com.monarca.pessoa.dto.PessoaResumoResponse
 import com.monarca.pessoa.dto.VinculoFilialConflitoResponse
 import com.monarca.pessoa.repository.PessoaRepository
+import com.monarca.usuario.repository.UsuarioRepository
 
 class VinculoFilialConflito(
     val idPapel: Long,
@@ -30,17 +32,17 @@ class PapelService(
     private val repository: PessoaRepository,
     private val pessoaService: PessoaService,
     private val empresaService: EmpresaService,
+    private val usuarioRepository: UsuarioRepository,
 ) {
-
-    suspend fun listarClientes(idFilial: Long?): List<PapelResponse> =
-        listar(TipoPapel.CLIENTE, idFilial).map { it.toResponse() }
+    suspend fun listarClientes(idFilial: Long?, idUsuario: Long): List<PapelResponse> =
+        listar(TipoPapel.CLIENTE, idFilial, idUsuario).map { it.toResponse() }
 
     suspend fun buscarCliente(id: Long): PapelResponse =
         repository.buscarCliente(id)?.toResponse()
             ?: throw RecursoNaoEncontrado("Cliente $id não encontrado")
 
-    suspend fun criarCliente(request: PapelRequest): PapelResponse =
-        criarPapel(TipoPapel.CLIENTE, request, "cliente")
+    suspend fun criarCliente(request: PapelRequest, idUsuario: Long): PapelResponse =
+        criarPapel(TipoPapel.CLIENTE, request, "cliente", idUsuario)
 
     suspend fun atualizarCliente(id: Long, request: PapelRequest): PapelResponse {
         val atual = repository.buscarCliente(id) ?: throw RecursoNaoEncontrado("Cliente $id não encontrado")
@@ -49,7 +51,8 @@ class PapelService(
         return buscarCliente(id)
     }
 
-    suspend fun excluirCliente(id: Long, idFilial: Long?) {
+    suspend fun excluirCliente(id: Long, idFilial: Long?, idUsuario: Long) {
+        exigirAcessoFilial(idUsuario, idFilial)
         if (!repository.excluirCliente(id, idFilial)) {
             throw RecursoNaoEncontrado("Cliente $id não encontrado")
         }
@@ -57,15 +60,15 @@ class PapelService(
 
     suspend fun contarClientes(): Long = repository.contarClientes()
 
-    suspend fun listarFornecedores(idFilial: Long?): List<PapelResponse> =
-        listar(TipoPapel.FORNECEDOR, idFilial).map { it.toResponse() }
+    suspend fun listarFornecedores(idFilial: Long?, idUsuario: Long): List<PapelResponse> =
+        listar(TipoPapel.FORNECEDOR, idFilial, idUsuario).map { it.toResponse() }
 
     suspend fun buscarFornecedor(id: Long): PapelResponse =
         repository.buscarFornecedor(id)?.toResponse()
             ?: throw RecursoNaoEncontrado("Fornecedor $id não encontrado")
 
-    suspend fun criarFornecedor(request: PapelRequest): PapelResponse =
-        criarPapel(TipoPapel.FORNECEDOR, request, "fornecedor")
+    suspend fun criarFornecedor(request: PapelRequest, idUsuario: Long): PapelResponse =
+        criarPapel(TipoPapel.FORNECEDOR, request, "fornecedor", idUsuario)
 
     suspend fun atualizarFornecedor(id: Long, request: PapelRequest): PapelResponse {
         val atual = repository.buscarFornecedor(id) ?: throw RecursoNaoEncontrado("Fornecedor $id não encontrado")
@@ -74,7 +77,8 @@ class PapelService(
         return buscarFornecedor(id)
     }
 
-    suspend fun excluirFornecedor(id: Long, idFilial: Long?) {
+    suspend fun excluirFornecedor(id: Long, idFilial: Long?, idUsuario: Long) {
+        exigirAcessoFilial(idUsuario, idFilial)
         if (!repository.excluirFornecedor(id, idFilial)) {
             throw RecursoNaoEncontrado("Fornecedor $id não encontrado")
         }
@@ -90,6 +94,7 @@ class PapelService(
         return DocumentoConflitoResponse(
             codigo = e.codigo,
             message = e.message ?: "Documento em conflito",
+            params = e.params,
             pessoa = e.pessoa.toResumo(),
             idPapel = papel?.id,
             filiaisVinculadas = papel?.filiaisVinculadas?.map { it.toResponse() }.orEmpty(),
@@ -106,8 +111,8 @@ class PapelService(
         filialAlvoNome = e.filialAlvoNome,
     )
 
-    private suspend fun listar(tipo: TipoPapel, idFilial: Long?): List<PapelCompleto> {
-        val idFilialResolvida = idFilial ?: empresaService.buscarFilialPrincipal().id
+    private suspend fun listar(tipo: TipoPapel, idFilial: Long?, idUsuario: Long): List<PapelCompleto> {
+        val idFilialResolvida = resolverFilialComAcesso(idUsuario, idFilial)
         val filial = empresaService.buscarFilial(idFilialResolvida)
         val filtrar = when (tipo) {
             TipoPapel.CLIENTE -> filial.listarApenasClientesFilial
@@ -119,9 +124,9 @@ class PapelService(
         }
     }
 
-    private suspend fun criarPapel(tipo: TipoPapel, request: PapelRequest, rotulo: String): PapelResponse {
+    private suspend fun criarPapel(tipo: TipoPapel, request: PapelRequest, rotulo: String, idUsuario: Long): PapelResponse {
         val status = validarStatus(request.status)
-        val idFilial = empresaService.resolverFilialCadastro(request.idFilialCadastro)
+        val idFilial = resolverFilialComAcesso(idUsuario, request.idFilialCadastro)
         val filialAlvo = empresaService.buscarFilial(idFilial)
         val idPessoa = garantirPessoa(request)
         val existente = when (tipo) {
@@ -157,7 +162,7 @@ class PapelService(
             TipoPapel.FORNECEDOR -> repository.existeVinculoFornecedorFilial(idPapel, idFilial)
         }
         if (jaVinculado) {
-            throw RequisicaoInvalida("Esta pessoa já é $rotulo nesta filial")
+            throw invalido("PAPEL_JA_VINCULADO", "Esta pessoa já é $rotulo nesta filial")
         }
         val filiaisOutras = existente.filiaisVinculadas.filter { it.id != idFilial }
         if (filiaisOutras.isNotEmpty() && !request.confirmarVinculoFilial) {
@@ -198,7 +203,7 @@ class PapelService(
         val idInformado = request.idPessoa
         val pessoaReq = request.pessoa
         if (idInformado != null && pessoaReq != null) {
-            throw RequisicaoInvalida("Informe a pessoa ou o idPessoa, não os dois")
+            throw invalido("PESSOA_XOR", "Informe a pessoa ou o idPessoa, não os dois")
         }
         if (idInformado != null) {
             pessoaService.buscar(idInformado)
@@ -207,7 +212,7 @@ class PapelService(
         if (pessoaReq != null) {
             return pessoaService.criar(pessoaReq).id
         }
-        throw RequisicaoInvalida("Informe a pessoa ou o idPessoa")
+        throw invalido("PESSOA_OBRIGATORIA", "Informe a pessoa ou o idPessoa")
     }
 
     private suspend fun atualizarPessoaSeInformada(idPessoa: Long, request: PapelRequest) {
@@ -216,9 +221,22 @@ class PapelService(
 
     private fun validarStatus(status: Status): Status {
         if (status == Status.DELETADO) {
-            throw RequisicaoInvalida("Use DELETE para marcar como deletado")
+            throw invalido("USE_DELETE", "Use DELETE para marcar como deletado")
         }
         return status
+    }
+
+    private suspend fun resolverFilialComAcesso(idUsuario: Long, idFilial: Long?): Long {
+        val resolvida = empresaService.resolverFilialCadastro(idFilial)
+        exigirAcessoFilial(idUsuario, resolvida)
+        return resolvida
+    }
+
+    private suspend fun exigirAcessoFilial(idUsuario: Long, idFilial: Long?) {
+        val resolvida = idFilial ?: empresaService.buscarFilialPrincipal().id
+        if (!usuarioRepository.temAcessoFilial(idUsuario, resolvida)) {
+            throw acesso("SEM_ACESSO_FILIAL", "Sem acesso à filial")
+        }
     }
 
     private fun PapelCompleto.toResponse() = PapelResponse(

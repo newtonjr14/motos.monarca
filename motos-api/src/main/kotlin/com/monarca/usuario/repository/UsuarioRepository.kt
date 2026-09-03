@@ -1,6 +1,7 @@
 package com.monarca.usuario.repository
 
 import com.monarca.common.enums.Status
+import com.monarca.usuario.domain.FilialAcesso
 import com.monarca.usuario.domain.IdiomaUsuario
 import com.monarca.usuario.domain.PerfilUsuario
 import com.monarca.usuario.domain.Usuario
@@ -35,4 +36,10 @@ interface UsuarioRepository {
     suspend fun atualizarSenha(id: Long, senhaHash: String): Boolean
     suspend fun atualizarPerfil(id: Long, nome: String, idioma: IdiomaUsuario): Boolean
     suspend fun excluir(id: Long): Boolean
+    suspend fun listarFiliais(idUsuario: Long): List<FilialAcesso>
+    suspend fun temAcessoFilial(idUsuario: Long, idFilial: Long): Boolean
+    suspend fun substituirFiliais(idUsuario: Long, idsFiliais: List<Long>)
+    suspend fun vincularFilial(idUsuario: Long, idFilial: Long)
+    suspend fun desativarVinculosDaFilial(idFilial: Long)
+    suspend fun sincronizarSystemComFiliaisAtivas()
 }

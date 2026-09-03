@@ -11,11 +11,29 @@ export type Status = "ativo" | "inativo" | "deletado";
 export type IdiomaUsuario = "pt" | "es";
 export type PerfilUsuario = "administrador" | "gestor" | "operador" | "vendedor";
 
+export const Permissao = {
+  USUARIO_LISTAR: "usuario:listar",
+  LOCALIDADE_GERENCIAR: "localidade:gerenciar",
+  DOCUMENTO_GERENCIAR: "documento:gerenciar",
+  PESSOA_GERENCIAR: "pessoa:gerenciar",
+  VENDA_REGISTRAR: "venda:registrar",
+  DASHBOARD_CONSULTAR: "dashboard:consultar",
+  CONFIGURACAO: "configuracao:gerenciar",
+  PRODUTO_GERENCIAR: "produto:gerenciar",
+  ESTOQUE_GERENCIAR: "estoque:gerenciar",
+} as const;
+
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
   tokenType: string;
   expiresIn: number;
+}
+
+export interface FilialAcesso {
+  id: number;
+  nome: string;
+  principal: boolean;
 }
 
 export interface PerfilAutenticado {
@@ -26,6 +44,7 @@ export interface PerfilAutenticado {
   perfil: PerfilUsuario;
   idioma: IdiomaUsuario;
   permissoes: string[];
+  filiais: FilialAcesso[];
 }
 
 export interface Pais {
@@ -138,6 +157,7 @@ export interface Filial {
   pontoExpedicao: string | null;
   listarApenasClientesFilial: boolean;
   listarApenasFornecedoresFilial: boolean;
+  listarApenasProdutosFilial: boolean;
   principal: boolean;
   status: Status;
 }
@@ -145,6 +165,7 @@ export interface Filial {
 export interface DocumentoConflito {
   codigo: string;
   message: string;
+  params?: Record<string, string>;
   pessoa: { id: number; nomeRazaoSocial: string; tipoPessoa: TipoPessoa };
   idPapel?: number | null;
   filiaisVinculadas?: FilialVinculo[];
@@ -245,6 +266,7 @@ export interface Usuario {
   perfil: PerfilUsuario;
   idioma: IdiomaUsuario;
   status: Status;
+  filiais: FilialAcesso[];
 }
 
 export const login = (loginValue: string, senha: string) =>
@@ -362,3 +384,180 @@ export const criarFilial = (body: unknown) => api<Filial>("/filiais", { method: 
 export const atualizarFilial = (id: number, body: unknown) =>
   api<Filial>(`/filiais/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const excluirFilial = (id: number) => api<void>(`/filiais/${id}`, { method: "DELETE" });
+
+export type TipoProduto = "moto" | "bicicleta";
+
+export interface ProdutoMoto {
+  chassi: string | null;
+  cor: string | null;
+  potenciaMotorW: number | null;
+  autonomiaKm: number | null;
+  velocidadeMaxKmh: number | null;
+  capacidadeBateriaAh: number | null;
+  voltagemBateria: number | null;
+  tempoCargaHoras: number | null;
+  pesoKg: number | null;
+  capacidadeCargaKg: number | null;
+  assentos: number | null;
+  tipoFreio: string | null;
+  anoFabricacao: number;
+  anoModelo: number;
+}
+
+export interface ProdutoBicicleta {
+  cor: string | null;
+  potenciaMotorW: number | null;
+  autonomiaKm: number | null;
+  capacidadeBateriaAh: number | null;
+  voltagemBateria: number | null;
+  tempoCargaHoras: number | null;
+  pesoKg: number | null;
+  aro: string | null;
+  tipoQuadro: string | null;
+  numeroMarchas: number | null;
+  tipoFreio: string | null;
+  numeroSerieQuadro: string | null;
+}
+
+export interface ProdutoEstoqueSaldo {
+  idEstoque: number;
+  estoqueNome: string;
+  quantidade: number;
+  quantidadeReservada: number;
+  quantidadeDisponivel: number;
+}
+
+export interface Produto {
+  id: number;
+  codigo: string;
+  nome: string;
+  idMarca: number;
+  marca: string;
+  idModelo: number;
+  modelo: string;
+  descricao: string | null;
+  tipo: TipoProduto;
+  idFilialCadastro: number | null;
+  filialNome?: string | null;
+  filiaisVinculadas?: FilialVinculo[];
+  status: Status;
+  moto: ProdutoMoto | null;
+  bicicleta: ProdutoBicicleta | null;
+  quantidade?: number;
+  quantidadeReservada?: number;
+  quantidadeDisponivel?: number;
+  estoques?: ProdutoEstoqueSaldo[];
+}
+
+export interface VinculoFilialProdutoConflito {
+  codigo: "VINCULO_FILIAL";
+  message: string;
+  idProduto: number;
+  produto: { id: number; codigo: string; nome: string; tipo: TipoProduto };
+  filiaisVinculadas: FilialVinculo[];
+  idFilialAlvo: number;
+  filialAlvoNome: string;
+}
+
+export interface Estoque {
+  id: number;
+  idFilial: number;
+  filialNome: string;
+  nome: string;
+  status: Status;
+}
+
+export interface EstoqueProduto {
+  id: number;
+  idEstoque: number;
+  estoqueNome: string;
+  idFilial: number;
+  filialNome: string;
+  idProduto: number;
+  produtoCodigo: string;
+  produtoNome: string;
+  produtoTipo: TipoProduto;
+  quantidade: number;
+  quantidadeReservada: number;
+  quantidadeDisponivel: number;
+  status: Status;
+}
+
+export const listarProdutos = (idFilial?: number, tipo?: TipoProduto) => {
+  const q = new URLSearchParams();
+  if (idFilial != null) q.set("idFilial", String(idFilial));
+  if (tipo) q.set("tipo", tipo);
+  const suffix = q.toString() ? `?${q}` : "";
+  return api<Produto[]>(`/produtos${suffix}`);
+};
+export const buscarProduto = (id: number, idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<Produto>(`/produtos/${id}${q}`);
+};
+export const criarProduto = (body: unknown) =>
+  api<Produto>("/produtos", { method: "POST", body: JSON.stringify(body) });
+export const atualizarProduto = (id: number, body: unknown) =>
+  api<Produto>(`/produtos/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const excluirProduto = (id: number, idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<void>(`/produtos/${id}${q}`, { method: "DELETE" });
+};
+
+export interface Marca {
+  id: number;
+  nome: string;
+  status: Status;
+}
+
+export interface Modelo {
+  id: number;
+  idMarca: number;
+  marcaNome: string;
+  nome: string;
+  tipo: TipoProduto;
+  status: Status;
+}
+
+export const listarMarcas = () => api<Marca[]>("/marcas");
+export const criarMarca = (body: unknown) =>
+  api<Marca>("/marcas", { method: "POST", body: JSON.stringify(body) });
+export const atualizarMarca = (id: number, body: unknown) =>
+  api<Marca>(`/marcas/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const excluirMarca = (id: number) => api<void>(`/marcas/${id}`, { method: "DELETE" });
+
+export const listarModelos = (idMarca?: number, tipo?: TipoProduto) => {
+  const q = new URLSearchParams();
+  if (idMarca != null) q.set("idMarca", String(idMarca));
+  if (tipo) q.set("tipo", tipo);
+  const suffix = q.toString() ? `?${q}` : "";
+  return api<Modelo[]>(`/modelos${suffix}`);
+};
+export const criarModelo = (body: unknown) =>
+  api<Modelo>("/modelos", { method: "POST", body: JSON.stringify(body) });
+export const atualizarModelo = (id: number, body: unknown) =>
+  api<Modelo>(`/modelos/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const excluirModelo = (id: number) => api<void>(`/modelos/${id}`, { method: "DELETE" });
+
+export const listarEstoques = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<Estoque[]>(`/estoques${q}`);
+};
+export const criarEstoque = (body: unknown) =>
+  api<Estoque>("/estoques", { method: "POST", body: JSON.stringify(body) });
+export const atualizarEstoque = (id: number, body: unknown) =>
+  api<Estoque>(`/estoques/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const excluirEstoque = (id: number) => api<void>(`/estoques/${id}`, { method: "DELETE" });
+
+export const listarEstoqueProdutos = (idEstoque?: number, idFilial?: number) => {
+  const q = new URLSearchParams();
+  if (idEstoque != null) q.set("idEstoque", String(idEstoque));
+  if (idFilial != null) q.set("idFilial", String(idFilial));
+  const suffix = q.toString() ? `?${q}` : "";
+  return api<EstoqueProduto[]>(`/estoque-produtos${suffix}`);
+};
+export const criarEstoqueProduto = (body: unknown) =>
+  api<EstoqueProduto>("/estoque-produtos", { method: "POST", body: JSON.stringify(body) });
+export const atualizarEstoqueProduto = (id: number, body: unknown) =>
+  api<EstoqueProduto>(`/estoque-produtos/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const excluirEstoqueProduto = (id: number) =>
+  api<void>(`/estoque-produtos/${id}`, { method: "DELETE" });

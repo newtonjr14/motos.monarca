@@ -1,5 +1,6 @@
 package com.monarca.usuario.repository
 
+import com.monarca.empresa.repository.FiliaisTable
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
 
 object UsuariosTable : LongIdTable("usuario") {
@@ -10,4 +11,14 @@ object UsuariosTable : LongIdTable("usuario") {
     val perfil = varchar("perfil", 20)
     val idioma = varchar("idioma", 5).default("pt")
     val status = varchar("status", 20).default("ativo")
+}
+
+object UsuarioFiliaisTable : LongIdTable("usuario_filial") {
+    val idUsuario = reference("id_usuario", UsuariosTable)
+    val idFilial = reference("id_filial", FiliaisTable)
+    val status = varchar("status", 20).default("ativo")
+
+    init {
+        uniqueIndex(idUsuario, idFilial)
+    }
 }

@@ -4,8 +4,10 @@ import com.monarca.audit.service.auditModule
 import com.monarca.auth.jwtConfig
 import com.monarca.auth.service.authModule
 import com.monarca.empresa.service.empresaModule
+import com.monarca.estoque.service.estoqueModule
 import com.monarca.localidade.service.localidadeModule
 import com.monarca.pessoa.service.pessoaModule
+import com.monarca.produto.service.produtoModule
 import com.monarca.usuario.service.usuarioModule
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -41,9 +43,11 @@ fun Application.configureKoin() {
             auditModule,
             authModule,
             localidadeModule,
+            usuarioModule,
             empresaModule,
             pessoaModule,
-            usuarioModule,
+            produtoModule,
+            estoqueModule,
         )
     }
 }

@@ -2,6 +2,10 @@
 
 React + Vite + Tailwind CSS project running inside Figma Make.
 
+## CRUD e front (obrigatório)
+
+Todo cadastro novo (API + tela) **sempre** segue `PADROES-CRUD.md` neste mesmo diretório. Não esperar o usuário repetir: lista + form (sem modal), `useCrudReset`, `drive-table`, `Field`/`Section`, `api.ts`, i18n pt/es (todo texto estático; erros da API por código `api.*`; status ativo/inactivo traduzido), Flyway, RBAC e regra de filial igual a cliente/fornecedor quando o cadastro for por filial.
+
 ## Development Server
 
 A Vite development server is **already running** on `$PORT` (default 8443). You don't need to start it manually.

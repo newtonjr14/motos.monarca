@@ -1,0 +1,150 @@
+import { useCallback, useEffect, useState } from "react";
+import { Field } from "@/components/crud/Field";
+import { CatalogHeader, StatusBadge, TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
+import { useCrudReset } from "@/hooks/useCrudReset";
+import { useI18n } from "@/i18n";
+import { mensagemErroApi } from "@/i18n/apiMessages";
+import { tf } from "@/i18n/format";
+import { useFilialId } from "@/auth/FilialContext";
+import {
+  atualizarEstoque,
+  criarEstoque,
+  excluirEstoque,
+  listarEstoques,
+  type Estoque,
+} from "@/api";
+import { slicePage, toTitleCase } from "@/format";
+
+const v = (name: string) => `var(${name})`;
+
+export default function EstoquesPage({ navReset }: { navReset: number }) {
+  const { t } = useI18n();
+  const idFilial = useFilialId();
+  const [itens, setItens] = useState<Estoque[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [erro, setErro] = useState<string | null>(null);
+  const [formAberto, setFormAberto] = useState(false);
+  const [editando, setEditando] = useState<Estoque | null>(null);
+  const [nome, setNome] = useState("");
+  const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
+  const [salvando, setSalvando] = useState(false);
+
+  const resetLista = useCallback(() => {
+    setFormAberto(false);
+    setEditando(null);
+  }, []);
+  useCrudReset(navReset, resetLista);
+
+  async function carregar() {
+    try {
+      setErro(null);
+      setItens(await listarEstoques(idFilial));
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
+    }
+  }
+  useEffect(() => { void carregar(); }, [idFilial]);
+  useEffect(() => { setPage(1); }, [search]);
+
+  function abrir(item?: Estoque) {
+    setEditando(item ?? null);
+    setNome(item?.nome ?? "");
+    setStatus(item?.status === "inativo" ? "inativo" : "ativo");
+    setErro(null);
+    setFormAberto(true);
+  }
+
+  async function salvar() {
+    setErro(null);
+    if (!nome.trim()) {
+      setErro(t("estoque.error.nameRequired"));
+      return;
+    }
+    setSalvando(true);
+    try {
+      const body = { idFilial, nome: toTitleCase(nome), status };
+      if (editando) await atualizarEstoque(editando.id, body);
+      else await criarEstoque(body);
+      setFormAberto(false);
+      await carregar();
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (formAberto) {
+    return (
+      <div className="space-y-5 max-w-xl">
+        <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={() => setFormAberto(false)}>
+          ← {t("common.back")}
+        </button>
+        <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
+          {editando ? t("estoque.edit") : t("estoque.new")}
+        </h1>
+        <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
+          onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
+          {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+          <Field label={t("common.name")} required>
+            <input className="field" autoFocus value={nome} onChange={(e) => setNome(e.target.value)}
+              onBlur={() => setNome((x) => toTitleCase(x))} placeholder={t("estoque.placeholderName")} />
+          </Field>
+          {editando && (
+            <Field label={t("common.status")}>
+              <select className="field" value={status} onChange={(e) => setStatus(e.target.value as "ativo" | "inativo")}>
+                <option value="ativo">{t("common.active")}</option>
+                <option value="inativo">{t("common.inactive")}</option>
+              </select>
+            </Field>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>{t("common.cancel")}</button>
+            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? t("common.saving") : t("common.save")}</button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  const filtered = itens.filter((e) => e.nome.toLowerCase().includes(search.toLowerCase()));
+  const paged = slicePage(filtered, page);
+
+  return (
+    <div className="space-y-5">
+      <CatalogHeader titulo={t("nav.estoques")} count={itens.length} novoLabel={t("estoque.new")} onNovo={() => abrir()} />
+      {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        className="px-3 py-2 text-sm rounded-md outline-none w-64"
+        style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+      <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
+        <table className="drive-table w-full">
+          <thead>
+            <TableHeadRow cols={["col.id", "common.name", "common.status", ""]} />
+          </thead>
+          <tbody>
+            {paged.slice.map((e) => (
+              <tr key={e.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
+                <Td mono gold>{e.id}</Td>
+                <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{e.nome}</td>
+                <td className="px-4 py-3"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
+                <td className="px-4 py-3 text-right">
+                  <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(e)}>{t("common.edit")}</button>
+                  <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
+                    onClick={async () => {
+                      if (!confirm(tf(t, "common.confirmDelete", { name: e.nome }))) return;
+                      try { await excluirEstoque(e.id); await carregar(); }
+                      catch (err) { setErro(mensagemErroApi(err, t, "common.error.deleteFailed")); }
+                    }}>{t("common.delete")}</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!filtered.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
+        {filtered.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
+      </div>
+    </div>
+  );
+}

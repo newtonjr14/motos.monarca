@@ -10,14 +10,20 @@ import com.monarca.empresa.dto.EmpresaResponse
 import com.monarca.empresa.dto.FilialRequest
 import com.monarca.empresa.dto.FilialResponse
 import com.monarca.empresa.repository.EmpresaRepository
+import com.monarca.estoque.domain.Estoque
+import com.monarca.estoque.repository.EstoqueRepository
 import com.monarca.localidade.repository.LocalidadeRepository
 import com.monarca.localidade.service.RecursoNaoEncontrado
-import com.monarca.localidade.service.RequisicaoInvalida
+import com.monarca.localidade.service.invalido
 import com.monarca.pessoa.domain.DocumentoValidador
+import com.monarca.usuario.SystemUser
+import com.monarca.usuario.repository.UsuarioRepository
 
 class EmpresaService(
     private val repository: EmpresaRepository,
     private val localidadeRepository: LocalidadeRepository,
+    private val usuarioRepository: UsuarioRepository,
+    private val estoqueRepository: EstoqueRepository,
 ) {
 
     suspend fun listarEmpresas(): List<EmpresaResponse> =
@@ -30,7 +36,7 @@ class EmpresaService(
     suspend fun criarEmpresa(request: EmpresaRequest): EmpresaResponse {
         val empresa = validarEmpresa(request, id = 0)
         if (repository.existeEmpresaPorRuc(empresa.ruc)) {
-            throw RequisicaoInvalida("Já existe uma empresa com o RUC ${empresa.ruc}")
+            throw invalido("EMPRESA_RUC_DUPLICADO", "Já existe uma empresa com o RUC ${empresa.ruc}", "ruc" to empresa.ruc)
         }
         val id = repository.inserirEmpresa(empresa.copy(id = 0))
         return buscarEmpresa(id)
@@ -40,7 +46,7 @@ class EmpresaService(
         repository.buscarEmpresa(id) ?: throw RecursoNaoEncontrado("Empresa $id não encontrada")
         val empresa = validarEmpresa(request, id)
         if (repository.existeEmpresaPorRuc(empresa.ruc, ignorarId = id)) {
-            throw RequisicaoInvalida("Já existe uma empresa com o RUC ${empresa.ruc}")
+            throw invalido("EMPRESA_RUC_DUPLICADO", "Já existe uma empresa com o RUC ${empresa.ruc}", "ruc" to empresa.ruc)
         }
         repository.atualizarEmpresa(id, empresa)
         return buscarEmpresa(id)
@@ -49,7 +55,7 @@ class EmpresaService(
     suspend fun excluirEmpresa(id: Long) {
         repository.buscarEmpresa(id) ?: throw RecursoNaoEncontrado("Empresa $id não encontrada")
         if (repository.listarFiliais(id).isNotEmpty()) {
-            throw RequisicaoInvalida("Não é possível excluir uma empresa que possui filiais")
+            throw invalido("EMPRESA_COM_FILIAIS", "Não é possível excluir uma empresa que possui filiais")
         }
         if (!repository.excluirEmpresa(id)) {
             throw RecursoNaoEncontrado("Empresa $id não encontrada")
@@ -80,6 +86,10 @@ class EmpresaService(
             repository.limparPrincipal(filial.idEmpresa)
         }
         val id = repository.inserirFilial(filial.copy(id = 0))
+        usuarioRepository.buscarPorLogin(SystemUser.LOGIN)?.let { system ->
+            usuarioRepository.vincularFilial(system.id, id)
+        }
+        estoqueRepository.inserir(Estoque(id = 0, idFilial = id, nome = "Estoque Geral", status = Status.ATIVO))
         return buscarFilial(id)
     }
 
@@ -98,20 +108,22 @@ class EmpresaService(
     suspend fun excluirFilial(id: Long) {
         val atual = repository.buscarFilial(id) ?: throw RecursoNaoEncontrado("Filial $id não encontrada")
         if (atual.filial.principal) {
-            throw RequisicaoInvalida("Não é possível excluir a filial principal")
+            throw invalido("FILIAL_PRINCIPAL_EXCLUIR", "Não é possível excluir a filial principal")
         }
         if (repository.filialEmUso(id)) {
-            throw RequisicaoInvalida("Não é possível excluir uma filial vinculada a cadastros")
+            throw invalido("FILIAL_COM_CADASTROS", "Não é possível excluir uma filial vinculada a cadastros")
         }
         if (!repository.excluirFilial(id)) {
             throw RecursoNaoEncontrado("Filial $id não encontrada")
         }
+        usuarioRepository.desativarVinculosDaFilial(id)
+        estoqueRepository.excluirPorFilial(id)
     }
 
     suspend fun resolverFilialCadastro(idFilialCadastro: Long?): Long {
         if (idFilialCadastro != null) {
             repository.buscarFilial(idFilialCadastro)
-                ?: throw RequisicaoInvalida("Filial $idFilialCadastro não encontrada")
+                ?: throw invalido("FILIAL_NAO_ENCONTRADA", "Filial $idFilialCadastro não encontrada", "id" to idFilialCadastro)
             return idFilialCadastro
         }
         return buscarFilialPrincipal().id
@@ -162,6 +174,7 @@ class EmpresaService(
             principal = request.principal,
             listarApenasClientesFilial = request.listarApenasClientesFilial,
             listarApenasFornecedoresFilial = request.listarApenasFornecedoresFilial,
+            listarApenasProdutosFilial = request.listarApenasProdutosFilial,
             status = status,
         )
     }
@@ -169,14 +182,14 @@ class EmpresaService(
     private fun validarTexto(valor: String, rotulo: String): String {
         val trimmed = valor.trim()
         if (trimmed.isEmpty()) {
-            throw RequisicaoInvalida("$rotulo é obrigatório")
+            throw invalido("CAMPO_OBRIGATORIO", "$rotulo é obrigatório")
         }
         return Texto.titleCase(trimmed)
     }
 
     private fun validarStatusVisivel(status: Status): Status {
         if (status == Status.DELETADO) {
-            throw RequisicaoInvalida("Use DELETE para marcar como deletado")
+            throw invalido("USE_DELETE", "Use DELETE para marcar como deletado")
         }
         return status
     }
@@ -218,6 +231,7 @@ class EmpresaService(
         principal = filial.principal,
         listarApenasClientesFilial = filial.listarApenasClientesFilial,
         listarApenasFornecedoresFilial = filial.listarApenasFornecedoresFilial,
+        listarApenasProdutosFilial = filial.listarApenasProdutosFilial,
         status = filial.status,
     )
 }

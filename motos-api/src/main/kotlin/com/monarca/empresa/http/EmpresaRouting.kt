@@ -4,13 +4,15 @@ import com.monarca.auth.JWT_AUTH
 import com.monarca.auth.podeConsultarEmpresa
 import com.monarca.auth.podeGerenciarEmpresa
 import com.monarca.auth.withAudit
+import com.monarca.common.http.respondBadRequest
+import com.monarca.common.http.respondForbidden
+import com.monarca.common.http.respondNotFound
 import com.monarca.empresa.dto.EmpresaRequest
 import com.monarca.empresa.dto.FilialRequest
 import com.monarca.empresa.service.EmpresaService
 import com.monarca.localidade.service.AcessoNegado
 import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.RequisicaoInvalida
-import com.monarca.pessoa.dto.MensagemErro
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
@@ -121,10 +123,10 @@ private suspend fun ApplicationCall.handleEmpresa(block: suspend () -> Unit) {
     try {
         block()
     } catch (e: RecursoNaoEncontrado) {
-        respond(HttpStatusCode.NotFound, MensagemErro(e.message ?: "Não encontrado"))
+        respondNotFound(e)
     } catch (e: RequisicaoInvalida) {
-        respond(HttpStatusCode.BadRequest, MensagemErro(e.message ?: "Requisição inválida"))
+        respondBadRequest(e)
     } catch (e: AcessoNegado) {
-        respond(HttpStatusCode.Forbidden, MensagemErro(e.message ?: "Acesso negado"))
+        respondForbidden(e)
     }
 }

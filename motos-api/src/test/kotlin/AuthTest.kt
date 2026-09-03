@@ -1,5 +1,6 @@
 package com.monarca
 
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -11,6 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -40,5 +42,18 @@ class AuthTest {
             setBody("""{"login":"system","senha":"errada"}""")
         }
         assertEquals(HttpStatusCode.BadRequest, res.status)
+    }
+
+    @Test
+    fun `perfil autenticado inclui filiais`() = testApplication {
+        configure()
+        withAuth { token ->
+            val res = client.get("/auth/me") { auth(token) }
+            assertEquals(HttpStatusCode.OK, res.status)
+            val body = Json.parseToJsonElement(res.bodyAsText()).jsonObject
+            val filiais = body["filiais"]!!.jsonArray
+            assertTrue(filiais.isNotEmpty())
+            assertTrue(filiais.first().jsonObject["nome"]!!.jsonPrimitive.content.isNotBlank())
+        }
     }
 }

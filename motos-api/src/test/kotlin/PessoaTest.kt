@@ -227,6 +227,7 @@ class PessoaTest {
             val conflito = Json.parseToJsonElement(duplicada.bodyAsText()).jsonObject
             assertEquals("DOCUMENTO_UNICO", conflito["codigo"]!!.jsonPrimitive.content)
             assertEquals(id, conflito["pessoa"]!!.jsonObject["id"]!!.jsonPrimitive.long)
+            assertEquals("CPF", conflito["params"]!!.jsonObject["tipo"]!!.jsonPrimitive.content)
         }
     }
 

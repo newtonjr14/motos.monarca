@@ -84,6 +84,11 @@ body {
   font-size: 14px;
   line-height: 1.4;
 }
+.field:disabled,
+.field:read-only {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
 select.field {
   appearance: auto;
   cursor: pointer;

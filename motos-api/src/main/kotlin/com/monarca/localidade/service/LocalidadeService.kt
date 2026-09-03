@@ -13,10 +13,6 @@ import com.monarca.localidade.dto.PaisRequest
 import com.monarca.localidade.dto.PaisResponse
 import com.monarca.localidade.repository.LocalidadeRepository
 
-class RecursoNaoEncontrado(message: String) : RuntimeException(message)
-class RequisicaoInvalida(message: String) : RuntimeException(message)
-class AcessoNegado(message: String = "Acesso negado") : RuntimeException(message)
-
 class LocalidadeService(
     private val repository: LocalidadeRepository,
 ) {
@@ -35,7 +31,7 @@ class LocalidadeService(
         val sigla = validarSiglaPais(request.sigla)
         val status = validarStatusVisivel(request.status)
         if (repository.existePaisPorSigla(sigla)) {
-            throw RequisicaoInvalida("Já existe um país com a sigla $sigla")
+            throw invalido("PAIS_SIGLA_DUPLICADA", "Já existe um país com a sigla $sigla", "sigla" to sigla)
         }
         val id = repository.inserirPais(nome, sigla, request.usaSiglaDivisao, status)
         return buscarPais(id)
@@ -47,7 +43,7 @@ class LocalidadeService(
         val status = validarStatusVisivel(request.status)
         repository.buscarPais(id) ?: throw RecursoNaoEncontrado("País $id não encontrado")
         if (repository.existePaisPorSigla(sigla, ignorarId = id)) {
-            throw RequisicaoInvalida("Já existe um país com a sigla $sigla")
+            throw invalido("PAIS_SIGLA_DUPLICADA", "Já existe um país com a sigla $sigla", "sigla" to sigla)
         }
         repository.atualizarPais(id, nome, sigla, request.usaSiglaDivisao, status)
         return buscarPais(id)
@@ -56,7 +52,7 @@ class LocalidadeService(
     suspend fun excluirPais(id: Long) {
         repository.buscarPais(id) ?: throw RecursoNaoEncontrado("País $id não encontrado")
         if (repository.contarCidadesNaoDeletadasDoPais(id) > 0) {
-            throw RequisicaoInvalida("Não é possível excluir um país que possui cidades")
+            throw invalido("PAIS_COM_CIDADES", "Não é possível excluir um país que possui cidades")
         }
         repository.excluirPais(id)
     }
@@ -80,7 +76,7 @@ class LocalidadeService(
             ?: throw RecursoNaoEncontrado("País ${request.idPais} não encontrado")
         val sigla = validarSiglaDivisao(request.sigla)
         if (repository.existeDivisao(request.idPais, nome)) {
-            throw RequisicaoInvalida("Já existe uma divisão '$nome' neste país")
+            throw invalido("DIVISAO_NOME_DUPLICADO", "Já existe uma divisão '$nome' neste país", "nome" to nome)
         }
         val id = repository.inserirDivisao(nome, request.idPais, sigla, status)
         return buscarDivisao(id)
@@ -94,7 +90,7 @@ class LocalidadeService(
             ?: throw RecursoNaoEncontrado("País ${request.idPais} não encontrado")
         val sigla = validarSiglaDivisao(request.sigla)
         if (repository.existeDivisao(request.idPais, nome, ignorarId = id)) {
-            throw RequisicaoInvalida("Já existe uma divisão '$nome' neste país")
+            throw invalido("DIVISAO_NOME_DUPLICADO", "Já existe uma divisão '$nome' neste país", "nome" to nome)
         }
         repository.atualizarDivisao(id, nome, request.idPais, sigla, status)
         return buscarDivisao(id)
@@ -103,7 +99,7 @@ class LocalidadeService(
     suspend fun excluirDivisao(id: Long) {
         repository.buscarDivisao(id) ?: throw RecursoNaoEncontrado("Divisão $id não encontrada")
         if (repository.contarCidadesNaoDeletadasDaDivisao(id) > 0) {
-            throw RequisicaoInvalida("Não é possível excluir uma divisão que possui cidades")
+            throw invalido("DIVISAO_COM_CIDADES", "Não é possível excluir uma divisão que possui cidades")
         }
         repository.excluirDivisao(id)
     }
@@ -144,7 +140,7 @@ class LocalidadeService(
     private fun validarNome(nome: String, rotulo: String): String {
         val trimmed = nome.trim()
         if (trimmed.isEmpty()) {
-            throw RequisicaoInvalida("$rotulo é obrigatório")
+            throw invalido("CAMPO_OBRIGATORIO", "$rotulo é obrigatório")
         }
         return Texto.titleCase(trimmed)
     }
@@ -152,7 +148,7 @@ class LocalidadeService(
     private fun validarSiglaDivisao(sigla: String?): String? {
         val normalizada = sigla?.trim()?.uppercase()?.takeIf { it.isNotEmpty() } ?: return null
         if (normalizada.length > 10) {
-            throw RequisicaoInvalida("Sigla da divisão deve ter até 10 caracteres")
+            throw invalido("DIVISAO_SIGLA_TAMANHO", "Sigla da divisão deve ter até 10 caracteres")
         }
         return normalizada
     }
@@ -160,14 +156,14 @@ class LocalidadeService(
     private fun validarSiglaPais(sigla: String): String {
         val normalizada = sigla.trim().uppercase()
         if (!normalizada.matches(Regex("^[A-Z]{2}$"))) {
-            throw RequisicaoInvalida("Sigla do país deve ter 2 letras (ISO)")
+            throw invalido("PAIS_SIGLA_ISO", "Sigla do país deve ter 2 letras (ISO)")
         }
         return normalizada
     }
 
     private fun validarStatusVisivel(status: Status): Status {
         if (status == Status.DELETADO) {
-            throw RequisicaoInvalida("Use DELETE para marcar como deletado")
+            throw invalido("USE_DELETE", "Use DELETE para marcar como deletado")
         }
         return status
     }
@@ -179,7 +175,7 @@ class LocalidadeService(
 
     private suspend fun garantirCidadeUnica(idDivisao: Long, nome: String, ignorarId: Long? = null) {
         if (repository.existeCidade(idDivisao, nome, ignorarId)) {
-            throw RequisicaoInvalida("Já existe uma cidade '$nome' nesta divisão")
+            throw invalido("CIDADE_NOME_DUPLICADO", "Já existe uma cidade '$nome' nesta divisão", "nome" to nome)
         }
     }
 

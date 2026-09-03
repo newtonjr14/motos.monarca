@@ -4,7 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.monarca.auth.domain.Rbac
 import com.monarca.auth.domain.UsuarioAutenticado
-import com.monarca.auth.dto.MensagemErro
+import com.monarca.common.dto.MensagemErro
 import com.monarca.usuario.domain.PerfilUsuario
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -35,12 +35,10 @@ fun Application.configureAuthentication() {
                 val perfilRaw = credential.payload.getClaim("perfil").asString() ?: return@validate null
                 val perfil = runCatching { PerfilUsuario.valueOf(perfilRaw.uppercase()) }.getOrNull()
                     ?: return@validate null
-                val permissoes = credential.payload.getClaim("permissoes").asList(String::class.java)?.toSet()
-                    ?: Rbac.codigos(perfil)
-                UsuarioAutenticado(id, login, perfil, permissoes)
+                UsuarioAutenticado(id, login, perfil, Rbac.codigos(perfil))
             }
             challenge { _, _ ->
-                call.respond(HttpStatusCode.Unauthorized, MensagemErro("Token inválido ou expirado"))
+                call.respond(HttpStatusCode.Unauthorized, MensagemErro("TOKEN_INVALIDO", "Token inválido ou expirado"))
             }
         }
     }

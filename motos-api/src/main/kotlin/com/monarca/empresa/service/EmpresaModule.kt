@@ -6,5 +6,5 @@ import org.koin.dsl.module
 
 val empresaModule = module {
     single<EmpresaRepository> { ExposedEmpresaRepository(get()) }
-    single { EmpresaService(get(), get()) }
+    single { EmpresaService(get(), get(), get(), get()) }
 }

@@ -146,6 +146,16 @@ export function formatarTelefoneExibicao(ddi: string | null | undefined, numero:
 
 export const PAGE_SIZE = 10;
 
+export function slicePage<T>(itens: T[], page: number) {
+  const totalPages = Math.max(1, Math.ceil(itens.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  return {
+    pageSafe,
+    total: itens.length,
+    slice: itens.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE),
+  };
+}
+
 export function cidadePorId(cidades: Cidade[], id: number | null): Cidade | undefined {
   if (id == null) return undefined;
   return cidades.find((x) => x.id === id);

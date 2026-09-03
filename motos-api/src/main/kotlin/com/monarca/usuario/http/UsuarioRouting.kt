@@ -3,10 +3,12 @@ package com.monarca.usuario.http
 import com.monarca.auth.JWT_AUTH
 import com.monarca.auth.domain.UsuarioAutenticado
 import com.monarca.auth.withAudit
+import com.monarca.common.http.respondBadRequest
+import com.monarca.common.http.respondForbidden
+import com.monarca.common.http.respondNotFound
 import com.monarca.localidade.service.AcessoNegado
 import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.RequisicaoInvalida
-import com.monarca.usuario.dto.MensagemErro
 import com.monarca.usuario.dto.UsuarioRequest
 import com.monarca.usuario.service.UsuarioService
 import io.ktor.http.HttpStatusCode
@@ -76,10 +78,10 @@ private suspend fun ApplicationCall.handleUsuario(block: suspend () -> Unit) {
     try {
         block()
     } catch (e: RecursoNaoEncontrado) {
-        respond(HttpStatusCode.NotFound, MensagemErro(e.message ?: "Não encontrado"))
+        respondNotFound(e)
     } catch (e: RequisicaoInvalida) {
-        respond(HttpStatusCode.BadRequest, MensagemErro(e.message ?: "Requisição inválida"))
+        respondBadRequest(e)
     } catch (e: AcessoNegado) {
-        respond(HttpStatusCode.Forbidden, MensagemErro(e.message ?: "Acesso negado"))
+        respondForbidden(e)
     }
 }

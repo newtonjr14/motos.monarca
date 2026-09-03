@@ -44,7 +44,7 @@ function ParamCheckbox({
   );
 }
 
-function filialBody(filial: Filial, params: { listarClientes: boolean; listarFornecedores: boolean }) {
+function filialBody(filial: Filial, params: { listarClientes: boolean; listarFornecedores: boolean; listarProdutos: boolean }) {
   return {
     idEmpresa: filial.idEmpresa,
     nome: filial.nome,
@@ -66,6 +66,7 @@ function filialBody(filial: Filial, params: { listarClientes: boolean; listarFor
     principal: filial.principal,
     listarApenasClientesFilial: params.listarClientes,
     listarApenasFornecedoresFilial: params.listarFornecedores,
+    listarApenasProdutosFilial: params.listarProdutos,
     status: filial.status,
   };
 }
@@ -96,6 +97,7 @@ export default function FilialParametrosModal({
   const { t } = useI18n();
   const [listarClientes, setListarClientes] = useState(filial.listarApenasClientesFilial);
   const [listarFornecedores, setListarFornecedores] = useState(filial.listarApenasFornecedoresFilial);
+  const [listarProdutos, setListarProdutos] = useState(filial.listarApenasProdutosFilial);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -105,7 +107,7 @@ export default function FilialParametrosModal({
     try {
       const atualizada = await atualizarFilial(
         filial.id,
-        filialBody(filial, { listarClientes, listarFornecedores }),
+        filialBody(filial, { listarClientes, listarFornecedores, listarProdutos }),
       );
       onSaved(atualizada);
       onClose();
@@ -154,6 +156,11 @@ export default function FilialParametrosModal({
               label={t("empresa.listSuppliersBranchOnly")}
               checked={listarFornecedores}
               onChange={setListarFornecedores}
+            />
+            <ParamCheckbox
+              label={t("empresa.listProductsBranchOnly")}
+              checked={listarProdutos}
+              onChange={setListarProdutos}
             />
           </section>
         </div>

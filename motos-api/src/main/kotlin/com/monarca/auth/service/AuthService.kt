@@ -11,7 +11,8 @@ import com.monarca.auth.dto.TokenResponse
 import com.monarca.auth.repository.RefreshTokenRepository
 import com.monarca.common.enums.Status
 import com.monarca.localidade.service.RecursoNaoEncontrado
-import com.monarca.localidade.service.RequisicaoInvalida
+import com.monarca.localidade.service.invalido
+import com.monarca.usuario.dto.FilialAcessoResponse
 import com.monarca.usuario.Senha
 import com.monarca.usuario.domain.Usuario
 import com.monarca.usuario.repository.UsuarioRepository
@@ -29,16 +30,16 @@ class AuthService(
     suspend fun login(request: LoginRequest): TokenResponse {
         val login = validarLogin(request.login)
         val senha = request.senha.trim()
-        if (senha.isEmpty()) throw RequisicaoInvalida("Senha é obrigatória")
+        if (senha.isEmpty()) throw invalido("SENHA_OBRIGATORIA", "Senha é obrigatória")
 
         val usuario = usuarioRepository.buscarPorLogin(login)
-            ?: throw RequisicaoInvalida("Login ou senha inválidos")
+            ?: throw invalido("LOGIN_SENHA_INVALIDOS", "Login ou senha inválidos")
 
         if (usuario.status != Status.ATIVO) {
-            throw RequisicaoInvalida("Usuário inativo")
+            throw invalido("USUARIO_INATIVO", "Usuário inativo")
         }
         if (!Senha.conferir(senha, usuario.senhaHash)) {
-            throw RequisicaoInvalida("Login ou senha inválidos")
+            throw invalido("LOGIN_SENHA_INVALIDOS", "Login ou senha inválidos")
         }
 
         return emitirTokens(usuario)
@@ -46,23 +47,23 @@ class AuthService(
 
     suspend fun refresh(refreshToken: String): TokenResponse {
         val token = refreshToken.trim()
-        if (token.isEmpty()) throw RequisicaoInvalida("Refresh token é obrigatório")
+        if (token.isEmpty()) throw invalido("REFRESH_OBRIGATORIO", "Refresh token é obrigatório")
 
         val hash = hashToken(token)
         val registro = refreshTokenRepository.buscarPorHash(hash)
-            ?: throw RequisicaoInvalida("Refresh token inválido")
+            ?: throw invalido("REFRESH_INVALIDO", "Refresh token inválido")
 
         if (registro.expiresAt < System.currentTimeMillis()) {
             refreshTokenRepository.revogar(hash)
-            throw RequisicaoInvalida("Refresh token expirado")
+            throw invalido("REFRESH_EXPIRADO", "Refresh token expirado")
         }
 
         val usuario = usuarioRepository.buscar(registro.idUsuario)
-            ?: throw RequisicaoInvalida("Refresh token inválido")
+            ?: throw invalido("REFRESH_INVALIDO", "Refresh token inválido")
 
         if (usuario.status != Status.ATIVO) {
             refreshTokenRepository.revogar(hash)
-            throw RequisicaoInvalida("Usuário inativo")
+            throw invalido("USUARIO_INATIVO", "Usuário inativo")
         }
 
         refreshTokenRepository.revogar(hash)
@@ -80,7 +81,7 @@ class AuthService(
             ?: throw RecursoNaoEncontrado("Usuário $id não encontrado")
 
         if (!Senha.conferir(request.senhaAtual.trim(), usuario.senhaHash)) {
-            throw RequisicaoInvalida("Senha atual incorreta")
+            throw invalido("SENHA_ATUAL_INCORRETA", "Senha atual incorreta")
         }
         val nova = validarSenhaNova(request.senhaNova)
         usuarioRepository.atualizarSenha(id, Senha.hash(nova))
@@ -130,29 +131,29 @@ class AuthService(
     private fun validarLogin(login: String): String {
         val normalizado = login.trim().lowercase()
         if (normalizado.length < 3) {
-            throw RequisicaoInvalida("Login inválido")
+            throw invalido("LOGIN_INVALIDO", "Login inválido")
         }
         if (!normalizado.matches(Regex("^[a-z0-9._-]+$"))) {
-            throw RequisicaoInvalida("Login inválido")
+            throw invalido("LOGIN_INVALIDO", "Login inválido")
         }
         return normalizado
     }
 
     private fun validarNome(nome: String): String {
         val trimmed = nome.trim()
-        if (trimmed.isEmpty()) throw RequisicaoInvalida("Nome é obrigatório")
+        if (trimmed.isEmpty()) throw invalido("NOME_OBRIGATORIO", "Nome é obrigatório")
         return Texto.titleCase(trimmed)
     }
 
     private fun validarSenhaNova(senha: String): String {
         val valor = senha.trim()
         if (valor.length < 8) {
-            throw RequisicaoInvalida("Senha deve ter pelo menos 8 caracteres")
+            throw invalido("SENHA_MINIMA", "Senha deve ter pelo menos 8 caracteres")
         }
         return valor
     }
 
-    private fun Usuario.toPerfil() = PerfilAutenticadoResponse(
+    private suspend fun Usuario.toPerfil() = PerfilAutenticadoResponse(
         id = id,
         nome = nome,
         login = login,
@@ -160,5 +161,8 @@ class AuthService(
         perfil = perfil,
         idioma = idioma,
         permissoes = Rbac.codigos(perfil).toList().sorted(),
+        filiais = usuarioRepository.listarFiliais(id).map {
+            FilialAcessoResponse(id = it.id, nome = it.nome, principal = it.principal)
+        },
     )
 }

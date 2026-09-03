@@ -2,16 +2,6 @@ package com.monarca.empresa.domain
 
 import com.monarca.common.enums.Status
 
-data class Empresa(
-    val id: Long,
-    val razaoSocial: String,
-    val nomeFantasia: String,
-    val ruc: String,
-    val representanteNome: String?,
-    val representanteDocumento: String?,
-    val status: Status,
-)
-
 data class Filial(
     val id: Long,
     val idEmpresa: Long,
@@ -34,15 +24,6 @@ data class Filial(
     val principal: Boolean,
     val listarApenasClientesFilial: Boolean,
     val listarApenasFornecedoresFilial: Boolean,
+    val listarApenasProdutosFilial: Boolean,
     val status: Status,
-)
-
-data class FilialDetalhe(
-    val filial: Filial,
-    val empresaRazaoSocial: String,
-    val empresaNomeFantasia: String,
-    val cidadeNome: String?,
-    val divisaoNome: String?,
-    val divisaoSigla: String?,
-    val paisNome: String?,
 )

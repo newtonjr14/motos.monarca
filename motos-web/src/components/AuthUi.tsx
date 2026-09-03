@@ -1,6 +1,7 @@
 import monarcaLogo from "@/imports/Monarca.png";
 import { useAuth } from "@/auth/AuthContext";
 import { useI18n } from "@/i18n";
+import { mensagemErroApi } from "@/i18n/apiMessages";
 import type { SystemStatus } from "@/systemStatus";
 import { APP_VERSION } from "@/version";
 import { useState, type ReactNode } from "react";
@@ -197,7 +198,7 @@ export default function LoginPage({
     try {
       await login(loginValue.trim(), senha);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : t("login.error"));
+      setErro(mensagemErroApi(err, t, "login.error"));
     } finally {
       setLoading(false);
     }
@@ -337,7 +338,7 @@ export function UserMenu() {
       setMsg(t("profile.success"));
       setModal(null);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro");
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
       setSalvando(false);
     }
@@ -352,7 +353,7 @@ export function UserMenu() {
       setMsg(t("profile.success"));
       setModal(null);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro");
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
       setSalvando(false);
     }
@@ -368,7 +369,7 @@ export function UserMenu() {
     try {
       await alterarSenha(senhaAtual, senhaNova);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro");
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
       setSalvando(false);
     }
   }

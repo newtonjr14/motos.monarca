@@ -2,13 +2,17 @@ package com.monarca.pessoa.http
 
 import com.monarca.auth.JWT_AUTH
 import com.monarca.auth.podeConsultarPessoa
+import com.monarca.auth.podeGerenciarDocumento
 import com.monarca.auth.podeGerenciarPessoa
+import com.monarca.auth.usuarioAutenticado
 import com.monarca.auth.withAudit
+import com.monarca.common.http.respondBadRequest
+import com.monarca.common.http.respondForbidden
+import com.monarca.common.http.respondNotFound
 import com.monarca.localidade.service.AcessoNegado
 import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.RequisicaoInvalida
 import com.monarca.pessoa.dto.DocumentoTipoRequest
-import com.monarca.pessoa.dto.MensagemErro
 import com.monarca.pessoa.dto.PapelRequest
 import com.monarca.pessoa.dto.PessoaRequest
 import com.monarca.pessoa.service.DocumentoConflito
@@ -50,7 +54,7 @@ suspend fun Application.configurePessoa() {
             }
             post<DocumentosTipos> {
                 call.handlePessoa(service, papel) {
-                    call.podeGerenciarPessoa()
+                    call.podeGerenciarDocumento()
                     val request = call.receive<DocumentoTipoRequest>()
                     call.withAudit {
                         call.respond(HttpStatusCode.Created, service.criarTipo(request))
@@ -59,7 +63,7 @@ suspend fun Application.configurePessoa() {
             }
             put<DocumentosTipos.Id> { resource ->
                 call.handlePessoa(service, papel) {
-                    call.podeGerenciarPessoa()
+                    call.podeGerenciarDocumento()
                     val request = call.receive<DocumentoTipoRequest>()
                     call.withAudit {
                         call.respond(service.atualizarTipo(resource.id, request))
@@ -68,7 +72,7 @@ suspend fun Application.configurePessoa() {
             }
             delete<DocumentosTipos.Id> { resource ->
                 call.handlePessoa(service, papel) {
-                    call.podeGerenciarPessoa()
+                    call.podeGerenciarDocumento()
                     call.withAudit {
                         service.excluirTipo(resource.id)
                         call.respond(HttpStatusCode.NoContent)
@@ -118,7 +122,7 @@ suspend fun Application.configurePessoa() {
             get<Clientes> { resource ->
                 call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
                     call.podeConsultarPessoa()
-                    call.respond(papel.listarClientes(resource.idFilial))
+                    call.respond(papel.listarClientes(resource.idFilial, call.usuarioAutenticado().id))
                 }
             }
             get<Clientes.Id> { resource ->
@@ -132,7 +136,7 @@ suspend fun Application.configurePessoa() {
                     call.podeGerenciarPessoa()
                     val request = call.receive<PapelRequest>()
                     call.withAudit {
-                        call.respond(HttpStatusCode.Created, papel.criarCliente(request))
+                        call.respond(HttpStatusCode.Created, papel.criarCliente(request, call.usuarioAutenticado().id))
                     }
                 }
             }
@@ -150,7 +154,7 @@ suspend fun Application.configurePessoa() {
                     call.podeGerenciarPessoa()
                     val idFilial = call.request.queryParameters["idFilial"]?.toLongOrNull()
                     call.withAudit {
-                        papel.excluirCliente(resource.id, idFilial)
+                        papel.excluirCliente(resource.id, idFilial, call.usuarioAutenticado().id)
                         call.respond(HttpStatusCode.NoContent)
                     }
                 }
@@ -159,7 +163,7 @@ suspend fun Application.configurePessoa() {
             get<Fornecedores> { resource ->
                 call.handlePessoa(service, papel, TipoPapel.FORNECEDOR) {
                     call.podeConsultarPessoa()
-                    call.respond(papel.listarFornecedores(resource.idFilial))
+                    call.respond(papel.listarFornecedores(resource.idFilial, call.usuarioAutenticado().id))
                 }
             }
             get<Fornecedores.Id> { resource ->
@@ -173,7 +177,7 @@ suspend fun Application.configurePessoa() {
                     call.podeGerenciarPessoa()
                     val request = call.receive<PapelRequest>()
                     call.withAudit {
-                        call.respond(HttpStatusCode.Created, papel.criarFornecedor(request))
+                        call.respond(HttpStatusCode.Created, papel.criarFornecedor(request, call.usuarioAutenticado().id))
                     }
                 }
             }
@@ -191,7 +195,7 @@ suspend fun Application.configurePessoa() {
                     call.podeGerenciarPessoa()
                     val idFilial = call.request.queryParameters["idFilial"]?.toLongOrNull()
                     call.withAudit {
-                        papel.excluirFornecedor(resource.id, idFilial)
+                        papel.excluirFornecedor(resource.id, idFilial, call.usuarioAutenticado().id)
                         call.respond(HttpStatusCode.NoContent)
                     }
                 }
@@ -209,11 +213,11 @@ private suspend fun ApplicationCall.handlePessoa(
     try {
         block()
     } catch (e: RecursoNaoEncontrado) {
-        respond(HttpStatusCode.NotFound, MensagemErro(e.message ?: "Não encontrado"))
+        respondNotFound(e)
     } catch (e: RequisicaoInvalida) {
-        respond(HttpStatusCode.BadRequest, MensagemErro(e.message ?: "Requisição inválida"))
+        respondBadRequest(e)
     } catch (e: AcessoNegado) {
-        respond(HttpStatusCode.Forbidden, MensagemErro(e.message ?: "Acesso negado"))
+        respondForbidden(e)
     } catch (e: DocumentoConflito) {
         val body = if (tipoPapel != null) {
             papel.enriquecerConflitoDocumento(e, tipoPapel)

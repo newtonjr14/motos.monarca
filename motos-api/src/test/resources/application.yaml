@@ -15,6 +15,9 @@ ktor:
       - com.monarca.empresa.http.EmpresaRoutingKt.configureEmpresa
       - com.monarca.pessoa.http.PessoaRoutingKt.configurePessoa
       - com.monarca.usuario.http.UsuarioRoutingKt.configureUsuario
+      - com.monarca.produto.http.ProdutoRoutingKt.configureProduto
+      - com.monarca.produto.http.MarcaRoutingKt.configureMarca
+      - com.monarca.estoque.http.EstoqueRoutingKt.configureEstoque
 
 database:
   url: "r2dbc:h2:mem:///localidade_test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"

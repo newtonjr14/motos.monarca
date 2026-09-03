@@ -4,7 +4,7 @@ import com.monarca.Texto
 import com.monarca.common.enums.Status
 import com.monarca.localidade.repository.LocalidadeRepository
 import com.monarca.localidade.service.RecursoNaoEncontrado
-import com.monarca.localidade.service.RequisicaoInvalida
+import com.monarca.localidade.service.invalido
 import com.monarca.pessoa.domain.DocumentoTipo
 import com.monarca.pessoa.domain.DocumentoValidador
 import com.monarca.pessoa.domain.Pessoa
@@ -26,6 +26,7 @@ class DocumentoConflito(
     val codigo: String,
     val pessoa: Pessoa,
     message: String,
+    val params: Map<String, String> = emptyMap(),
 ) : RuntimeException(message)
 
 class PessoaService(
@@ -49,7 +50,7 @@ class PessoaService(
         val duplicado = repository.listarTipos(normalizado.idPais, null)
             .any { it.codigo.equals(normalizado.codigo, ignoreCase = true) }
         if (duplicado) {
-            throw RequisicaoInvalida("Já existe um tipo com o código ${normalizado.codigo} neste país")
+            throw invalido("DOCUMENTO_TIPO_CODIGO_DUPLICADO", "Já existe um tipo com o código ${normalizado.codigo} neste país", "codigo" to normalizado.codigo)
         }
         val id = repository.inserirTipo(normalizado)
         return buscarTipo(id)
@@ -63,7 +64,7 @@ class PessoaService(
         val duplicado = repository.listarTipos(normalizado.idPais, null)
             .any { it.id != id && it.codigo.equals(normalizado.codigo, ignoreCase = true) }
         if (duplicado) {
-            throw RequisicaoInvalida("Já existe um tipo com o código ${normalizado.codigo} neste país")
+            throw invalido("DOCUMENTO_TIPO_CODIGO_DUPLICADO", "Já existe um tipo com o código ${normalizado.codigo} neste país", "codigo" to normalizado.codigo)
         }
         if (!repository.atualizarTipo(id, normalizado.copy(id = id))) {
             throw RecursoNaoEncontrado("Tipo de documento $id não encontrado")
@@ -74,7 +75,7 @@ class PessoaService(
     suspend fun excluirTipo(id: Long) {
         repository.buscarTipo(id) ?: throw RecursoNaoEncontrado("Tipo de documento $id não encontrado")
         if (repository.tipoEmUso(id)) {
-            throw RequisicaoInvalida("Tipo em uso por pessoas cadastradas e não pode ser excluído")
+            throw invalido("DOCUMENTO_TIPO_EM_USO", "Tipo em uso por pessoas cadastradas e não pode ser excluído")
         }
         if (!repository.excluirTipo(id)) {
             throw RecursoNaoEncontrado("Tipo de documento $id não encontrado")
@@ -113,6 +114,7 @@ class PessoaService(
     fun toConflitoResponse(e: DocumentoConflito) = DocumentoConflitoResponse(
         codigo = e.codigo,
         message = e.message ?: "Documento em conflito",
+        params = e.params,
         pessoa = PessoaResumoResponse(
             id = e.pessoa.id,
             nomeRazaoSocial = e.pessoa.nomeRazaoSocial,
@@ -124,7 +126,7 @@ class PessoaService(
         val nome = Texto.titleCase(validarObrigatorio(request.nomeRazaoSocial, "Nome / razão social"))
         val status = validarStatusVisivel(request.status)
         if (request.documentos.isEmpty()) {
-            throw RequisicaoInvalida("Informe pelo menos um documento")
+            throw invalido("DOCUMENTO_OBRIGATORIO", "Informe pelo menos um documento")
         }
         request.idCidade?.let { idCidade ->
             localidadeRepository.buscarCidade(idCidade)
@@ -134,7 +136,7 @@ class PessoaService(
         val ddi = soDigitos(request.ddi)
         val telefone = soDigitos(request.telefone)
         if ((ddi == null) != (telefone == null)) {
-            throw RequisicaoInvalida("Informe DDI e telefone juntos, ou deixe ambos vazios")
+            throw invalido("TELEFONE_PAR", "Informe DDI e telefone juntos, ou deixe ambos vazios")
         }
 
         val documentos = request.documentos.map { normalizarDocumento(it, request.tipoPessoa) }
@@ -171,20 +173,20 @@ class PessoaService(
         val idTipo = request.idTipoDocumento
         val tipoLivreInformado = request.tipoLivre?.trim()?.takeIf { it.isNotEmpty() }
         if (idTipo != null && tipoLivreInformado != null) {
-            throw RequisicaoInvalida("Informe o tipo de catálogo ou o tipo livre, não os dois")
+            throw invalido("DOCUMENTO_TIPO_XOR", "Informe o tipo de catálogo ou o tipo livre, não os dois")
         }
         if (idTipo == null && tipoLivreInformado == null) {
-            throw RequisicaoInvalida("Informe o tipo de documento")
+            throw invalido("DOCUMENTO_TIPO_OBRIGATORIO", "Informe o tipo de documento")
         }
 
         if (idTipo != null) {
             val tipo = repository.buscarTipo(idTipo)
                 ?: throw RecursoNaoEncontrado("Tipo de documento $idTipo não encontrado")
             if (tipo.idPais != request.idPais) {
-                throw RequisicaoInvalida("Tipo ${tipo.codigo} não pertence a este país")
+                throw invalido("DOCUMENTO_TIPO_PAIS", "Tipo ${tipo.codigo} não pertence a este país", "codigo" to tipo.codigo)
             }
             if (tipo.tipoPessoa != tipoPessoa) {
-                throw RequisicaoInvalida("${tipo.nome} é documento de pessoa ${tipo.tipoPessoa.name.lowercase()}")
+                throw invalido("DOCUMENTO_TIPO_PESSOA", "${tipo.nome} é documento de pessoa ${tipo.tipoPessoa.name.lowercase()}", "nome" to tipo.nome)
             }
             val numero = when {
                 DocumentoValidador.temValidacao(tipo.codigo) ->
@@ -206,7 +208,7 @@ class PessoaService(
     private fun normalizarNumeroCatalogoGenerico(numero: String): String {
         val normalizado = numero.filter { it.isLetterOrDigit() }.uppercase()
         if (normalizado.isEmpty()) {
-            throw RequisicaoInvalida("Número do documento é obrigatório")
+            throw invalido("DOCUMENTO_NUMERO_OBRIGATORIO", "Número do documento é obrigatório")
         }
         return normalizado
     }
@@ -214,7 +216,7 @@ class PessoaService(
     private fun normalizarNumeroLivre(numero: String): String {
         val normalizado = numero.filter { it.isLetterOrDigit() }.uppercase()
         if (normalizado.isEmpty()) {
-            throw RequisicaoInvalida("Número do documento é obrigatório")
+            throw invalido("DOCUMENTO_NUMERO_OBRIGATORIO", "Número do documento é obrigatório")
         }
         return normalizado
     }
@@ -228,7 +230,7 @@ class PessoaService(
                 Triple(doc.idPais, null, "${doc.tipoLivre}:${doc.numero}")
             }
             if (!vistos.add(chave)) {
-                throw RequisicaoInvalida("Há documentos repetidos na requisição")
+                throw invalido("DOCUMENTOS_REPETIDOS", "Há documentos repetidos na requisição")
             }
         }
     }
@@ -248,6 +250,7 @@ class PessoaService(
                     codigo = "DOCUMENTO_UNICO",
                     pessoa = existente,
                     message = "Já existe uma pessoa cadastrada com ${tipo.nome} ${doc.numero}",
+                    params = mapOf("tipo" to tipo.nome, "numero" to doc.numero),
                 )
             }
 
@@ -270,7 +273,7 @@ class PessoaService(
     private fun validarObrigatorio(valor: String, rotulo: String): String {
         val trimmed = valor.trim()
         if (trimmed.isEmpty()) {
-            throw RequisicaoInvalida("$rotulo é obrigatório")
+            throw invalido("CAMPO_OBRIGATORIO", "$rotulo é obrigatório")
         }
         return trimmed
     }
@@ -282,7 +285,7 @@ class PessoaService(
 
     private fun validarStatusVisivel(status: Status): Status {
         if (status == Status.DELETADO) {
-            throw RequisicaoInvalida("Use DELETE para marcar como deletado")
+            throw invalido("USE_DELETE", "Use DELETE para marcar como deletado")
         }
         return status
     }

@@ -1,6 +1,8 @@
 import { buscarPessoa, listarPapeis, type Cidade, type Pessoa } from "@/api";
+import { useFilial } from "@/auth/FilialContext";
 import { Section } from "@/components/crud/Field";
 import { formatarDocumentoExibicao, formatarEndereco, formatarTelefoneExibicao } from "@/format";
+import { mensagemErroApi } from "@/i18n/apiMessages";
 import { useI18n } from "@/i18n";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -18,6 +20,7 @@ export default function PessoaPreviewModal({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const { filial } = useFilial();
   const [pessoa, setPessoa] = useState<Pessoa | null>(null);
   const [jaCliente, setJaCliente] = useState(false);
   const [jaFornecedor, setJaFornecedor] = useState(false);
@@ -45,8 +48,8 @@ export default function PessoaPreviewModal({
       try {
         const [p, clientes, fornecedores] = await Promise.all([
           buscarPessoa(idPessoa),
-          listarPapeis("clientes"),
-          listarPapeis("fornecedores"),
+          listarPapeis("clientes", filial?.id),
+          listarPapeis("fornecedores", filial?.id),
         ]);
         if (cancelled) return;
         setPessoa(p);
@@ -54,13 +57,13 @@ export default function PessoaPreviewModal({
         setJaFornecedor(fornecedores.some((f) => f.idPessoa === idPessoa));
       } catch (e) {
         if (cancelled) return;
-        setErro(e instanceof Error ? e.message : t("papel.loadExistingFailed"));
+        setErro(mensagemErroApi(e, t, "papel.loadExistingFailed"));
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [idPessoa, t]);
+  }, [idPessoa, t, filial?.id]);
 
   const docPrincipal = pessoa?.documentos[0];
   const telefone = pessoa ? formatarTelefoneExibicao(pessoa.ddi, pessoa.telefone) : "—";

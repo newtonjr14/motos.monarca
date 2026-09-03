@@ -46,6 +46,7 @@ data class FilialRequest(
     val principal: Boolean = false,
     val listarApenasClientesFilial: Boolean = true,
     val listarApenasFornecedoresFilial: Boolean = true,
+    val listarApenasProdutosFilial: Boolean = true,
     val status: Status = Status.ATIVO,
 )
 
@@ -77,5 +78,6 @@ data class FilialResponse(
     val principal: Boolean,
     val listarApenasClientesFilial: Boolean,
     val listarApenasFornecedoresFilial: Boolean,
+    val listarApenasProdutosFilial: Boolean,
     val status: Status,
 )

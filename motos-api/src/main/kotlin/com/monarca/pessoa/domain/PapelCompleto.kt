@@ -2,11 +2,6 @@ package com.monarca.pessoa.domain
 
 import com.monarca.common.enums.Status
 
-data class FilialVinculo(
-    val id: Long,
-    val nome: String,
-)
-
 data class PapelCompleto(
     val id: Long,
     val idPessoa: Long,

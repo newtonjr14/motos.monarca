@@ -33,5 +33,6 @@ object FiliaisTable : LongIdTable("filial") {
     val principal = bool("principal").default(false)
     val listarApenasClientesFilial = bool("listar_apenas_clientes_filial").default(true)
     val listarApenasFornecedoresFilial = bool("listar_apenas_fornecedores_filial").default(true)
+    val listarApenasProdutosFilial = bool("listar_apenas_produtos_filial").default(true)
     val status = varchar("status", 20).default("ativo")
 }

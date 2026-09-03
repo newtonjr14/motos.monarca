@@ -216,6 +216,7 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
         principal,
         listarApenasClientesFilial: editandoFilial?.listarApenasClientesFilial ?? true,
         listarApenasFornecedoresFilial: editandoFilial?.listarApenasFornecedoresFilial ?? true,
+        listarApenasProdutosFilial: editandoFilial?.listarApenasProdutosFilial ?? true,
         status: statusFilial,
       };
       if (editandoFilial) await atualizarFilial(editandoFilial.id, body);

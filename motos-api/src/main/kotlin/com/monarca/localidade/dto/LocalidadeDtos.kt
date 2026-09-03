@@ -56,8 +56,3 @@ data class CidadeRequest(
     val idDivisao: Long,
     val status: Status = Status.ATIVO,
 )
-
-@Serializable
-data class MensagemErro(
-    val message: String,
-)

@@ -14,6 +14,10 @@ export type TranslationKey =
   | "nav.dashboard"
   | "nav.clientes"
   | "nav.fornecedores"
+  | "nav.produtos"
+  | "nav.marcas"
+  | "nav.modelos"
+  | "nav.estoques"
   | "nav.usuarios"
   | "nav.paises"
   | "nav.divisoes"
@@ -37,6 +41,7 @@ export type TranslationKey =
   | "common.search"
   | "common.back"
   | "common.saving"
+  | "common.loading"
   | "common.noRecords"
   | "common.previous"
   | "common.next"
@@ -194,6 +199,17 @@ export type TranslationKey =
   | "usuario.error.required"
   | "usuario.error.passwordRequired"
   | "usuario.error.passwordMin"
+  | "usuario.branches"
+  | "usuario.error.branchesRequired"
+  | "usuario.error.systemProtected"
+  | "filial.selectTitle"
+  | "filial.selectHint"
+  | "filial.noAccess"
+  | "filial.noAccessHint"
+  | "filial.switch"
+  | "filial.current"
+  | "access.vendasSoon"
+  | "access.vendasSoonHint"
   | "documento.new"
   | "documento.edit"
   | "documento.error.required"
@@ -225,6 +241,96 @@ export type TranslationKey =
   | "cidade.selectDivision"
   | "error.conflict.docUnique"
   | "error.conflict.possibleDuplicate"
+  | "api.NAO_ENCONTRADO"
+  | "api.ACESSO_NEGADO"
+  | "api.NAO_AUTENTICADO"
+  | "api.PERMISSAO_INSUFICIENTE"
+  | "api.SEM_ACESSO_FILIAL"
+  | "api.SYSTEM_PROTEGIDO"
+  | "api.GESTOR_PERFIL"
+  | "api.GESTOR_ALTERAR_SUPERIOR"
+  | "api.SEM_PERMISSAO_USUARIOS"
+  | "api.TOKEN_INVALIDO"
+  | "api.USE_DELETE"
+  | "api.CAMPO_OBRIGATORIO"
+  | "api.VALOR_NEGATIVO"
+  | "api.SENHA_OBRIGATORIA"
+  | "api.LOGIN_SENHA_INVALIDOS"
+  | "api.USUARIO_INATIVO"
+  | "api.REFRESH_OBRIGATORIO"
+  | "api.REFRESH_INVALIDO"
+  | "api.REFRESH_EXPIRADO"
+  | "api.SENHA_ATUAL_INCORRETA"
+  | "api.LOGIN_INVALIDO"
+  | "api.NOME_OBRIGATORIO"
+  | "api.SENHA_MINIMA"
+  | "api.USUARIO_LOGIN_DUPLICADO"
+  | "api.USUARIO_EMAIL_DUPLICADO"
+  | "api.FILIAIS_OBRIGATORIAS"
+  | "api.LOGIN_MINIMO"
+  | "api.LOGIN_RESERVADO"
+  | "api.EMAIL_OBRIGATORIO"
+  | "api.EMAIL_INVALIDO"
+  | "api.FILIAL_PRINCIPAL_AUSENTE"
+  | "api.FILIAL_NAO_ENCONTRADA"
+  | "api.FILIAL_INATIVA"
+  | "api.MARCA_NOME_DUPLICADO"
+  | "api.MARCA_COM_MODELOS"
+  | "api.MODELO_NOME_DUPLICADO"
+  | "api.MODELO_TIPO_COM_PRODUTOS"
+  | "api.MODELO_COM_PRODUTOS"
+  | "api.PRODUTO_TIPO_IMUTAVEL"
+  | "api.PRODUTO_CODIGO_DUPLICADO"
+  | "api.PRODUTO_EM_ESTOQUE"
+  | "api.PRODUTO_CODIGO_OBRIGATORIO"
+  | "api.MODELO_MARCA_DIVERGENTE"
+  | "api.MODELO_TIPO_DIVERGENTE"
+  | "api.MOTO_DADOS_OBRIGATORIOS"
+  | "api.ANO_MODELO_ANTERIOR"
+  | "api.ANO_FORA_FAIXA"
+  | "api.CHASSI_DUPLICADO"
+  | "api.SERIE_QUADRO_DUPLICADA"
+  | "api.ESTOQUE_NOME_DUPLICADO"
+  | "api.ESTOQUE_COM_PRODUTOS"
+  | "api.ESTOQUE_PRODUTO_DUPLICADO"
+  | "api.ESTOQUE_NOME_OBRIGATORIO"
+  | "api.QTD_NEGATIVA"
+  | "api.QTD_RESERVADA_NEGATIVA"
+  | "api.QTD_RESERVADA_MAIOR"
+  | "api.EMPRESA_RUC_DUPLICADO"
+  | "api.EMPRESA_COM_FILIAIS"
+  | "api.FILIAL_PRINCIPAL_EXCLUIR"
+  | "api.FILIAL_COM_CADASTROS"
+  | "api.PAIS_SIGLA_DUPLICADA"
+  | "api.PAIS_COM_CIDADES"
+  | "api.DIVISAO_NOME_DUPLICADO"
+  | "api.DIVISAO_COM_CIDADES"
+  | "api.DIVISAO_SIGLA_TAMANHO"
+  | "api.PAIS_SIGLA_ISO"
+  | "api.CIDADE_NOME_DUPLICADO"
+  | "api.DOCUMENTO_TIPO_CODIGO_DUPLICADO"
+  | "api.DOCUMENTO_TIPO_EM_USO"
+  | "api.DOCUMENTO_OBRIGATORIO"
+  | "api.TELEFONE_PAR"
+  | "api.DOCUMENTO_TIPO_XOR"
+  | "api.DOCUMENTO_TIPO_OBRIGATORIO"
+  | "api.DOCUMENTO_TIPO_PAIS"
+  | "api.DOCUMENTO_TIPO_PESSOA"
+  | "api.DOCUMENTO_NUMERO_OBRIGATORIO"
+  | "api.DOCUMENTOS_REPETIDOS"
+  | "api.CPF_TAMANHO"
+  | "api.CPF_INVALIDO"
+  | "api.CNPJ_TAMANHO"
+  | "api.CNPJ_INVALIDO"
+  | "api.CNPJ_DV_NUMERICO"
+  | "api.CI_TAMANHO"
+  | "api.RUC_FORMATO"
+  | "api.RUC_INVALIDO"
+  | "api.RUC_BASE"
+  | "api.RUC_DV"
+  | "api.PAPEL_JA_VINCULADO"
+  | "api.PESSOA_XOR"
+  | "api.PESSOA_OBRIGATORIA"
   | "entity.cliente"
   | "entity.fornecedor"
   | "empresa.title"
@@ -250,6 +356,66 @@ export type TranslationKey =
   | "empresa.confirmDeleteBranch"
   | "empresa.listClientsBranchOnly"
   | "empresa.listSuppliersBranchOnly"
+  | "empresa.listProductsBranchOnly"
+  | "produto.new"
+  | "produto.edit"
+  | "produto.codigo"
+  | "produto.codigoHint"
+  | "produto.tipo"
+  | "produto.tipo.moto"
+  | "produto.tipo.bicicleta"
+  | "produto.marca"
+  | "produto.modelo"
+  | "produto.descricao"
+  | "produto.section.general"
+  | "produto.section.estoque"
+  | "produto.section.moto"
+  | "produto.section.bicicleta"
+  | "produto.noStock"
+  | "produto.chassi"
+  | "produto.cor"
+  | "produto.potencia"
+  | "produto.autonomia"
+  | "produto.velocidade"
+  | "produto.bateria"
+  | "produto.voltagem"
+  | "produto.carga"
+  | "produto.peso"
+  | "produto.capacidadeCarga"
+  | "produto.assentos"
+  | "produto.aro"
+  | "produto.quadro"
+  | "produto.marchas"
+  | "produto.freio"
+  | "produto.error.required"
+  | "produto.error.yearsRequired"
+  | "produto.confirmLinkBranch"
+  | "produto.anoFabricacao"
+  | "produto.anoModelo"
+  | "produto.serieQuadro"
+  | "produto.nomeHint"
+  | "marca.new"
+  | "marca.edit"
+  | "marca.error.nameRequired"
+  | "modelo.new"
+  | "modelo.edit"
+  | "modelo.error.required"
+  | "estoque.new"
+  | "estoque.edit"
+  | "estoque.placeholderName"
+  | "estoque.items"
+  | "estoque.itemNew"
+  | "estoque.itemEdit"
+  | "estoque.product"
+  | "estoque.qty"
+  | "estoque.reserved"
+  | "estoque.reservedHint"
+  | "estoque.available"
+  | "estoque.backList"
+  | "estoque.backItems"
+  | "estoque.error.nameRequired"
+  | "estoque.error.productRequired"
+  | "estoque.error.qtyInvalid"
   | "empresa.branchParameters"
   | "empresa.section.parametersListagem";
 
@@ -267,6 +433,10 @@ const pt: Record<TranslationKey, string> = {
   "nav.dashboard": "Dashboard",
   "nav.clientes": "Clientes",
   "nav.fornecedores": "Fornecedores",
+  "nav.produtos": "Produtos",
+  "nav.marcas": "Marcas",
+  "nav.modelos": "Modelos",
+  "nav.estoques": "Estoques",
   "nav.usuarios": "Usuários",
   "nav.paises": "Países",
   "nav.divisoes": "UFs / Departamentos",
@@ -290,6 +460,7 @@ const pt: Record<TranslationKey, string> = {
   "common.search": "Buscar...",
   "common.back": "Voltar para a lista",
   "common.saving": "Salvando...",
+  "common.loading": "Carregando...",
   "common.noRecords": "Nenhum registro",
   "common.previous": "Anterior",
   "common.next": "Próxima",
@@ -436,7 +607,7 @@ const pt: Record<TranslationKey, string> = {
   "dashboard.stat.fornecedores": "Fornecedores",
   "dashboard.stat.fornecedoresSub": "Papel fornecedor ativo",
   "dashboard.stat.estoque": "Estoque e vendas",
-  "dashboard.stat.estoqueSub": "Ainda sem CRUD",
+  "dashboard.stat.estoqueSub": "Produtos e depósitos da filial",
   "dashboard.placeholder": "Motos, vendas e parcelas entram no menu quando o cadastro existir. Por enquanto só o que a API já faz.",
   "common.error.loadFailed": "Falha ao carregar",
   "common.error.saveFailed": "Falha ao salvar",
@@ -447,6 +618,17 @@ const pt: Record<TranslationKey, string> = {
   "usuario.error.required": "Informe nome, login e e-mail",
   "usuario.error.passwordRequired": "Senha é obrigatória",
   "usuario.error.passwordMin": "Senha deve ter pelo menos 8 caracteres",
+  "usuario.branches": "Filiais",
+  "usuario.error.branchesRequired": "Selecione ao menos uma filial",
+  "usuario.error.systemProtected": "O usuário SYSTEM não pode ser alterado ou excluído",
+  "filial.selectTitle": "Escolha a filial",
+  "filial.selectHint": "Seu usuário tem acesso a mais de uma filial",
+  "filial.noAccess": "Sem filial",
+  "filial.noAccessHint": "Peça a um administrador para vincular seu usuário a uma filial",
+  "filial.switch": "Trocar filial",
+  "filial.current": "Filial atual",
+  "access.vendasSoon": "Vendas em breve",
+  "access.vendasSoonHint": "Este perfil acessa somente vendas. O módulo ainda não está disponível.",
   "documento.new": "Novo tipo de documento",
   "documento.edit": "Editar tipo de documento",
   "documento.error.required": "Informe país, código e nome",
@@ -478,6 +660,96 @@ const pt: Record<TranslationKey, string> = {
   "cidade.selectDivision": "Selecione",
   "error.conflict.docUnique": "Já existe uma pessoa cadastrada com {tipo} {numero}",
   "error.conflict.possibleDuplicate": "Já existe uma pessoa com o mesmo documento. Confirme se deseja cadastrar outra pessoa.",
+  "api.NAO_ENCONTRADO": "Registro não encontrado",
+  "api.ACESSO_NEGADO": "Acesso negado",
+  "api.NAO_AUTENTICADO": "Não autenticado",
+  "api.PERMISSAO_INSUFICIENTE": "Permissão insuficiente",
+  "api.SEM_ACESSO_FILIAL": "Sem acesso a esta filial",
+  "api.SYSTEM_PROTEGIDO": "O usuário SYSTEM não pode ser alterado ou excluído",
+  "api.GESTOR_PERFIL": "Gestor não pode atribuir perfil Administrador ou Gestor",
+  "api.GESTOR_ALTERAR_SUPERIOR": "Gestor não pode alterar usuários Administrador ou Gestor",
+  "api.SEM_PERMISSAO_USUARIOS": "Sem permissão para gerenciar usuários",
+  "api.TOKEN_INVALIDO": "Sessão expirada. Entre novamente",
+  "api.USE_DELETE": "Use a exclusão para marcar como deletado",
+  "api.CAMPO_OBRIGATORIO": "Preencha os campos obrigatórios",
+  "api.VALOR_NEGATIVO": "O valor não pode ser negativo",
+  "api.SENHA_OBRIGATORIA": "A senha é obrigatória",
+  "api.LOGIN_SENHA_INVALIDOS": "Login ou senha inválidos",
+  "api.USUARIO_INATIVO": "Usuário inativo",
+  "api.REFRESH_OBRIGATORIO": "O token de renovação é obrigatório",
+  "api.REFRESH_INVALIDO": "Token de renovação inválido",
+  "api.REFRESH_EXPIRADO": "Token de renovação expirado",
+  "api.SENHA_ATUAL_INCORRETA": "Senha atual incorreta",
+  "api.LOGIN_INVALIDO": "Login inválido",
+  "api.NOME_OBRIGATORIO": "O nome é obrigatório",
+  "api.SENHA_MINIMA": "A senha deve ter pelo menos 8 caracteres",
+  "api.USUARIO_LOGIN_DUPLICADO": "Já existe um usuário com o login {login}",
+  "api.USUARIO_EMAIL_DUPLICADO": "Já existe um usuário com o e-mail {email}",
+  "api.FILIAIS_OBRIGATORIAS": "Selecione ao menos uma filial",
+  "api.LOGIN_MINIMO": "O login deve ter pelo menos 3 caracteres",
+  "api.LOGIN_RESERVADO": "Este login é reservado",
+  "api.EMAIL_OBRIGATORIO": "O e-mail é obrigatório",
+  "api.EMAIL_INVALIDO": "E-mail inválido",
+  "api.FILIAL_PRINCIPAL_AUSENTE": "Filial principal não configurada",
+  "api.FILIAL_NAO_ENCONTRADA": "Filial não encontrada",
+  "api.FILIAL_INATIVA": "A filial não está ativa",
+  "api.MARCA_NOME_DUPLICADO": "Já existe uma marca com o nome {nome}",
+  "api.MARCA_COM_MODELOS": "Não é possível excluir uma marca que possui modelos",
+  "api.MODELO_NOME_DUPLICADO": "Já existe um modelo com o nome {nome} nesta marca",
+  "api.MODELO_TIPO_COM_PRODUTOS": "Não é possível alterar o tipo de um modelo que possui produtos",
+  "api.MODELO_COM_PRODUTOS": "Não é possível excluir um modelo que possui produtos",
+  "api.PRODUTO_TIPO_IMUTAVEL": "Não é possível alterar o tipo do produto",
+  "api.PRODUTO_CODIGO_DUPLICADO": "Já existe um produto com o código {codigo}",
+  "api.PRODUTO_EM_ESTOQUE": "Não é possível excluir um produto lançado em estoque",
+  "api.PRODUTO_CODIGO_OBRIGATORIO": "O código do produto é obrigatório",
+  "api.MODELO_MARCA_DIVERGENTE": "O modelo não pertence à marca selecionada",
+  "api.MODELO_TIPO_DIVERGENTE": "O modelo não corresponde ao tipo selecionado",
+  "api.MOTO_DADOS_OBRIGATORIOS": "Informe os dados da moto",
+  "api.ANO_MODELO_ANTERIOR": "O ano modelo não pode ser anterior ao ano de fabricação",
+  "api.ANO_FORA_FAIXA": "O ano deve estar entre {min} e {max}",
+  "api.CHASSI_DUPLICADO": "Já existe uma moto com o chassi {chassi}",
+  "api.SERIE_QUADRO_DUPLICADA": "Já existe uma bicicleta com o número de série {serie}",
+  "api.ESTOQUE_NOME_DUPLICADO": "Já existe um estoque com o nome {nome} nesta filial",
+  "api.ESTOQUE_COM_PRODUTOS": "Não é possível excluir um estoque que possui produtos",
+  "api.ESTOQUE_PRODUTO_DUPLICADO": "Este produto já está neste estoque",
+  "api.ESTOQUE_NOME_OBRIGATORIO": "O nome do estoque é obrigatório",
+  "api.QTD_NEGATIVA": "A quantidade não pode ser negativa",
+  "api.QTD_RESERVADA_NEGATIVA": "A quantidade reservada não pode ser negativa",
+  "api.QTD_RESERVADA_MAIOR": "A quantidade reservada não pode ser maior que a quantidade",
+  "api.EMPRESA_RUC_DUPLICADO": "Já existe uma empresa com o RUC {ruc}",
+  "api.EMPRESA_COM_FILIAIS": "Não é possível excluir uma empresa que possui filiais",
+  "api.FILIAL_PRINCIPAL_EXCLUIR": "Não é possível excluir a filial principal",
+  "api.FILIAL_COM_CADASTROS": "Não é possível excluir uma filial vinculada a cadastros",
+  "api.PAIS_SIGLA_DUPLICADA": "Já existe um país com a sigla {sigla}",
+  "api.PAIS_COM_CIDADES": "Não é possível excluir um país que possui cidades",
+  "api.DIVISAO_NOME_DUPLICADO": "Já existe uma divisão “{nome}” neste país",
+  "api.DIVISAO_COM_CIDADES": "Não é possível excluir uma divisão que possui cidades",
+  "api.DIVISAO_SIGLA_TAMANHO": "A sigla da divisão deve ter até 10 caracteres",
+  "api.PAIS_SIGLA_ISO": "A sigla do país deve ter 2 letras (ISO)",
+  "api.CIDADE_NOME_DUPLICADO": "Já existe uma cidade “{nome}” nesta divisão",
+  "api.DOCUMENTO_TIPO_CODIGO_DUPLICADO": "Já existe um tipo com o código {codigo} neste país",
+  "api.DOCUMENTO_TIPO_EM_USO": "Tipo em uso por pessoas cadastradas e não pode ser excluído",
+  "api.DOCUMENTO_OBRIGATORIO": "Informe pelo menos um documento",
+  "api.TELEFONE_PAR": "Informe DDI e telefone juntos, ou deixe ambos vazios",
+  "api.DOCUMENTO_TIPO_XOR": "Informe o tipo de catálogo ou o tipo livre, não os dois",
+  "api.DOCUMENTO_TIPO_OBRIGATORIO": "Informe o tipo de documento",
+  "api.DOCUMENTO_TIPO_PAIS": "O tipo {codigo} não pertence a este país",
+  "api.DOCUMENTO_TIPO_PESSOA": "{nome} não corresponde a esta classe de pessoa",
+  "api.DOCUMENTO_NUMERO_OBRIGATORIO": "O número do documento é obrigatório",
+  "api.DOCUMENTOS_REPETIDOS": "Há documentos repetidos na requisição",
+  "api.CPF_TAMANHO": "O CPF deve ter 11 dígitos",
+  "api.CPF_INVALIDO": "CPF inválido",
+  "api.CNPJ_TAMANHO": "O CNPJ deve ter 14 caracteres",
+  "api.CNPJ_INVALIDO": "CNPJ inválido",
+  "api.CNPJ_DV_NUMERICO": "CNPJ inválido: os dois últimos caracteres devem ser numéricos",
+  "api.CI_TAMANHO": "A cédula (CI) deve ter entre 6 e 10 dígitos",
+  "api.RUC_FORMATO": "RUC inválido: use o formato 1234567-8",
+  "api.RUC_INVALIDO": "RUC inválido",
+  "api.RUC_BASE": "RUC inválido: a base deve ter 3 a 8 dígitos",
+  "api.RUC_DV": "RUC inválido: dígito verificador incorreto",
+  "api.PAPEL_JA_VINCULADO": "Esta pessoa já está vinculada a esta filial neste papel",
+  "api.PESSOA_XOR": "Informe a pessoa ou o identificador, não os dois",
+  "api.PESSOA_OBRIGATORIA": "Informe a pessoa",
   "entity.cliente": "Cliente",
   "entity.fornecedor": "Fornecedor",
   "empresa.title": "Empresa e filiais",
@@ -503,6 +775,66 @@ const pt: Record<TranslationKey, string> = {
   "empresa.confirmDeleteBranch": "Excluir esta filial?",
   "empresa.listClientsBranchOnly": "Listar só clientes desta filial",
   "empresa.listSuppliersBranchOnly": "Listar só fornecedores desta filial",
+  "empresa.listProductsBranchOnly": "Listar só produtos desta filial",
+  "produto.new": "Novo produto",
+  "produto.edit": "Editar produto",
+  "produto.codigo": "Código (SKU)",
+  "produto.codigoHint": "Código interno editável. O ID do sistema é gerado à parte.",
+  "produto.tipo": "Tipo",
+  "produto.tipo.moto": "Moto elétrica",
+  "produto.tipo.bicicleta": "Bicicleta elétrica",
+  "produto.marca": "Marca",
+  "produto.modelo": "Modelo",
+  "produto.descricao": "Descrição",
+  "produto.section.general": "Dados do produto",
+  "produto.section.estoque": "Estoque nesta filial",
+  "produto.section.moto": "Ficha da moto",
+  "produto.section.bicicleta": "Ficha da bicicleta",
+  "produto.noStock": "Sem saldo nesta filial",
+  "produto.chassi": "Chassi",
+  "produto.cor": "Cor",
+  "produto.potencia": "Potência (W)",
+  "produto.autonomia": "Autonomia (km)",
+  "produto.velocidade": "Velocidade máx. (km/h)",
+  "produto.bateria": "Bateria (Ah)",
+  "produto.voltagem": "Voltagem (V)",
+  "produto.carga": "Tempo de carga (h)",
+  "produto.peso": "Peso (kg)",
+  "produto.capacidadeCarga": "Carga (kg)",
+  "produto.assentos": "Assentos",
+  "produto.aro": "Aro",
+  "produto.quadro": "Tipo de quadro",
+  "produto.marchas": "Marchas",
+  "produto.freio": "Freio",
+  "produto.error.required": "Informe código, marca e modelo",
+  "produto.error.yearsRequired": "Informe ano de fabricação e ano modelo válidos",
+  "produto.confirmLinkBranch": "O produto {codigo} já existe em {filiais}. Vincular a esta filial?",
+  "produto.anoFabricacao": "Ano de fabricação",
+  "produto.anoModelo": "Ano modelo",
+  "produto.serieQuadro": "Nº de série do quadro",
+  "produto.nomeHint": "Montado automaticamente com marca e modelo",
+  "marca.new": "Nova marca",
+  "marca.edit": "Editar marca",
+  "marca.error.nameRequired": "Informe o nome da marca",
+  "modelo.new": "Novo modelo",
+  "modelo.edit": "Editar modelo",
+  "modelo.error.required": "Informe marca e nome do modelo",
+  "estoque.new": "Novo estoque",
+  "estoque.edit": "Editar estoque",
+  "estoque.placeholderName": "Estoque Geral",
+  "estoque.items": "Itens",
+  "estoque.itemNew": "Adicionar produto",
+  "estoque.itemEdit": "Editar quantidade",
+  "estoque.product": "Produto",
+  "estoque.qty": "Quantidade",
+  "estoque.reserved": "Reservada",
+  "estoque.reservedHint": "Para venda em aberto. Disponível = quantidade − reservada.",
+  "estoque.available": "Disponível",
+  "estoque.backList": "Voltar para estoques",
+  "estoque.backItems": "Voltar para os itens",
+  "estoque.error.nameRequired": "Informe o nome do estoque",
+  "estoque.error.productRequired": "Selecione o produto",
+  "estoque.error.qtyInvalid": "Quantidade e reserva não podem ser negativas",
   "empresa.branchParameters": "Parâmetros da filial",
   "empresa.section.parametersListagem": "Listagem",
 };
@@ -521,6 +853,10 @@ const es: Record<TranslationKey, string> = {
   "nav.dashboard": "Panel",
   "nav.clientes": "Clientes",
   "nav.fornecedores": "Proveedores",
+  "nav.produtos": "Productos",
+  "nav.marcas": "Marcas",
+  "nav.modelos": "Modelos",
+  "nav.estoques": "Depósitos",
   "nav.usuarios": "Usuarios",
   "nav.paises": "Países",
   "nav.divisoes": "UF / Departamentos",
@@ -544,6 +880,7 @@ const es: Record<TranslationKey, string> = {
   "common.search": "Buscar...",
   "common.back": "Volver a la lista",
   "common.saving": "Guardando...",
+  "common.loading": "Cargando...",
   "common.noRecords": "Sin registros",
   "common.previous": "Anterior",
   "common.next": "Siguiente",
@@ -690,7 +1027,7 @@ const es: Record<TranslationKey, string> = {
   "dashboard.stat.fornecedores": "Proveedores",
   "dashboard.stat.fornecedoresSub": "Rol proveedor activo",
   "dashboard.stat.estoque": "Stock y ventas",
-  "dashboard.stat.estoqueSub": "Aún sin CRUD",
+  "dashboard.stat.estoqueSub": "Productos y depósitos de la sucursal",
   "dashboard.placeholder": "Motos, ventas y cuotas entrarán en el menú cuando exista el registro. Por ahora solo lo que ya hace la API.",
   "common.error.loadFailed": "Error al cargar",
   "common.error.saveFailed": "Error al guardar",
@@ -701,6 +1038,17 @@ const es: Record<TranslationKey, string> = {
   "usuario.error.required": "Indique nombre, usuario y correo",
   "usuario.error.passwordRequired": "La contraseña es obligatoria",
   "usuario.error.passwordMin": "La contraseña debe tener al menos 8 caracteres",
+  "usuario.branches": "Sucursales",
+  "usuario.error.branchesRequired": "Seleccione al menos una sucursal",
+  "usuario.error.systemProtected": "El usuario SYSTEM no puede modificarse ni eliminarse",
+  "filial.selectTitle": "Elija la sucursal",
+  "filial.selectHint": "Su usuario tiene acceso a más de una sucursal",
+  "filial.noAccess": "Sin sucursal",
+  "filial.noAccessHint": "Pida a un administrador que vincule su usuario a una sucursal",
+  "filial.switch": "Cambiar sucursal",
+  "filial.current": "Sucursal actual",
+  "access.vendasSoon": "Ventas pronto",
+  "access.vendasSoonHint": "Este perfil solo accede a ventas. El módulo aún no está disponible.",
   "documento.new": "Nuevo tipo de documento",
   "documento.edit": "Editar tipo de documento",
   "documento.error.required": "Indique país, código y nombre",
@@ -732,6 +1080,96 @@ const es: Record<TranslationKey, string> = {
   "cidade.selectDivision": "Seleccione",
   "error.conflict.docUnique": "Ya existe una persona registrada con {tipo} {numero}",
   "error.conflict.possibleDuplicate": "Ya existe una persona con el mismo documento. Confirme si desea registrar otra persona.",
+  "api.NAO_ENCONTRADO": "Registro no encontrado",
+  "api.ACESSO_NEGADO": "Acceso denegado",
+  "api.NAO_AUTENTICADO": "No autenticado",
+  "api.PERMISSAO_INSUFICIENTE": "Permiso insuficiente",
+  "api.SEM_ACESSO_FILIAL": "Sin acceso a esta sucursal",
+  "api.SYSTEM_PROTEGIDO": "El usuario SYSTEM no puede modificarse ni eliminarse",
+  "api.GESTOR_PERFIL": "El gestor no puede asignar perfil Administrador o Gestor",
+  "api.GESTOR_ALTERAR_SUPERIOR": "El gestor no puede modificar usuarios Administrador o Gestor",
+  "api.SEM_PERMISSAO_USUARIOS": "Sin permiso para gestionar usuarios",
+  "api.TOKEN_INVALIDO": "Sesión expirada. Ingrese de nuevo",
+  "api.USE_DELETE": "Use la eliminación para marcar como eliminado",
+  "api.CAMPO_OBRIGATORIO": "Complete los campos obligatorios",
+  "api.VALOR_NEGATIVO": "El valor no puede ser negativo",
+  "api.SENHA_OBRIGATORIA": "La contraseña es obligatoria",
+  "api.LOGIN_SENHA_INVALIDOS": "Usuario o contraseña inválidos",
+  "api.USUARIO_INATIVO": "Usuario inactivo",
+  "api.REFRESH_OBRIGATORIO": "El token de renovación es obligatorio",
+  "api.REFRESH_INVALIDO": "Token de renovación inválido",
+  "api.REFRESH_EXPIRADO": "Token de renovación expirado",
+  "api.SENHA_ATUAL_INCORRETA": "La contraseña actual es incorrecta",
+  "api.LOGIN_INVALIDO": "Usuario inválido",
+  "api.NOME_OBRIGATORIO": "El nombre es obligatorio",
+  "api.SENHA_MINIMA": "La contraseña debe tener al menos 8 caracteres",
+  "api.USUARIO_LOGIN_DUPLICADO": "Ya existe un usuario con el login {login}",
+  "api.USUARIO_EMAIL_DUPLICADO": "Ya existe un usuario con el correo {email}",
+  "api.FILIAIS_OBRIGATORIAS": "Seleccione al menos una sucursal",
+  "api.LOGIN_MINIMO": "El usuario debe tener al menos 3 caracteres",
+  "api.LOGIN_RESERVADO": "Este usuario está reservado",
+  "api.EMAIL_OBRIGATORIO": "El correo es obligatorio",
+  "api.EMAIL_INVALIDO": "Correo inválido",
+  "api.FILIAL_PRINCIPAL_AUSENTE": "Sucursal principal no configurada",
+  "api.FILIAL_NAO_ENCONTRADA": "Sucursal no encontrada",
+  "api.FILIAL_INATIVA": "La sucursal no está activa",
+  "api.MARCA_NOME_DUPLICADO": "Ya existe una marca con el nombre {nome}",
+  "api.MARCA_COM_MODELOS": "No se puede eliminar una marca que tiene modelos",
+  "api.MODELO_NOME_DUPLICADO": "Ya existe un modelo con el nombre {nome} en esta marca",
+  "api.MODELO_TIPO_COM_PRODUTOS": "No se puede cambiar el tipo de un modelo que tiene productos",
+  "api.MODELO_COM_PRODUTOS": "No se puede eliminar un modelo que tiene productos",
+  "api.PRODUTO_TIPO_IMUTAVEL": "No se puede cambiar el tipo del producto",
+  "api.PRODUTO_CODIGO_DUPLICADO": "Ya existe un producto con el código {codigo}",
+  "api.PRODUTO_EM_ESTOQUE": "No se puede eliminar un producto con movimiento de stock",
+  "api.PRODUTO_CODIGO_OBRIGATORIO": "El código del producto es obligatorio",
+  "api.MODELO_MARCA_DIVERGENTE": "El modelo no pertenece a la marca seleccionada",
+  "api.MODELO_TIPO_DIVERGENTE": "El modelo no corresponde al tipo seleccionado",
+  "api.MOTO_DADOS_OBRIGATORIOS": "Indique los datos de la moto",
+  "api.ANO_MODELO_ANTERIOR": "El año modelo no puede ser anterior al año de fabricación",
+  "api.ANO_FORA_FAIXA": "El año debe estar entre {min} y {max}",
+  "api.CHASSI_DUPLICADO": "Ya existe una moto con el chasis {chassi}",
+  "api.SERIE_QUADRO_DUPLICADA": "Ya existe una bicicleta con el número de serie {serie}",
+  "api.ESTOQUE_NOME_DUPLICADO": "Ya existe un depósito con el nombre {nome} en esta sucursal",
+  "api.ESTOQUE_COM_PRODUTOS": "No se puede eliminar un depósito que tiene productos",
+  "api.ESTOQUE_PRODUTO_DUPLICADO": "Este producto ya está en este depósito",
+  "api.ESTOQUE_NOME_OBRIGATORIO": "El nombre del depósito es obligatorio",
+  "api.QTD_NEGATIVA": "La cantidad no puede ser negativa",
+  "api.QTD_RESERVADA_NEGATIVA": "La cantidad reservada no puede ser negativa",
+  "api.QTD_RESERVADA_MAIOR": "La cantidad reservada no puede ser mayor que la cantidad",
+  "api.EMPRESA_RUC_DUPLICADO": "Ya existe una empresa con el RUC {ruc}",
+  "api.EMPRESA_COM_FILIAIS": "No se puede eliminar una empresa que tiene sucursales",
+  "api.FILIAL_PRINCIPAL_EXCLUIR": "No se puede eliminar la sucursal principal",
+  "api.FILIAL_COM_CADASTROS": "No se puede eliminar una sucursal vinculada a registros",
+  "api.PAIS_SIGLA_DUPLICADA": "Ya existe un país con la sigla {sigla}",
+  "api.PAIS_COM_CIDADES": "No se puede eliminar un país que tiene ciudades",
+  "api.DIVISAO_NOME_DUPLICADO": "Ya existe una división “{nome}” en este país",
+  "api.DIVISAO_COM_CIDADES": "No se puede eliminar una división que tiene ciudades",
+  "api.DIVISAO_SIGLA_TAMANHO": "La sigla de la división debe tener hasta 10 caracteres",
+  "api.PAIS_SIGLA_ISO": "La sigla del país debe tener 2 letras (ISO)",
+  "api.CIDADE_NOME_DUPLICADO": "Ya existe una ciudad “{nome}” en esta división",
+  "api.DOCUMENTO_TIPO_CODIGO_DUPLICADO": "Ya existe un tipo con el código {codigo} en este país",
+  "api.DOCUMENTO_TIPO_EM_USO": "El tipo está en uso por personas registradas y no puede eliminarse",
+  "api.DOCUMENTO_OBRIGATORIO": "Indique al menos un documento",
+  "api.TELEFONE_PAR": "Indique DDI y teléfono juntos, o deje ambos vacíos",
+  "api.DOCUMENTO_TIPO_XOR": "Indique el tipo de catálogo o el tipo libre, no ambos",
+  "api.DOCUMENTO_TIPO_OBRIGATORIO": "Indique el tipo de documento",
+  "api.DOCUMENTO_TIPO_PAIS": "El tipo {codigo} no pertenece a este país",
+  "api.DOCUMENTO_TIPO_PESSOA": "{nome} no corresponde a esta clase de persona",
+  "api.DOCUMENTO_NUMERO_OBRIGATORIO": "El número del documento es obligatorio",
+  "api.DOCUMENTOS_REPETIDOS": "Hay documentos repetidos en la solicitud",
+  "api.CPF_TAMANHO": "El CPF debe tener 11 dígitos",
+  "api.CPF_INVALIDO": "CPF inválido",
+  "api.CNPJ_TAMANHO": "El CNPJ debe tener 14 caracteres",
+  "api.CNPJ_INVALIDO": "CNPJ inválido",
+  "api.CNPJ_DV_NUMERICO": "CNPJ inválido: los dos últimos caracteres deben ser numéricos",
+  "api.CI_TAMANHO": "La cédula (CI) debe tener entre 6 y 10 dígitos",
+  "api.RUC_FORMATO": "RUC inválido: use el formato 1234567-8",
+  "api.RUC_INVALIDO": "RUC inválido",
+  "api.RUC_BASE": "RUC inválido: la base debe tener de 3 a 8 dígitos",
+  "api.RUC_DV": "RUC inválido: dígito verificador incorrecto",
+  "api.PAPEL_JA_VINCULADO": "Esta persona ya está vinculada a esta sucursal en este rol",
+  "api.PESSOA_XOR": "Indique la persona o el identificador, no ambos",
+  "api.PESSOA_OBRIGATORIA": "Indique la persona",
   "entity.cliente": "Cliente",
   "entity.fornecedor": "Proveedor",
   "empresa.title": "Empresa y sucursales",
@@ -759,6 +1197,66 @@ const es: Record<TranslationKey, string> = {
   "empresa.listSuppliersBranchOnly": "Listar solo proveedores de esta sucursal",
   "empresa.branchParameters": "Parámetros de la sucursal",
   "empresa.section.parametersListagem": "Listado",
+  "empresa.listProductsBranchOnly": "Listar solo productos de esta sucursal",
+  "produto.new": "Nuevo producto",
+  "produto.edit": "Editar producto",
+  "produto.codigo": "Código (SKU)",
+  "produto.codigoHint": "Código interno editable. El ID del sistema se genera aparte.",
+  "produto.tipo": "Tipo",
+  "produto.tipo.moto": "Moto eléctrica",
+  "produto.tipo.bicicleta": "Bicicleta eléctrica",
+  "produto.marca": "Marca",
+  "produto.modelo": "Modelo",
+  "produto.descricao": "Descripción",
+  "produto.section.general": "Datos del producto",
+  "produto.section.estoque": "Stock en esta sucursal",
+  "produto.section.moto": "Ficha de la moto",
+  "produto.section.bicicleta": "Ficha de la bicicleta",
+  "produto.noStock": "Sin saldo en esta sucursal",
+  "produto.chassi": "Chasis",
+  "produto.cor": "Color",
+  "produto.potencia": "Potencia (W)",
+  "produto.autonomia": "Autonomía (km)",
+  "produto.velocidade": "Velocidad máx. (km/h)",
+  "produto.bateria": "Batería (Ah)",
+  "produto.voltagem": "Voltaje (V)",
+  "produto.carga": "Tiempo de carga (h)",
+  "produto.peso": "Peso (kg)",
+  "produto.capacidadeCarga": "Carga (kg)",
+  "produto.assentos": "Asientos",
+  "produto.aro": "Aro",
+  "produto.quadro": "Tipo de cuadro",
+  "produto.marchas": "Marchas",
+  "produto.freio": "Freno",
+  "produto.error.required": "Indique código, marca y modelo",
+  "produto.error.yearsRequired": "Indique año de fabricación y año modelo válidos",
+  "produto.confirmLinkBranch": "El producto {codigo} ya existe en {filiais}. ¿Vincular a esta sucursal?",
+  "produto.anoFabricacao": "Año de fabricación",
+  "produto.anoModelo": "Año modelo",
+  "produto.serieQuadro": "Nº de serie del cuadro",
+  "produto.nomeHint": "Armado automáticamente con marca y modelo",
+  "marca.new": "Nueva marca",
+  "marca.edit": "Editar marca",
+  "marca.error.nameRequired": "Indique el nombre de la marca",
+  "modelo.new": "Nuevo modelo",
+  "modelo.edit": "Editar modelo",
+  "modelo.error.required": "Indique marca y nombre del modelo",
+  "estoque.new": "Nuevo depósito",
+  "estoque.edit": "Editar depósito",
+  "estoque.placeholderName": "Depósito general",
+  "estoque.items": "Ítems",
+  "estoque.itemNew": "Agregar producto",
+  "estoque.itemEdit": "Editar cantidad",
+  "estoque.product": "Producto",
+  "estoque.qty": "Cantidad",
+  "estoque.reserved": "Reservada",
+  "estoque.reservedHint": "Para venta abierta. Disponible = cantidad − reservada.",
+  "estoque.available": "Disponible",
+  "estoque.backList": "Volver a depósitos",
+  "estoque.backItems": "Volver a los ítems",
+  "estoque.error.nameRequired": "Indique el nombre del depósito",
+  "estoque.error.productRequired": "Seleccione el producto",
+  "estoque.error.qtyInvalid": "Cantidad y reserva no pueden ser negativas",
 };
 
 export const translations: Record<Locale, Record<TranslationKey, string>> = { pt, es };
