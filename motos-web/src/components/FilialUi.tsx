@@ -27,7 +27,7 @@ function IconChevron() {
   );
 }
 
-function AuthChrome({
+export function AuthChrome({
   light,
   onToggleTheme,
   systemStatus,

@@ -180,6 +180,10 @@ class ProdutoService(
             descricao = request.descricao?.trim()?.takeIf { it.isNotEmpty() },
             tipo = request.tipo,
             idFilialCadastro = request.idFilialCadastro,
+            aliquotaIva = validarAliquota(request.aliquotaIva),
+            moedaPreco = request.moedaPreco,
+            precoLista = validarDinheiro(request.precoLista, "Preço de lista"),
+            custo = validarDinheiro(request.custo, "Custo"),
             status = status,
         )
     }
@@ -264,6 +268,18 @@ class ProdutoService(
         return valor
     }
 
+    private fun validarAliquota(valor: Int): Int {
+        if (valor != 0 && valor != 5 && valor != 10) {
+            throw invalido("IVA_ALIQUOTA_INVALIDA", "A alíquota de IVA deve ser 0, 5 ou 10")
+        }
+        return valor
+    }
+
+    private fun validarDinheiro(valor: Double, rotulo: String): Double {
+        if (valor < 0) throw invalido("VALOR_NEGATIVO", "$rotulo não pode ser negativo")
+        return valor
+    }
+
     private fun validarStatus(status: Status): Status {
         if (status == Status.DELETADO) throw invalido("USE_DELETE", "Use DELETE para marcar como deletado")
         return status
@@ -301,6 +317,10 @@ class ProdutoService(
             idFilialCadastro = produto.idFilialCadastro,
             filialNome = filialNome,
             filiaisVinculadas = filiaisVinculadas.map { it.toResponse() },
+            aliquotaIva = produto.aliquotaIva,
+            moedaPreco = produto.moedaPreco,
+            precoLista = produto.precoLista,
+            custo = produto.custo,
             status = produto.status,
             moto = moto?.toResponse(),
             bicicleta = bicicleta?.toResponse(),

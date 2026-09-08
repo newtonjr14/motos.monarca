@@ -6,15 +6,19 @@ import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import {
+  aplicarSeedDemo,
   atualizarEmpresa,
   atualizarFilial,
   criarFilial,
   excluirFilial,
   listarEmpresas,
   listarFiliais,
+  removerSeedDemo,
+  statusSeedDemo,
   type Cidade,
   type Empresa,
   type Filial,
+  type SeedDemoStatus,
 } from "@/api";
 import { normalizarCep, toEmailLower, toTitleCase } from "@/format";
 
@@ -24,11 +28,13 @@ function Field({
   label,
   children,
   required,
+  hint,
   className,
 }: {
   label: string;
   children: React.ReactNode;
   required?: boolean;
+  hint?: string;
   className?: string;
 }) {
   return (
@@ -37,6 +43,7 @@ function Field({
         {label}{required && " *"}
       </span>
       {children}
+      {hint ? <p className="mt-1 text-xs" style={{ color: v("--text-muted") }}>{hint}</p> : null}
     </label>
   );
 }
@@ -98,9 +105,13 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
   const [timbradoFim, setTimbradoFim] = useState("");
   const [estabelecimento, setEstabelecimento] = useState("");
   const [pontoExpedicao, setPontoExpedicao] = useState("");
+  const [perfilFiscal, setPerfilFiscal] = useState<"py_iva">("py_iva");
   const [principal, setPrincipal] = useState(false);
   const [statusFilial, setStatusFilial] = useState<"ativo" | "inativo">("ativo");
   const [parametrosFilial, setParametrosFilial] = useState<Filial | null>(null);
+  const [seed, setSeed] = useState<SeedDemoStatus | null>(null);
+  const [seedErro, setSeedErro] = useState<string | null>(null);
+  const [seedSalvando, setSeedSalvando] = useState(false);
 
   const resetLista = useCallback(() => {
     setFilialForm("lista");
@@ -130,8 +141,39 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
         setEmpresa(null);
         setFiliais([]);
       }
+      try {
+        setSeed(await statusSeedDemo());
+        setSeedErro(null);
+      } catch (e) {
+        setSeedErro(mensagemErroApi(e, t, "empresa.seed.error"));
+      }
     } catch (e) {
       setErro(mensagemErroApi(e, t, "empresa.error.loadFailed"));
+    }
+  }
+
+  async function ligarSeed() {
+    setSeedSalvando(true);
+    setSeedErro(null);
+    try {
+      setSeed(await aplicarSeedDemo());
+    } catch (e) {
+      setSeedErro(mensagemErroApi(e, t, "empresa.seed.error"));
+    } finally {
+      setSeedSalvando(false);
+    }
+  }
+
+  async function desligarSeed() {
+    if (!window.confirm(t("empresa.seed.confirmRemove"))) return;
+    setSeedSalvando(true);
+    setSeedErro(null);
+    try {
+      setSeed(await removerSeedDemo());
+    } catch (e) {
+      setSeedErro(mensagemErroApi(e, t, "empresa.seed.error"));
+    } finally {
+      setSeedSalvando(false);
     }
   }
 
@@ -180,6 +222,7 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
     setTimbradoFim(item?.timbradoVigenciaFim ?? "");
     setEstabelecimento(item?.estabelecimentoNumero ?? "");
     setPontoExpedicao(item?.pontoExpedicao ?? "");
+    setPerfilFiscal(item?.perfilFiscal ?? "py_iva");
     setPrincipal(item?.principal ?? false);
     setStatusFilial(item?.status === "inativo" ? "inativo" : "ativo");
     setErro(null);
@@ -213,6 +256,7 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
         timbradoVigenciaFim: timbradoFim.trim() || null,
         estabelecimentoNumero: estabelecimento.trim() || null,
         pontoExpedicao: pontoExpedicao.trim() || null,
+        perfilFiscal,
         principal,
         listarApenasClientesFilial: editandoFilial?.listarApenasClientesFilial ?? true,
         listarApenasFornecedoresFilial: editandoFilial?.listarApenasFornecedoresFilial ?? true,
@@ -320,8 +364,15 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
               <CidadeSearchSelect cidades={cidades} value={idCidade} onChange={setIdCidade} />
             </Field>
           </Section>
-          <Section title={t("empresa.timbrado")}>
-            <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+          <Section title={t("empresa.section.fiscal")}>
+            {/* Brasil: filtrar opções pelo país da cidade; só então br_pendente / br_simples / br_presumido / br_real.
+                CNPJ = outra empresa. Não misturar py_iva com Simples. No BR esconder timbrado. */}
+            <Field label={t("empresa.perfilFiscal")} hint={t("empresa.perfilFiscal.hint")}>
+              <select className="field max-w-md" value={perfilFiscal} onChange={(e) => setPerfilFiscal(e.target.value as "py_iva")}>
+                <option value="py_iva">{t("empresa.perfilFiscal.py_iva")}</option>
+              </select>
+            </Field>
+            <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
               <Field label={t("empresa.timbrado")}>
                 <input className="field font-mono" value={timbrado} onChange={(e) => setTimbrado(e.target.value)} />
               </Field>
@@ -388,6 +439,35 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
         </Section>
       </form>
 
+      <div className="rounded-lg p-5 space-y-3" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
+        <Section title={t("empresa.seed.title")}>
+          <p className="text-sm" style={{ color: v("--text-sub") }}>{t("empresa.seed.hint")}</p>
+          <p className="text-sm font-medium" style={{ color: seed?.aplicado ? "var(--success)" : v("--text-muted") }}>
+            {seed?.aplicado ? t("empresa.seed.statusOn") : t("empresa.seed.statusOff")}
+          </p>
+          {seedErro ? <p className="text-sm" style={{ color: "#ef4444" }}>{seedErro}</p> : null}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              className="btn-gold px-4 py-2 text-sm"
+              disabled={seedSalvando || seed?.aplicado === true}
+              onClick={() => void ligarSeed()}
+            >
+              {seedSalvando && !seed?.aplicado ? t("common.saving") : t("empresa.seed.apply")}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost px-4 py-2 text-sm"
+              disabled={seedSalvando || seed?.aplicado !== true}
+              onClick={() => void desligarSeed()}
+              style={{ color: seed?.aplicado ? "#ef4444" : undefined }}
+            >
+              {t("empresa.seed.remove")}
+            </button>
+          </div>
+        </Section>
+      </div>
+
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-medium" style={{ color: v("--text-sub") }}>{t("empresa.section.branches")}</h2>
@@ -399,6 +479,7 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
               <tr style={{ borderBottom: `1px solid ${v("--border")}` }}>
                 <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("common.name")}</th>
                 <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("papel.city")}</th>
+                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("empresa.perfilFiscal")}</th>
                 <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("empresa.principal")}</th>
                 <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("common.status")}</th>
                 <th className="drive-td-actions px-2 py-2" aria-label={t("empresa.branchParameters")} />
@@ -407,12 +488,15 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
             </thead>
             <tbody>
               {filiais.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-sm text-center" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</td></tr>
+                <tr><td colSpan={7} className="px-4 py-6 text-sm text-center" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</td></tr>
               ) : filiais.map((f) => (
                 <tr key={f.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
                   <td className="px-4 py-2.5 text-sm" style={{ color: v("--text") }}>{f.nome}</td>
                   <td className="px-4 py-2.5 text-sm" style={{ color: v("--text-sub") }}>
                     {f.cidadeNome ? `${f.cidadeNome}${f.divisaoSigla ? ` (${f.divisaoSigla})` : ""}` : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-sm" style={{ color: v("--text-sub") }}>
+                    {f.perfilFiscal === "py_iva" ? t("empresa.perfilFiscal.py_iva") : f.perfilFiscal}
                   </td>
                   <td className="px-4 py-2.5 text-sm">{f.principal ? t("common.yes") : t("common.no")}</td>
                   <td className="px-4 py-2.5"><StatusBadge status={f.status === "inativo" ? "inativo" : "ativo"} /></td>

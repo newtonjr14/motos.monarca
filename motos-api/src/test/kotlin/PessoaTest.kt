@@ -317,10 +317,14 @@ class PessoaTest {
                       "nomeRazaoSocial":"  joão da SILVA  ",
                       "tipoPessoa":"fisica",
                       "email":"  Foo.Bar@Exemplo.COM ",
-                      "tipoLogradouro":"rua",
-                      "logradouro":"avenida brasil",
-                      "bairro":"centro norte",
-                      "complemento":"casa dois",
+                      "enderecos":[{
+                        "tipo":"fiscal",
+                        "principal":true,
+                        "tipoLogradouro":"rua",
+                        "logradouro":"avenida brasil",
+                        "bairro":"centro norte",
+                        "complemento":"casa dois"
+                      }],
                       "documentos":[{"idPais":$brasilId,"idTipoDocumento":$cpfId,"numero":"$cpf"}]
                     }
                     """.trimIndent(),
@@ -330,10 +334,139 @@ class PessoaTest {
             val pessoa = Json.parseToJsonElement(created.bodyAsText()).jsonObject
             assertEquals("João Da Silva", pessoa["nomeRazaoSocial"]!!.jsonPrimitive.content)
             assertEquals("foo.bar@exemplo.com", pessoa["email"]!!.jsonPrimitive.content)
-            assertEquals("Rua", pessoa["tipoLogradouro"]!!.jsonPrimitive.content)
-            assertEquals("Avenida Brasil", pessoa["logradouro"]!!.jsonPrimitive.content)
-            assertEquals("Centro Norte", pessoa["bairro"]!!.jsonPrimitive.content)
-            assertEquals("Casa Dois", pessoa["complemento"]!!.jsonPrimitive.content)
+            val endereco = pessoa["enderecos"]!!.jsonArray.single().jsonObject
+            assertEquals("fiscal", endereco["tipo"]!!.jsonPrimitive.content)
+            assertEquals(true, endereco["principal"]!!.jsonPrimitive.content.toBoolean())
+            assertEquals("Rua", endereco["tipoLogradouro"]!!.jsonPrimitive.content)
+            assertEquals("Avenida Brasil", endereco["logradouro"]!!.jsonPrimitive.content)
+            assertEquals("Centro Norte", endereco["bairro"]!!.jsonPrimitive.content)
+            assertEquals("Casa Dois", endereco["complemento"]!!.jsonPrimitive.content)
+        }
+    }
+
+    @Test
+    fun `pessoa so permite um endereco principal ativo`() = testApplication {
+        configure()
+        withAuth { token ->
+            val brasilId = client.paisId(token, "BR")
+            val cpfId = client.tipoId(token, brasilId, "CPF")
+            val cpf = cpfValidoAleatorio()
+
+            val doisPrincipais = client.post("/pessoas") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {
+                      "nomeRazaoSocial":"Dois Principais",
+                      "tipoPessoa":"fisica",
+                      "enderecos":[
+                        {"tipo":"fiscal","principal":true,"logradouro":"rua um"},
+                        {"tipo":"entrega","principal":true,"logradouro":"rua dois"}
+                      ],
+                      "documentos":[{"idPais":$brasilId,"idTipoDocumento":$cpfId,"numero":"$cpf"}]
+                    }
+                    """.trimIndent(),
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, doisPrincipais.status)
+            val conflito = Json.parseToJsonElement(doisPrincipais.bodyAsText()).jsonObject
+            assertEquals("ENDERECO_PRINCIPAL_UNICO", conflito["codigo"]!!.jsonPrimitive.content)
+        }
+    }
+
+    @Test
+    fun `pessoa com varios enderecos exige um principal`() = testApplication {
+        configure()
+        withAuth { token ->
+            val brasilId = client.paisId(token, "BR")
+            val cpfId = client.tipoId(token, brasilId, "CPF")
+            val cpf = cpfValidoAleatorio()
+
+            val semPrincipal = client.post("/pessoas") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {
+                      "nomeRazaoSocial":"Sem Principal",
+                      "tipoPessoa":"fisica",
+                      "enderecos":[
+                        {"tipo":"fiscal","principal":false,"logradouro":"rua um"},
+                        {"tipo":"entrega","principal":false,"logradouro":"rua dois"}
+                      ],
+                      "documentos":[{"idPais":$brasilId,"idTipoDocumento":$cpfId,"numero":"$cpf"}]
+                    }
+                    """.trimIndent(),
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, semPrincipal.status)
+            val conflito = Json.parseToJsonElement(semPrincipal.bodyAsText()).jsonObject
+            assertEquals("ENDERECO_PRINCIPAL_OBRIGATORIO", conflito["codigo"]!!.jsonPrimitive.content)
+        }
+    }
+
+    @Test
+    fun `pessoa com um endereco vira principal mesmo sem flag`() = testApplication {
+        configure()
+        withAuth { token ->
+            val brasilId = client.paisId(token, "BR")
+            val cpfId = client.tipoId(token, brasilId, "CPF")
+            val cpf = cpfValidoAleatorio()
+
+            val created = client.post("/pessoas") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {
+                      "nomeRazaoSocial":"Um Endereco",
+                      "tipoPessoa":"fisica",
+                      "enderecos":[{"tipo":"residencial","principal":false,"logradouro":"rua unica"}],
+                      "documentos":[{"idPais":$brasilId,"idTipoDocumento":$cpfId,"numero":"$cpf"}]
+                    }
+                    """.trimIndent(),
+                )
+            }
+            assertEquals(HttpStatusCode.Created, created.status)
+            val endereco = Json.parseToJsonElement(created.bodyAsText())
+                .jsonObject["enderecos"]!!.jsonArray.single().jsonObject
+            assertEquals(true, endereco["principal"]!!.jsonPrimitive.content.toBoolean())
+            assertEquals("residencial", endereco["tipo"]!!.jsonPrimitive.content)
+            assertEquals("Rua Unica", endereco["logradouro"]!!.jsonPrimitive.content)
+        }
+    }
+
+    @Test
+    fun `pessoa pode ter varios enderecos com um principal`() = testApplication {
+        configure()
+        withAuth { token ->
+            val brasilId = client.paisId(token, "BR")
+            val cpfId = client.tipoId(token, brasilId, "CPF")
+            val cpf = cpfValidoAleatorio()
+
+            val created = client.post("/pessoas") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {
+                      "nomeRazaoSocial":"Varios Enderecos",
+                      "tipoPessoa":"fisica",
+                      "enderecos":[
+                        {"tipo":"fiscal","principal":true,"logradouro":"rua fiscal"},
+                        {"tipo":"entrega","principal":false,"logradouro":"rua entrega"}
+                      ],
+                      "documentos":[{"idPais":$brasilId,"idTipoDocumento":$cpfId,"numero":"$cpf"}]
+                    }
+                    """.trimIndent(),
+                )
+            }
+            assertEquals(HttpStatusCode.Created, created.status)
+            val enderecos = Json.parseToJsonElement(created.bodyAsText()).jsonObject["enderecos"]!!.jsonArray
+            assertEquals(2, enderecos.size)
+            val principais = enderecos.count { it.jsonObject["principal"]!!.jsonPrimitive.content.toBoolean() }
+            assertEquals(1, principais)
         }
     }
 

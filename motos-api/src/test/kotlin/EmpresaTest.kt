@@ -34,6 +34,7 @@ class EmpresaTest {
                 client.get("/filiais/principal") { auth(token) }.bodyAsText(),
             ).jsonObject
             assertEquals(true, principal["principal"]!!.jsonPrimitive.content.toBoolean())
+            assertEquals("py_iva", principal["perfilFiscal"]!!.jsonPrimitive.content)
             assertEquals(empresa["id"]!!.jsonPrimitive.long, principal["idEmpresa"]!!.jsonPrimitive.long)
         }
     }
@@ -55,6 +56,7 @@ class EmpresaTest {
             val filial = Json.parseToJsonElement(created.bodyAsText()).jsonObject
             val id = filial["id"]!!.jsonPrimitive.long
             assertEquals("Sucursal $n", filial["nome"]!!.jsonPrimitive.content)
+            assertEquals("py_iva", filial["perfilFiscal"]!!.jsonPrimitive.content)
 
             val updated = client.put("/filiais/$id") {
                 auth(token)

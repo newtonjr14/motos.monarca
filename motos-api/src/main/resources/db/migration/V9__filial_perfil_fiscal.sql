@@ -1,0 +1,1 @@
+ALTER TABLE filial ADD COLUMN perfil_fiscal VARCHAR(30) NOT NULL DEFAULT 'py_iva';

@@ -13,5 +13,9 @@ data class Produto(
     val descricao: String?,
     val tipo: TipoProduto,
     val idFilialCadastro: Long?,
+    val aliquotaIva: Int,
+    val moedaPreco: Moeda,
+    val precoLista: Double,
+    val custo: Double,
     val status: Status,
 )

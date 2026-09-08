@@ -16,6 +16,10 @@ ktor:
       - com.monarca.produto.http.ProdutoRoutingKt.configureProduto
       - com.monarca.produto.http.MarcaRoutingKt.configureMarca
       - com.monarca.estoque.http.EstoqueRoutingKt.configureEstoque
+      - com.monarca.cotacao.http.CotacaoRoutingKt.configureCotacao
+      - com.monarca.caixa.http.CaixaRoutingKt.configureCaixa
+      - com.monarca.venda.http.VendaRoutingKt.configureVenda
+      - com.monarca.seed.http.SeedDemoRoutingKt.configureSeed
 
 database:
   url: "r2dbc:postgresql://localhost:5432/monarca_motos_db"
@@ -29,3 +33,9 @@ jwt:
   realm: "Monarca Motos"
   accessExpirationMinutes: 60
   refreshExpirationDays: 7
+
+cotacao:
+  exigirDoDia: true
+
+seed:
+  demo: false

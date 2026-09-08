@@ -22,9 +22,17 @@ import com.monarca.usuario.repository.UsuarioRepository
 class UsuarioService(
     private val repository: UsuarioRepository,
     private val empresaRepository: EmpresaRepository,
+    private val caixaService: com.monarca.caixa.service.CaixaService,
 ) {
 
-    suspend fun init() = repository.inicializar()
+    suspend fun init() {
+        repository.inicializar()
+        for (usuario in repository.listar()) {
+            if (caixaService.listarMeusCaixas(usuario.id, null).isEmpty()) {
+                caixaService.substituirAcessosUsuario(usuario.id, null, null)
+            }
+        }
+    }
 
     suspend fun listar(atual: UsuarioAutenticado): List<UsuarioResponse> {
         exigirPermissao(atual, Permissao.USUARIO_LISTAR)
@@ -61,6 +69,7 @@ class UsuarioService(
 
         val id = repository.inserir(nome, login, email, senhaHash, request.perfil, request.idioma, status)
         repository.substituirFiliais(id, resolverIdsFiliais(request.idsFiliais, obrigatorio = false))
+        caixaService.substituirAcessosUsuario(id, request.idsCaixas, request.idCaixaPadrao)
         return buscar(id, atual)
     }
 
@@ -89,6 +98,9 @@ class UsuarioService(
                 throw invalido("FILIAIS_OBRIGATORIAS", "Selecione ao menos uma filial")
             }
             repository.substituirFiliais(id, resolverIdsFiliais(ids, obrigatorio = true))
+        }
+        if (request.idsCaixas != null || request.idCaixaPadrao != null) {
+            caixaService.substituirAcessosUsuario(id, request.idsCaixas, request.idCaixaPadrao)
         }
         return buscar(id, atual)
     }
@@ -215,6 +227,7 @@ class UsuarioService(
         idioma = idioma,
         status = status,
         filiais = repository.listarFiliais(id).map { it.toResponse() },
+        caixas = caixaService.listarMeusCaixas(id, null),
     )
 }
 

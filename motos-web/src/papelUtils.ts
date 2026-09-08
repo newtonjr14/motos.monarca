@@ -7,13 +7,19 @@ export function pessoaParaAtualizacao(p: Pessoa) {
     ddi: p.ddi,
     telefone: p.telefone,
     email: p.email,
-    tipoLogradouro: p.tipoLogradouro,
-    logradouro: p.logradouro,
-    numero: p.numero,
-    bairro: p.bairro,
-    cep: p.cep,
-    complemento: p.complemento,
-    idCidade: p.idCidade,
+    enderecos: (p.enderecos ?? [])
+      .filter((e) => e.status !== "deletado")
+      .map((e) => ({
+        tipo: e.tipo,
+        principal: e.principal,
+        tipoLogradouro: e.tipoLogradouro,
+        logradouro: e.logradouro,
+        numero: e.numero,
+        bairro: e.bairro,
+        cep: e.cep,
+        complemento: e.complemento,
+        idCidade: e.idCidade,
+      })),
     status: "ativo" as const,
     documentos: p.documentos.map((d) => ({
       idPais: d.idPais,

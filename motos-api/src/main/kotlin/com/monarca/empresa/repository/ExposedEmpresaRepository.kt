@@ -4,6 +4,7 @@ import com.monarca.common.enums.Status
 import com.monarca.empresa.domain.Empresa
 import com.monarca.empresa.domain.Filial
 import com.monarca.empresa.domain.FilialDetalhe
+import com.monarca.empresa.domain.PerfilFiscal
 import com.monarca.localidade.repository.CidadesTable
 import com.monarca.localidade.repository.DivisoesTable
 import com.monarca.localidade.repository.PaisesTable
@@ -136,6 +137,7 @@ class ExposedEmpresaRepository(
             it[timbradoVigenciaFim] = filial.timbradoVigenciaFim
             it[estabelecimentoNumero] = filial.estabelecimentoNumero
             it[pontoExpedicao] = filial.pontoExpedicao
+            it[perfilFiscal] = filial.perfilFiscal.name.lowercase()
             it[principal] = filial.principal
             it[listarApenasClientesFilial] = filial.listarApenasClientesFilial
             it[listarApenasFornecedoresFilial] = filial.listarApenasFornecedoresFilial
@@ -166,6 +168,7 @@ class ExposedEmpresaRepository(
             it[timbradoVigenciaFim] = filial.timbradoVigenciaFim
             it[estabelecimentoNumero] = filial.estabelecimentoNumero
             it[pontoExpedicao] = filial.pontoExpedicao
+            it[perfilFiscal] = filial.perfilFiscal.name.lowercase()
             it[principal] = filial.principal
             it[listarApenasClientesFilial] = filial.listarApenasClientesFilial
             it[listarApenasFornecedoresFilial] = filial.listarApenasFornecedoresFilial
@@ -261,6 +264,7 @@ class ExposedEmpresaRepository(
         timbradoVigenciaFim = this[FiliaisTable.timbradoVigenciaFim],
         estabelecimentoNumero = this[FiliaisTable.estabelecimentoNumero],
         pontoExpedicao = this[FiliaisTable.pontoExpedicao],
+        perfilFiscal = PerfilFiscal.valueOf(this[FiliaisTable.perfilFiscal].uppercase()),
         principal = this[FiliaisTable.principal],
         listarApenasClientesFilial = this[FiliaisTable.listarApenasClientesFilial],
         listarApenasFornecedoresFilial = this[FiliaisTable.listarApenasFornecedoresFilial],

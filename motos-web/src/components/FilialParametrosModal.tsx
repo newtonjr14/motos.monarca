@@ -63,6 +63,7 @@ function filialBody(filial: Filial, params: { listarClientes: boolean; listarFor
     timbradoVigenciaFim: filial.timbradoVigenciaFim,
     estabelecimentoNumero: filial.estabelecimentoNumero,
     pontoExpedicao: filial.pontoExpedicao,
+    perfilFiscal: filial.perfilFiscal,
     principal: filial.principal,
     listarApenasClientesFilial: params.listarClientes,
     listarApenasFornecedoresFilial: params.listarFornecedores,

@@ -108,6 +108,10 @@ export default function ProdutoFicha({
         idModelo: item.idModelo,
         descricao: item.descricao,
         tipo: item.tipo,
+        aliquotaIva: item.aliquotaIva ?? 10,
+        moedaPreco: item.moedaPreco ?? "usd",
+        precoLista: item.precoLista ?? 0,
+        custo: item.custo ?? 0,
         status: proximo,
         moto: item.moto,
         bicicleta: item.bicicleta,
@@ -196,6 +200,18 @@ export default function ProdutoFicha({
 
         <div className="ficha-modal-body px-6 py-5 space-y-5">
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+
+          <Section title={t("produto.section.price")}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Dado label={t("produto.iva")} value={`${item.aliquotaIva ?? 10}%`} />
+              <Dado
+                label={t("produto.currency")}
+                value={item.moedaPreco === "pyg" ? t("produto.currency.pyg") : item.moedaPreco === "brl" ? t("produto.currency.brl") : t("produto.currency.usd")}
+              />
+              <Dado label={t("produto.listPrice")} value={`${item.precoLista ?? 0} ${(item.moedaPreco ?? "usd").toUpperCase()}`} />
+              <Dado label={t("produto.cost")} value={`${item.custo ?? 0} ${(item.moedaPreco ?? "usd").toUpperCase()}`} />
+            </div>
+          </Section>
 
           <Section title={t("produto.section.estoque")}>
             <div className="flex items-baseline gap-2 mb-3">

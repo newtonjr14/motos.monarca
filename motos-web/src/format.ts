@@ -1,4 +1,4 @@
-import type { Cidade, Pessoa } from "@/api";
+import type { Cidade, Pessoa, PessoaEndereco } from "@/api";
 
 const LOCALE = "pt-BR";
 
@@ -146,6 +146,10 @@ export function formatarTelefoneExibicao(ddi: string | null | undefined, numero:
 
 export const PAGE_SIZE = 10;
 
+export function formatPyg(valor: number): string {
+  return Math.round(valor).toLocaleString("es-PY");
+}
+
 export function slicePage<T>(itens: T[], page: number) {
   const totalPages = Math.max(1, Math.ceil(itens.length / PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);
@@ -169,15 +173,22 @@ export function formatarCidade(cidades: Cidade[], id: number | null, curto = fal
   return `${c.nome} · ${divisao} · ${c.paisNome}`;
 }
 
+export function enderecoPrincipal(p: Pessoa): PessoaEndereco | undefined {
+  const ativos = (p.enderecos ?? []).filter((e) => e.status !== "deletado");
+  return ativos.find((e) => e.principal) ?? ativos[0];
+}
+
 export function formatarEndereco(p: Pessoa, cidades: Cidade[]): string | null {
-  const logradouro = [p.tipoLogradouro, p.logradouro].filter(Boolean).join(" ");
-  const linha1 = [logradouro, p.numero].filter(Boolean).join(", ");
-  const cidade = formatarCidade(cidades, p.idCidade);
+  const e = enderecoPrincipal(p);
+  if (!e) return null;
+  const logradouro = [e.tipoLogradouro, e.logradouro].filter(Boolean).join(" ");
+  const linha1 = [logradouro, e.numero].filter(Boolean).join(", ");
+  const cidade = formatarCidade(cidades, e.idCidade);
   const parts = [
     linha1 || null,
-    p.bairro?.trim() || null,
-    p.cep?.trim() ? `CEP ${p.cep.trim()}` : null,
-    p.complemento?.trim() || null,
+    e.bairro?.trim() || null,
+    e.cep?.trim() ? `CEP ${e.cep.trim()}` : null,
+    e.complemento?.trim() || null,
     cidade !== "—" ? cidade : null,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;

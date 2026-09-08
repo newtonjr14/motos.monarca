@@ -23,6 +23,13 @@ object PessoasTable : LongIdTable("pessoa") {
     val ddi = varchar("ddi", 5).nullable()
     val telefone = varchar("telefone", 30).nullable()
     val email = varchar("email", 120).nullable()
+    val status = varchar("status", 20).default("ativo")
+}
+
+object PessoaEnderecosTable : LongIdTable("pessoa_endereco") {
+    val idPessoa = reference("id_pessoa", PessoasTable)
+    val tipo = varchar("tipo", 20)
+    val principal = bool("principal").default(false)
     val tipoLogradouro = varchar("tipo_logradouro", 30).nullable()
     val logradouro = varchar("logradouro", 180).nullable()
     val numero = varchar("numero", 20).nullable()
@@ -31,6 +38,7 @@ object PessoasTable : LongIdTable("pessoa") {
     val complemento = varchar("complemento", 80).nullable()
     val idCidade = optReference("id_cidade", CidadesTable)
     val status = varchar("status", 20).default("ativo")
+    val idPessoaPrincipal = long("id_pessoa_principal").nullable()
 }
 
 object ClientesTable : LongIdTable("cliente") {

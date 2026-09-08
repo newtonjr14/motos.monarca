@@ -23,6 +23,10 @@ object ProdutosTable : LongIdTable("produto") {
     val descricao = varchar("descricao", 500).nullable()
     val tipo = varchar("tipo", 20)
     val idFilialCadastro = optReference("id_filial_cadastro", FiliaisTable)
+    val aliquotaIva = integer("aliquota_iva").default(10)
+    val moedaPreco = varchar("moeda_preco", 3).default("usd")
+    val precoLista = double("preco_lista").default(0.0)
+    val custo = double("custo").default(0.0)
     val status = varchar("status", 20).default("ativo")
 }
 

@@ -2,6 +2,7 @@ package com.monarca.produto.dto
 
 import com.monarca.common.enums.Status
 import com.monarca.pessoa.dto.FilialVinculoResponse
+import com.monarca.produto.domain.Moeda
 import com.monarca.produto.domain.TipoProduto
 import kotlinx.serialization.Serializable
 
@@ -49,6 +50,10 @@ data class ProdutoRequest(
     val tipo: TipoProduto,
     val idFilialCadastro: Long? = null,
     val confirmarVinculoFilial: Boolean = false,
+    val aliquotaIva: Int = 10,
+    val moedaPreco: Moeda = Moeda.USD,
+    val precoLista: Double = 0.0,
+    val custo: Double = 0.0,
     val status: Status = Status.ATIVO,
     val moto: ProdutoMotoRequest? = null,
     val bicicleta: ProdutoBicicletaRequest? = null,
@@ -119,6 +124,10 @@ data class ProdutoResponse(
     val idFilialCadastro: Long? = null,
     val filialNome: String? = null,
     val filiaisVinculadas: List<FilialVinculoResponse> = emptyList(),
+    val aliquotaIva: Int,
+    val moedaPreco: Moeda,
+    val precoLista: Double,
+    val custo: Double,
     val status: Status,
     val moto: ProdutoMotoResponse? = null,
     val bicicleta: ProdutoBicicletaResponse? = null,

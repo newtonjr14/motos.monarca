@@ -10,6 +10,8 @@ import com.monarca.pessoa.domain.Pessoa
 import com.monarca.pessoa.domain.PessoaCompleta
 import com.monarca.pessoa.domain.PessoaDocumento
 import com.monarca.pessoa.domain.PessoaDocumentoDetalhe
+import com.monarca.pessoa.domain.PessoaEndereco
+import com.monarca.pessoa.domain.TipoEndereco
 import com.monarca.pessoa.domain.TipoPessoa
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.singleOrNull
@@ -113,7 +115,11 @@ class ExposedPessoaRepository(
         completar(listOf(pessoa)).first()
     }
 
-    override suspend fun inserirPessoa(pessoa: Pessoa, documentos: List<DocumentoNovo>): Long =
+    override suspend fun inserirPessoa(
+        pessoa: Pessoa,
+        documentos: List<DocumentoNovo>,
+        enderecos: List<EnderecoNovo>,
+    ): Long =
         suspendTransaction(database) {
             val id = PessoasTable.insert {
                 it[nomeRazaoSocial] = pessoa.nomeRazaoSocial
@@ -121,20 +127,19 @@ class ExposedPessoaRepository(
                 it[ddi] = pessoa.ddi
                 it[telefone] = pessoa.telefone
                 it[email] = pessoa.email
-                it[tipoLogradouro] = pessoa.tipoLogradouro
-                it[logradouro] = pessoa.logradouro
-                it[numero] = pessoa.numero
-                it[bairro] = pessoa.bairro
-                it[cep] = pessoa.cep
-                it[complemento] = pessoa.complemento
-                it[idCidade] = pessoa.idCidade
                 it[status] = pessoa.status.name.lowercase()
             }[PessoasTable.id].value
             inserirDocumentos(id, documentos)
+            inserirEnderecos(id, enderecos)
             id
         }
 
-    override suspend fun atualizarPessoa(id: Long, pessoa: Pessoa, documentos: List<DocumentoNovo>): Boolean =
+    override suspend fun atualizarPessoa(
+        id: Long,
+        pessoa: Pessoa,
+        documentos: List<DocumentoNovo>,
+        enderecos: List<EnderecoNovo>,
+    ): Boolean =
         suspendTransaction(database) {
             val updated = PessoasTable.update({
                 (PessoasTable.id eq id) and (PessoasTable.status neq Status.DELETADO.name.lowercase())
@@ -144,13 +149,6 @@ class ExposedPessoaRepository(
                 it[ddi] = pessoa.ddi
                 it[telefone] = pessoa.telefone
                 it[email] = pessoa.email
-                it[tipoLogradouro] = pessoa.tipoLogradouro
-                it[logradouro] = pessoa.logradouro
-                it[numero] = pessoa.numero
-                it[bairro] = pessoa.bairro
-                it[cep] = pessoa.cep
-                it[complemento] = pessoa.complemento
-                it[idCidade] = pessoa.idCidade
                 it[status] = pessoa.status.name.lowercase()
             }
             if (updated == 0) return@suspendTransaction false
@@ -161,6 +159,7 @@ class ExposedPessoaRepository(
                 it[status] = Status.DELETADO.name.lowercase()
             }
             inserirDocumentos(id, documentos)
+            substituirEnderecos(id, enderecos)
             true
         }
 
@@ -173,6 +172,11 @@ class ExposedPessoaRepository(
         if (updated == 0) return@suspendTransaction false
         PessoaDocumentosTable.update({ PessoaDocumentosTable.idPessoa eq id }) {
             it[status] = Status.DELETADO.name.lowercase()
+        }
+        PessoaEnderecosTable.update({ PessoaEnderecosTable.idPessoa eq id }) {
+            it[status] = Status.DELETADO.name.lowercase()
+            it[principal] = false
+            it[idPessoaPrincipal] = null
         }
         true
     }
@@ -610,6 +614,37 @@ class ExposedPessoaRepository(
         }
     }
 
+    private suspend fun substituirEnderecos(idPessoa: Long, enderecos: List<EnderecoNovo>) {
+        PessoaEnderecosTable.update({
+            (PessoaEnderecosTable.idPessoa eq idPessoa) and
+                (PessoaEnderecosTable.status neq Status.DELETADO.name.lowercase())
+        }) {
+            it[status] = Status.DELETADO.name.lowercase()
+            it[principal] = false
+            it[idPessoaPrincipal] = null
+        }
+        inserirEnderecos(idPessoa, enderecos)
+    }
+
+    private suspend fun inserirEnderecos(idPessoa: Long, enderecos: List<EnderecoNovo>) {
+        enderecos.forEach { endereco ->
+            PessoaEnderecosTable.insert {
+                it[PessoaEnderecosTable.idPessoa] = idPessoa
+                it[tipo] = endereco.tipo.name.lowercase()
+                it[principal] = endereco.principal
+                it[tipoLogradouro] = endereco.tipoLogradouro
+                it[logradouro] = endereco.logradouro
+                it[numero] = endereco.numero
+                it[bairro] = endereco.bairro
+                it[cep] = endereco.cep
+                it[complemento] = endereco.complemento
+                it[idCidade] = endereco.idCidade
+                it[status] = Status.ATIVO.name.lowercase()
+                it[idPessoaPrincipal] = if (endereco.principal) idPessoa else null
+            }
+        }
+    }
+
     private suspend fun completar(pessoas: List<Pessoa>): List<PessoaCompleta> {
         if (pessoas.isEmpty()) return emptyList()
         val ids = pessoas.map { it.id }
@@ -629,7 +664,19 @@ class ExposedPessoaRepository(
             .map { it.toDocumentoDetalhe() }
             .toList()
             .groupBy { it.documento.idPessoa }
-        return pessoas.map { PessoaCompleta(it, docs[it.id].orEmpty()) }
+        val enderecos = PessoaEnderecosTable.selectAll()
+            .where {
+                (PessoaEnderecosTable.idPessoa inList ids) and
+                    (PessoaEnderecosTable.status neq Status.DELETADO.name.lowercase())
+            }
+            .orderBy(
+                PessoaEnderecosTable.principal to SortOrder.DESC,
+                PessoaEnderecosTable.id to SortOrder.ASC,
+            )
+            .map { it.toEndereco() }
+            .toList()
+            .groupBy { it.idPessoa }
+        return pessoas.map { PessoaCompleta(it, docs[it.id].orEmpty(), enderecos[it.id].orEmpty()) }
     }
 
     private fun ResultRow.toTipo() = DocumentoTipo(
@@ -662,14 +709,22 @@ class ExposedPessoaRepository(
         ddi = this[PessoasTable.ddi],
         telefone = this[PessoasTable.telefone],
         email = this[PessoasTable.email],
-        tipoLogradouro = this[PessoasTable.tipoLogradouro],
-        logradouro = this[PessoasTable.logradouro],
-        numero = this[PessoasTable.numero],
-        bairro = this[PessoasTable.bairro],
-        cep = this[PessoasTable.cep],
-        complemento = this[PessoasTable.complemento],
-        idCidade = this[PessoasTable.idCidade]?.value,
         status = Status.valueOf(this[PessoasTable.status].uppercase()),
+    )
+
+    private fun ResultRow.toEndereco() = PessoaEndereco(
+        id = this[PessoaEnderecosTable.id].value,
+        idPessoa = this[PessoaEnderecosTable.idPessoa].value,
+        tipo = TipoEndereco.valueOf(this[PessoaEnderecosTable.tipo].uppercase()),
+        principal = this[PessoaEnderecosTable.principal],
+        tipoLogradouro = this[PessoaEnderecosTable.tipoLogradouro],
+        logradouro = this[PessoaEnderecosTable.logradouro],
+        numero = this[PessoaEnderecosTable.numero],
+        bairro = this[PessoaEnderecosTable.bairro],
+        cep = this[PessoaEnderecosTable.cep],
+        complemento = this[PessoaEnderecosTable.complemento],
+        idCidade = this[PessoaEnderecosTable.idCidade]?.value,
+        status = Status.valueOf(this[PessoaEnderecosTable.status].uppercase()),
     )
 
     private fun ResultRow.toDocumentoDetalhe(): PessoaDocumentoDetalhe {

@@ -69,3 +69,27 @@ fun ApplicationCall.podeConsultarEstoque() {
 fun ApplicationCall.podeGerenciarEstoque() {
     requirePermissao(Permissao.ESTOQUE_GERENCIAR)
 }
+
+fun ApplicationCall.podeConsultarCotacao() {
+    requireQualquerPermissao(Permissao.COTACAO_CONSULTAR, Permissao.COTACAO_GERENCIAR)
+}
+
+fun ApplicationCall.podeGerenciarCotacao() {
+    requirePermissao(Permissao.COTACAO_GERENCIAR)
+}
+
+fun ApplicationCall.podeConsultarCaixa() {
+    requireQualquerPermissao(Permissao.CAIXA_GERENCIAR, Permissao.CAIXA_OPERAR)
+}
+
+fun ApplicationCall.podeGerenciarCaixa() {
+    requirePermissao(Permissao.CAIXA_GERENCIAR)
+}
+
+fun ApplicationCall.podeOperarCaixa() {
+    requireQualquerPermissao(Permissao.CAIXA_OPERAR, Permissao.CAIXA_GERENCIAR)
+}
+
+fun ApplicationCall.podeRegistrarVenda() {
+    requirePermissao(Permissao.VENDA_REGISTRAR)
+}

@@ -1,6 +1,7 @@
 package com.monarca.empresa.dto
 
 import com.monarca.common.enums.Status
+import com.monarca.empresa.domain.PerfilFiscal
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -43,6 +44,7 @@ data class FilialRequest(
     val timbradoVigenciaFim: String? = null,
     val estabelecimentoNumero: String? = null,
     val pontoExpedicao: String? = null,
+    val perfilFiscal: PerfilFiscal = PerfilFiscal.PY_IVA,
     val principal: Boolean = false,
     val listarApenasClientesFilial: Boolean = true,
     val listarApenasFornecedoresFilial: Boolean = true,
@@ -75,6 +77,7 @@ data class FilialResponse(
     val timbradoVigenciaFim: String? = null,
     val estabelecimentoNumero: String? = null,
     val pontoExpedicao: String? = null,
+    val perfilFiscal: PerfilFiscal,
     val principal: Boolean,
     val listarApenasClientesFilial: Boolean,
     val listarApenasFornecedoresFilial: Boolean,

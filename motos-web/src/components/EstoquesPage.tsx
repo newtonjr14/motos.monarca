@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Field } from "@/components/crud/Field";
 import { CatalogHeader, StatusBadge, TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
@@ -8,14 +8,21 @@ import { tf } from "@/i18n/format";
 import { useFilialId } from "@/auth/FilialContext";
 import {
   atualizarEstoque,
+  atualizarEstoqueProduto,
   criarEstoque,
+  criarEstoqueProduto,
   excluirEstoque,
+  listarEstoqueProdutos,
   listarEstoques,
+  listarProdutos,
   type Estoque,
+  type EstoqueProduto,
+  type Produto,
 } from "@/api";
 import { slicePage, toTitleCase } from "@/format";
 
 const v = (name: string) => `var(${name})`;
+const border1 = () => `1px solid ${v("--border")}`;
 
 export default function EstoquesPage({ navReset }: { navReset: number }) {
   const { t } = useI18n();
@@ -30,9 +37,23 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [salvando, setSalvando] = useState(false);
 
+  const [aberto, setAberto] = useState<Estoque | null>(null);
+  const [saldos, setSaldos] = useState<EstoqueProduto[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [buscaSaldo, setBuscaSaldo] = useState("");
+  const [pageSaldo, setPageSaldo] = useState(1);
+  const [itemForm, setItemForm] = useState(false);
+  const [editandoItem, setEditandoItem] = useState<EstoqueProduto | null>(null);
+  const [idProduto, setIdProduto] = useState<number | "">("");
+  const [quantidade, setQuantidade] = useState("0");
+  const [reservada, setReservada] = useState("0");
+
   const resetLista = useCallback(() => {
     setFormAberto(false);
     setEditando(null);
+    setAberto(null);
+    setItemForm(false);
+    setEditandoItem(null);
   }, []);
   useCrudReset(navReset, resetLista);
 
@@ -46,6 +67,30 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
   }
   useEffect(() => { void carregar(); }, [idFilial]);
   useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => { setPageSaldo(1); }, [buscaSaldo]);
+
+  async function carregarSaldos(estoque: Estoque) {
+    const [lista, prods] = await Promise.all([
+      listarEstoqueProdutos(estoque.id),
+      listarProdutos(idFilial),
+    ]);
+    setSaldos(lista);
+    setProdutos(prods.filter((p) => p.status === "ativo"));
+  }
+
+  async function abrirItens(estoque: Estoque) {
+    setErro(null);
+    setBuscaSaldo("");
+    setPageSaldo(1);
+    setItemForm(false);
+    setEditandoItem(null);
+    try {
+      await carregarSaldos(estoque);
+      setAberto(estoque);
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
+    }
+  }
 
   function abrir(item?: Estoque) {
     setEditando(item ?? null);
@@ -75,6 +120,109 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
     }
   }
 
+  function abrirItem(item?: EstoqueProduto) {
+    setEditandoItem(item ?? null);
+    setIdProduto(item?.idProduto ?? "");
+    setQuantidade(item ? String(item.quantidade) : "0");
+    setReservada(item ? String(item.quantidadeReservada) : "0");
+    setErro(null);
+    setItemForm(true);
+  }
+
+  const produtosDisponiveis = useMemo(() => {
+    const ids = new Set(saldos.map((s) => s.idProduto));
+    return produtos.filter((p) => !ids.has(p.id));
+  }, [produtos, saldos]);
+
+  async function salvarItem() {
+    if (!aberto) return;
+    setErro(null);
+    const qtd = Number(quantidade);
+    const res = Number(reservada);
+    if (!Number.isInteger(qtd) || !Number.isInteger(res) || qtd < 0 || res < 0 || res > qtd) {
+      setErro(t("estoque.error.qtyInvalid"));
+      return;
+    }
+    const produtoId = editandoItem?.idProduto ?? (idProduto === "" ? null : idProduto);
+    if (produtoId == null) {
+      setErro(t("estoque.error.productRequired"));
+      return;
+    }
+    setSalvando(true);
+    try {
+      const body = {
+        idEstoque: aberto.id,
+        idProduto: produtoId,
+        quantidade: qtd,
+        quantidadeReservada: res,
+        status: "ativo" as const,
+      };
+      if (editandoItem) await atualizarEstoqueProduto(editandoItem.id, body);
+      else await criarEstoqueProduto(body);
+      setItemForm(false);
+      setEditandoItem(null);
+      await carregarSaldos(aberto);
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (itemForm && aberto) {
+    const qtdN = Number(quantidade);
+    const resN = Number(reservada);
+    const disponivel = Number.isInteger(qtdN) && Number.isInteger(resN) ? qtdN - resN : null;
+    return (
+      <div className="space-y-5 max-w-xl">
+        <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
+          onClick={() => { setItemForm(false); setEditandoItem(null); setErro(null); }}>
+          ← {t("estoque.backItems")}
+        </button>
+        <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
+          {editandoItem ? t("estoque.itemEdit") : t("estoque.itemNew")}
+        </h1>
+        <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: border1() }}
+          onSubmit={(e) => { e.preventDefault(); void salvarItem(); }}>
+          {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+          <Field label={t("estoque.product")} required>
+            {editandoItem ? (
+              <input className="field" readOnly value={`${editandoItem.produtoCodigo} · ${editandoItem.produtoNome}`} />
+            ) : (
+              <select className="field" autoFocus value={idProduto}
+                onChange={(e) => setIdProduto(e.target.value ? Number(e.target.value) : "")}>
+                <option value="">{t("common.select")}</option>
+                {produtosDisponiveis.map((p) => (
+                  <option key={p.id} value={p.id}>{p.codigo} · {p.nome}</option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label={t("estoque.qty")} required>
+            <input className="field font-mono" inputMode="numeric" autoFocus={Boolean(editandoItem)}
+              value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
+          </Field>
+          <Field label={t("estoque.reserved")} hint={t("estoque.reservedHint")}>
+            <input className="field font-mono" inputMode="numeric" value={reservada}
+              onChange={(e) => setReservada(e.target.value)} />
+          </Field>
+          {disponivel != null && (
+            <p className="text-sm font-mono" style={{ color: v("--gold") }}>
+              {t("estoque.available")}: {disponivel}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" className="btn-ghost px-4 py-2 text-sm"
+              onClick={() => { setItemForm(false); setEditandoItem(null); }}>{t("common.cancel")}</button>
+            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">
+              {salvando ? t("common.saving") : t("common.save")}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   if (formAberto) {
     return (
       <div className="space-y-5 max-w-xl">
@@ -84,7 +232,7 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
         <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
           {editando ? t("estoque.edit") : t("estoque.new")}
         </h1>
-        <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
+        <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: border1() }}
           onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
           <Field label={t("common.name")} required>
@@ -108,6 +256,57 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
     );
   }
 
+  if (aberto) {
+    const filteredSaldos = saldos.filter((s) =>
+      `${s.produtoCodigo} ${s.produtoNome}`.toLowerCase().includes(buscaSaldo.toLowerCase()),
+    );
+    const pagedSaldos = slicePage(filteredSaldos, pageSaldo);
+    return (
+      <div className="space-y-5">
+        <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
+          onClick={() => { setAberto(null); setErro(null); }}>
+          ← {t("estoque.backList")}
+        </button>
+        <CatalogHeader
+          titulo={aberto.nome}
+          count={saldos.length}
+          novoLabel={t("estoque.itemNew")}
+          onNovo={() => abrirItem()}
+        />
+        {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+        <input value={buscaSaldo} onChange={(e) => setBuscaSaldo(e.target.value)} placeholder={t("common.search")}
+          className="px-3 py-2 text-sm rounded-md outline-none w-64"
+          style={{ background: v("--card"), border: border1(), color: v("--text") }} />
+        <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: border1() }}>
+          <table className="drive-table w-full">
+            <thead>
+              <TableHeadRow cols={["col.code", "common.name", "produto.tipo", "estoque.qty", "estoque.reserved", "estoque.available", ""]} />
+            </thead>
+            <tbody>
+              {pagedSaldos.slice.map((s) => (
+                <tr key={s.id} className="drive-row-clickable" style={{ borderBottom: border1() }}
+                  onClick={() => abrirItem(s)}>
+                  <Td mono gold>{s.produtoCodigo}</Td>
+                  <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{s.produtoNome}</td>
+                  <Td sub>{s.produtoTipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")}</Td>
+                  <Td mono>{s.quantidade}</Td>
+                  <Td mono sub>{s.quantidadeReservada}</Td>
+                  <Td mono>{s.quantidadeDisponivel}</Td>
+                  <td className="px-4 py-3 text-right">
+                    <button type="button" className="text-xs cursor-pointer" style={{ color: v("--gold") }}
+                      onClick={(e) => { e.stopPropagation(); abrirItem(s); }}>{t("common.edit")}</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!filteredSaldos.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
+          {filteredSaldos.length > 0 && <TablePagination page={pagedSaldos.pageSafe} total={pagedSaldos.total} onPageChange={setPageSaldo} />}
+        </div>
+      </div>
+    );
+  }
+
   const filtered = itens.filter((e) => e.nome.toLowerCase().includes(search.toLowerCase()));
   const paged = slicePage(filtered, page);
 
@@ -117,22 +316,27 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
         className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
-      <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
+        style={{ background: v("--card"), border: border1(), color: v("--text") }} />
+      <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: border1() }}>
         <table className="drive-table w-full">
           <thead>
             <TableHeadRow cols={["col.id", "common.name", "common.status", ""]} />
           </thead>
           <tbody>
             {paged.slice.map((e) => (
-              <tr key={e.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
+              <tr key={e.id} className="drive-row-clickable" style={{ borderBottom: border1() }}
+                onClick={() => void abrirItens(e)}>
                 <Td mono gold>{e.id}</Td>
                 <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{e.nome}</td>
                 <td className="px-4 py-3"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
                 <td className="px-4 py-3 text-right">
-                  <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(e)}>{t("common.edit")}</button>
-                  <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
-                    onClick={async () => {
+                  <button type="button" className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }}
+                    onClick={(ev) => { ev.stopPropagation(); void abrirItens(e); }}>{t("estoque.items")}</button>
+                  <button type="button" className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }}
+                    onClick={(ev) => { ev.stopPropagation(); abrir(e); }}>{t("common.edit")}</button>
+                  <button type="button" className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
+                    onClick={async (ev) => {
+                      ev.stopPropagation();
                       if (!confirm(tf(t, "common.confirmDelete", { name: e.nome }))) return;
                       try { await excluirEstoque(e.id); await carregar(); }
                       catch (err) { setErro(mensagemErroApi(err, t, "common.error.deleteFailed")); }

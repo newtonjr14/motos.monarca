@@ -10,16 +10,20 @@ import com.monarca.pessoa.domain.DocumentoValidador
 import com.monarca.pessoa.domain.Pessoa
 import com.monarca.pessoa.domain.PessoaCompleta
 import com.monarca.pessoa.domain.PessoaDocumentoDetalhe
+import com.monarca.pessoa.domain.PessoaEndereco
 import com.monarca.pessoa.domain.TipoPessoa
 import com.monarca.pessoa.dto.DocumentoConflitoResponse
 import com.monarca.pessoa.dto.DocumentoRequest
 import com.monarca.pessoa.dto.DocumentoResponse
 import com.monarca.pessoa.dto.DocumentoTipoRequest
 import com.monarca.pessoa.dto.DocumentoTipoResponse
+import com.monarca.pessoa.dto.EnderecoRequest
+import com.monarca.pessoa.dto.EnderecoResponse
 import com.monarca.pessoa.dto.PessoaRequest
 import com.monarca.pessoa.dto.PessoaResponse
 import com.monarca.pessoa.dto.PessoaResumoResponse
 import com.monarca.pessoa.repository.DocumentoNovo
+import com.monarca.pessoa.repository.EnderecoNovo
 import com.monarca.pessoa.repository.PessoaRepository
 
 class DocumentoConflito(
@@ -91,7 +95,7 @@ class PessoaService(
     suspend fun criar(request: PessoaRequest): PessoaResponse {
         val normalizada = normalizar(request)
         verificarConflitos(normalizada.documentos, ignorarPessoaId = null, request.confirmarNovaPessoa)
-        val id = repository.inserirPessoa(normalizada.pessoa, normalizada.documentos)
+        val id = repository.inserirPessoa(normalizada.pessoa, normalizada.documentos, normalizada.enderecos)
         return buscar(id)
     }
 
@@ -99,7 +103,7 @@ class PessoaService(
         repository.buscarPessoa(id) ?: throw RecursoNaoEncontrado("Pessoa $id não encontrada")
         val normalizada = normalizar(request, id)
         verificarConflitos(normalizada.documentos, ignorarPessoaId = id, request.confirmarNovaPessoa)
-        if (!repository.atualizarPessoa(id, normalizada.pessoa, normalizada.documentos)) {
+        if (!repository.atualizarPessoa(id, normalizada.pessoa, normalizada.documentos, normalizada.enderecos)) {
             throw RecursoNaoEncontrado("Pessoa $id não encontrada")
         }
         return buscar(id)
@@ -128,10 +132,6 @@ class PessoaService(
         if (request.documentos.isEmpty()) {
             throw invalido("DOCUMENTO_OBRIGATORIO", "Informe pelo menos um documento")
         }
-        request.idCidade?.let { idCidade ->
-            localidadeRepository.buscarCidade(idCidade)
-                ?: throw RecursoNaoEncontrado("Cidade $idCidade não encontrada")
-        }
 
         val ddi = soDigitos(request.ddi)
         val telefone = soDigitos(request.telefone)
@@ -141,6 +141,7 @@ class PessoaService(
 
         val documentos = request.documentos.map { normalizarDocumento(it, request.tipoPessoa) }
         garantirDocumentosDistintos(documentos)
+        val enderecos = normalizarEnderecos(request.enderecos)
 
         return PessoaNormalizada(
             pessoa = Pessoa(
@@ -150,6 +151,34 @@ class PessoaService(
                 ddi = ddi,
                 telefone = telefone,
                 email = Texto.email(request.email),
+                status = status,
+            ),
+            documentos = documentos,
+            enderecos = enderecos,
+        )
+    }
+
+    private suspend fun normalizarEnderecos(requests: List<EnderecoRequest>): List<EnderecoNovo> {
+        val preenchidos = requests.filterNot { enderecoVazio(it) }
+        if (preenchidos.isEmpty()) return emptyList()
+
+        val comPrincipal = when {
+            preenchidos.size == 1 -> listOf(preenchidos.first().copy(principal = true))
+            preenchidos.count { it.principal } > 1 ->
+                throw invalido("ENDERECO_PRINCIPAL_UNICO", "Só pode existir um endereço principal ativo por pessoa")
+            preenchidos.none { it.principal } ->
+                throw invalido("ENDERECO_PRINCIPAL_OBRIGATORIO", "Informe um endereço principal")
+            else -> preenchidos
+        }
+
+        return comPrincipal.map { request ->
+            request.idCidade?.let { idCidade ->
+                localidadeRepository.buscarCidade(idCidade)
+                    ?: throw RecursoNaoEncontrado("Cidade $idCidade não encontrada")
+            }
+            EnderecoNovo(
+                tipo = request.tipo,
+                principal = request.principal,
                 tipoLogradouro = opcional(request.tipoLogradouro)?.let(Texto::titleCase),
                 logradouro = opcional(request.logradouro)?.let(Texto::titleCase),
                 numero = opcional(request.numero),
@@ -157,11 +186,18 @@ class PessoaService(
                 cep = soDigitos(request.cep),
                 complemento = opcional(request.complemento)?.let(Texto::titleCase),
                 idCidade = request.idCidade,
-                status = status,
-            ),
-            documentos = documentos,
-        )
+            )
+        }
     }
+
+    private fun enderecoVazio(request: EnderecoRequest): Boolean =
+        opcional(request.tipoLogradouro) == null &&
+            opcional(request.logradouro) == null &&
+            opcional(request.numero) == null &&
+            opcional(request.bairro) == null &&
+            opcional(request.cep) == null &&
+            opcional(request.complemento) == null &&
+            request.idCidade == null
 
     private suspend fun normalizarDocumento(
         request: DocumentoRequest,
@@ -317,15 +353,23 @@ class PessoaService(
         ddi = pessoa.ddi,
         telefone = pessoa.telefone,
         email = pessoa.email,
-        tipoLogradouro = pessoa.tipoLogradouro,
-        logradouro = pessoa.logradouro,
-        numero = pessoa.numero,
-        bairro = pessoa.bairro,
-        cep = pessoa.cep,
-        complemento = pessoa.complemento,
-        idCidade = pessoa.idCidade,
+        enderecos = enderecos.map { it.toResponse() },
         status = pessoa.status,
         documentos = documentos.map { it.toResponse() },
+    )
+
+    private fun PessoaEndereco.toResponse() = EnderecoResponse(
+        id = id,
+        tipo = tipo,
+        principal = principal,
+        tipoLogradouro = tipoLogradouro,
+        logradouro = logradouro,
+        numero = numero,
+        bairro = bairro,
+        cep = cep,
+        complemento = complemento,
+        idCidade = idCidade,
+        status = status,
     )
 
     internal fun PessoaDocumentoDetalhe.toResponse() = DocumentoResponse(
@@ -343,5 +387,6 @@ class PessoaService(
     private data class PessoaNormalizada(
         val pessoa: Pessoa,
         val documentos: List<DocumentoNovo>,
+        val enderecos: List<EnderecoNovo>,
     )
 }

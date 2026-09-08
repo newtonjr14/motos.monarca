@@ -18,6 +18,7 @@ export type TranslationKey =
   | "nav.marcas"
   | "nav.modelos"
   | "nav.estoques"
+  | "nav.cotacoes"
   | "nav.usuarios"
   | "nav.paises"
   | "nav.divisoes"
@@ -104,6 +105,13 @@ export type TranslationKey =
   | "papel.postalCodePlaceholder"
   | "papel.complement"
   | "papel.city"
+  | "papel.addressType"
+  | "papel.addressType.fiscal"
+  | "papel.addressType.residencial"
+  | "papel.addressType.entrega"
+  | "papel.addressPrincipal"
+  | "papel.addressAdd"
+  | "papel.addressRemove"
   | "papel.noCity"
   | "papel.country"
   | "papel.docType"
@@ -294,6 +302,12 @@ export type TranslationKey =
   | "api.ESTOQUE_COM_PRODUTOS"
   | "api.ESTOQUE_PRODUTO_DUPLICADO"
   | "api.ESTOQUE_NOME_OBRIGATORIO"
+  | "api.COTACAO_DIA_AUSENTE"
+  | "api.COTACAO_DIA_DUPLICADA"
+  | "api.COTACAO_DATA_INVALIDA"
+  | "api.COTACAO_DATA_FUTURA"
+  | "api.COTACAO_TAXA_INVALIDA"
+  | "api.IVA_ALIQUOTA_INVALIDA"
   | "api.QTD_NEGATIVA"
   | "api.QTD_RESERVADA_NEGATIVA"
   | "api.QTD_RESERVADA_MAIOR"
@@ -318,6 +332,8 @@ export type TranslationKey =
   | "api.DOCUMENTO_TIPO_PESSOA"
   | "api.DOCUMENTO_NUMERO_OBRIGATORIO"
   | "api.DOCUMENTOS_REPETIDOS"
+  | "api.ENDERECO_PRINCIPAL_UNICO"
+  | "api.ENDERECO_PRINCIPAL_OBRIGATORIO"
   | "api.CPF_TAMANHO"
   | "api.CPF_INVALIDO"
   | "api.CNPJ_TAMANHO"
@@ -349,6 +365,10 @@ export type TranslationKey =
   | "empresa.timbradoFim"
   | "empresa.estabelecimento"
   | "empresa.pontoExpedicao"
+  | "empresa.section.fiscal"
+  | "empresa.perfilFiscal"
+  | "empresa.perfilFiscal.py_iva"
+  | "empresa.perfilFiscal.hint"
   | "empresa.error.required"
   | "empresa.error.loadFailed"
   | "empresa.error.saveFailed"
@@ -368,6 +388,7 @@ export type TranslationKey =
   | "produto.modelo"
   | "produto.descricao"
   | "produto.section.general"
+  | "produto.section.price"
   | "produto.section.estoque"
   | "produto.section.moto"
   | "produto.section.bicicleta"
@@ -389,6 +410,17 @@ export type TranslationKey =
   | "produto.freio"
   | "produto.error.required"
   | "produto.error.yearsRequired"
+  | "produto.error.price"
+  | "produto.iva"
+  | "produto.ivaHint"
+  | "produto.currency"
+  | "produto.currency.usd"
+  | "produto.currency.pyg"
+  | "produto.currency.brl"
+  | "produto.listPrice"
+  | "produto.listPriceHint"
+  | "produto.cost"
+  | "produto.costHint"
   | "produto.confirmLinkBranch"
   | "produto.anoFabricacao"
   | "produto.anoModelo"
@@ -416,8 +448,139 @@ export type TranslationKey =
   | "estoque.error.nameRequired"
   | "estoque.error.productRequired"
   | "estoque.error.qtyInvalid"
+  | "cotacao.new"
+  | "cotacao.edit"
+  | "cotacao.date"
+  | "cotacao.dateHint"
+  | "cotacao.usdPyg"
+  | "cotacao.usdPygHint"
+  | "cotacao.brlPyg"
+  | "cotacao.brlPygHint"
+  | "cotacao.error.required"
+  | "cotacao.error.rate"
+  | "cotacao.banner.missing"
+  | "cotacao.banner.wait"
+  | "cotacao.banner.save"
+  | "cotacao.banner.rates"
+  | "nav.finalizadores"
+  | "nav.caixas"
+  | "nav.caixa"
+  | "nav.vendas"
+  | "finalizador.new"
+  | "finalizador.edit"
+  | "finalizador.type"
+  | "finalizador.tipo.dinheiro"
+  | "finalizador.tipo.cartao"
+  | "finalizador.tipo.deposito"
+  | "finalizador.tipo.cheque"
+  | "finalizador.tipo.outro"
+  | "finalizador.error.nameRequired"
+  | "caixa.new"
+  | "caixa.edit"
+  | "caixa.session"
+  | "caixa.session.open"
+  | "caixa.session.closed"
+  | "caixa.open"
+  | "caixa.close"
+  | "caixa.transfer"
+  | "caixa.movements"
+  | "caixa.conferencia"
+  | "caixa.note"
+  | "caixa.destination"
+  | "caixa.expected"
+  | "caixa.user"
+  | "caixa.amount"
+  | "caixa.movementType"
+  | "caixa.default"
+  | "caixa.error.nameRequired"
+  | "caixa.error.conferencia"
+  | "caixa.error.destino"
+  | "caixa.error.valor"
+  | "caixa.error.noneClosed"
+  | "caixa.mov.abertura"
+  | "caixa.mov.fechamento"
+  | "caixa.mov.venda"
+  | "caixa.mov.transferencia_saida"
+  | "caixa.mov.transferencia_entrada"
+  | "venda.new"
+  | "venda.view"
+  | "venda.client"
+  | "venda.till"
+  | "venda.tillHint"
+  | "venda.items"
+  | "venda.product"
+  | "venda.qty"
+  | "venda.stock"
+  | "venda.add"
+  | "venda.total"
+  | "venda.pay"
+  | "venda.finalizer"
+  | "venda.amount"
+  | "venda.addPay"
+  | "venda.finish"
+  | "venda.seller"
+  | "venda.error.product"
+  | "venda.error.qty"
+  | "venda.error.client"
+  | "venda.error.items"
+  | "venda.error.pay"
+  | "venda.clientSearch"
+  | "venda.clientSearchPlaceholder"
+  | "venda.changeClient"
+  | "venda.productSearch"
+  | "venda.productSearchPlaceholder"
+  | "venda.emptyCart"
+  | "venda.subtotal"
+  | "venda.paid"
+  | "venda.remaining"
+  | "venda.noTill"
+  | "venda.unit"
+  | "usuario.caixas"
+  | "usuario.caixaPadrao"
+  | "api.FINALIZADOR_NOME_DUPLICADO"
+  | "api.FINALIZADOR_EM_USO"
+  | "api.FINALIZADOR_NOME_OBRIGATORIO"
+  | "api.CAIXA_NOME_DUPLICADO"
+  | "api.CAIXA_SESSAO_ABERTA"
+  | "api.CAIXA_COM_SESSOES"
+  | "api.CAIXA_PADRAO_INVALIDO"
+  | "api.CAIXA_INATIVO"
+  | "api.CAIXA_SESSAO_FECHADA"
+  | "api.CAIXA_CONFERENCIA_OBRIGATORIA"
+  | "api.CAIXA_TRANSFERENCIA_MESMO"
+  | "api.CAIXA_TRANSFERENCIA_FILIAL"
+  | "api.CAIXA_DESTINO_FECHADO"
+  | "api.CAIXA_VALOR_INVALIDO"
+  | "api.CAIXA_SALDO_INSUFICIENTE"
+  | "api.CAIXA_FILIAL_DIVERGENTE"
+  | "api.CAIXA_NOME_OBRIGATORIO"
+  | "api.CAIXAS_OBRIGATORIOS"
+  | "api.CAIXA_ACESSO_AUSENTE"
+  | "api.CAIXA_SESSAO_AUSENTE"
+  | "api.SEM_ACESSO_CAIXA"
+  | "api.CLIENTE_INATIVO"
+  | "api.CLIENTE_FILIAL"
+  | "api.VENDA_ITENS_OBRIGATORIOS"
+  | "api.VENDA_QTD_INVALIDA"
+  | "api.VENDA_PRECO_AUSENTE"
+  | "api.VENDA_TOTAL_INVALIDO"
+  | "api.VENDA_NEGOCIACAO_OBRIGATORIA"
+  | "api.VENDA_VALOR_INVALIDO"
+  | "api.VENDA_NEGOCIACAO_DIVERGENTE"
+  | "api.ESTOQUE_INSUFICIENTE"
+  | "api.ESTOQUE_FILIAL"
+  | "api.ESTOQUE_PRODUTO_AUSENTE"
+  | "api.PRODUTO_INATIVO"
   | "empresa.branchParameters"
-  | "empresa.section.parametersListagem";
+  | "empresa.section.parametersListagem"
+  | "empresa.seed.title"
+  | "empresa.seed.hint"
+  | "empresa.seed.statusOn"
+  | "empresa.seed.statusOff"
+  | "empresa.seed.apply"
+  | "empresa.seed.remove"
+  | "empresa.seed.confirmRemove"
+  | "empresa.seed.error";
 
 const pt: Record<TranslationKey, string> = {
   "app.name": "Monarca Bike",
@@ -437,6 +600,11 @@ const pt: Record<TranslationKey, string> = {
   "nav.marcas": "Marcas",
   "nav.modelos": "Modelos",
   "nav.estoques": "Estoques",
+  "nav.cotacoes": "Cotações",
+  "nav.finalizadores": "Finalizadores",
+  "nav.caixas": "Caixas",
+  "nav.caixa": "Caixa do dia",
+  "nav.vendas": "Vendas",
   "nav.usuarios": "Usuários",
   "nav.paises": "Países",
   "nav.divisoes": "UFs / Departamentos",
@@ -523,6 +691,13 @@ const pt: Record<TranslationKey, string> = {
   "papel.postalCodePlaceholder": "00000000",
   "papel.complement": "Complemento",
   "papel.city": "Cidade",
+  "papel.addressType": "Tipo de endereço",
+  "papel.addressType.fiscal": "Fiscal",
+  "papel.addressType.residencial": "Residencial",
+  "papel.addressType.entrega": "Entrega",
+  "papel.addressPrincipal": "Principal",
+  "papel.addressAdd": "Adicionar endereço",
+  "papel.addressRemove": "Remover",
   "papel.noCity": "Sem cidade",
   "papel.country": "País",
   "papel.docType": "Tipo",
@@ -713,6 +888,46 @@ const pt: Record<TranslationKey, string> = {
   "api.ESTOQUE_COM_PRODUTOS": "Não é possível excluir um estoque que possui produtos",
   "api.ESTOQUE_PRODUTO_DUPLICADO": "Este produto já está neste estoque",
   "api.ESTOQUE_NOME_OBRIGATORIO": "O nome do estoque é obrigatório",
+  "api.COTACAO_DIA_AUSENTE": "Informe a cotação do dia para vender, receber, pagar ou emitir factura",
+  "api.COTACAO_DIA_DUPLICADA": "Já existe cotação para {data}",
+  "api.COTACAO_DATA_INVALIDA": "Data inválida. Use AAAA-MM-DD",
+  "api.COTACAO_DATA_FUTURA": "Não é possível informar cotação de data futura",
+  "api.COTACAO_TAXA_INVALIDA": "A taxa deve ser maior que zero",
+  "api.FINALIZADOR_NOME_DUPLICADO": "Já existe um finalizador com o nome {nome}",
+  "api.FINALIZADOR_EM_USO": "Não é possível excluir um finalizador em uso",
+  "api.FINALIZADOR_NOME_OBRIGATORIO": "O nome do finalizador é obrigatório",
+  "api.CAIXA_NOME_DUPLICADO": "Já existe um caixa com o nome {nome} nesta filial",
+  "api.CAIXA_SESSAO_ABERTA": "Este caixa já possui sessão aberta",
+  "api.CAIXA_COM_SESSOES": "Não é possível excluir um caixa que já teve movimento",
+  "api.CAIXA_PADRAO_INVALIDO": "O caixa padrão precisa estar entre os selecionados",
+  "api.CAIXA_INATIVO": "O caixa não está ativo",
+  "api.CAIXA_SESSAO_FECHADA": "A sessão do caixa está fechada",
+  "api.CAIXA_CONFERENCIA_OBRIGATORIA": "Informe a conferência de fechamento",
+  "api.CAIXA_TRANSFERENCIA_MESMO": "Origem e destino precisam ser caixas diferentes",
+  "api.CAIXA_TRANSFERENCIA_FILIAL": "A transferência precisa ser na mesma filial",
+  "api.CAIXA_DESTINO_FECHADO": "Abra o caixa de destino antes de transferir",
+  "api.CAIXA_VALOR_INVALIDO": "O valor não pode ser negativo",
+  "api.CAIXA_SALDO_INSUFICIENTE": "Saldo insuficiente para transferir",
+  "api.CAIXA_FILIAL_DIVERGENTE": "O caixa não pertence a esta filial",
+  "api.CAIXA_NOME_OBRIGATORIO": "O nome do caixa é obrigatório",
+  "api.CAIXAS_OBRIGATORIOS": "Selecione ao menos um caixa",
+  "api.CAIXA_ACESSO_AUSENTE": "O usuário não tem caixa nesta filial",
+  "api.CAIXA_SESSAO_AUSENTE": "Abra o caixa antes de vender",
+  "api.SEM_ACESSO_CAIXA": "Sem acesso a este caixa",
+  "api.CLIENTE_INATIVO": "O cliente não está ativo",
+  "api.CLIENTE_FILIAL": "O cliente não pertence a esta filial",
+  "api.VENDA_ITENS_OBRIGATORIOS": "Informe ao menos um item",
+  "api.VENDA_QTD_INVALIDA": "A quantidade deve ser maior que zero",
+  "api.VENDA_PRECO_AUSENTE": "Informe o preço de lista do produto",
+  "api.VENDA_TOTAL_INVALIDO": "O total da venda deve ser maior que zero",
+  "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Informe ao menos uma forma de pagamento",
+  "api.VENDA_VALOR_INVALIDO": "O valor do pagamento deve ser maior que zero",
+  "api.VENDA_NEGOCIACAO_DIVERGENTE": "A soma das formas de pagamento deve igualar o total",
+  "api.ESTOQUE_INSUFICIENTE": "Saldo insuficiente para vender",
+  "api.ESTOQUE_FILIAL": "O estoque não pertence a esta filial",
+  "api.ESTOQUE_PRODUTO_AUSENTE": "Produto sem saldo neste estoque",
+  "api.PRODUTO_INATIVO": "O produto não está ativo",
+  "api.IVA_ALIQUOTA_INVALIDA": "A alíquota de IVA deve ser 0, 5 ou 10",
   "api.QTD_NEGATIVA": "A quantidade não pode ser negativa",
   "api.QTD_RESERVADA_NEGATIVA": "A quantidade reservada não pode ser negativa",
   "api.QTD_RESERVADA_MAIOR": "A quantidade reservada não pode ser maior que a quantidade",
@@ -737,6 +952,8 @@ const pt: Record<TranslationKey, string> = {
   "api.DOCUMENTO_TIPO_PESSOA": "{nome} não corresponde a esta classe de pessoa",
   "api.DOCUMENTO_NUMERO_OBRIGATORIO": "O número do documento é obrigatório",
   "api.DOCUMENTOS_REPETIDOS": "Há documentos repetidos na requisição",
+  "api.ENDERECO_PRINCIPAL_UNICO": "Só pode existir um endereço principal ativo por pessoa",
+  "api.ENDERECO_PRINCIPAL_OBRIGATORIO": "Informe um endereço principal",
   "api.CPF_TAMANHO": "O CPF deve ter 11 dígitos",
   "api.CPF_INVALIDO": "CPF inválido",
   "api.CNPJ_TAMANHO": "O CNPJ deve ter 14 caracteres",
@@ -768,6 +985,10 @@ const pt: Record<TranslationKey, string> = {
   "empresa.timbradoFim": "Vigência fim",
   "empresa.estabelecimento": "Nº estabelecimento",
   "empresa.pontoExpedicao": "Ponto expedição",
+  "empresa.section.fiscal": "Fiscal",
+  "empresa.perfilFiscal": "Perfil fiscal",
+  "empresa.perfilFiscal.py_iva": "IVA Paraguai",
+  "empresa.perfilFiscal.hint": "Define o motor da factura desta sucursal. Hoje só IVA paraguaio (0 / 5 / 10 %).",
   "empresa.error.required": "Preencha razão social, nome fantasia e RUC",
   "empresa.error.loadFailed": "Não foi possível carregar empresa e filiais",
   "empresa.error.saveFailed": "Não foi possível salvar",
@@ -787,6 +1008,7 @@ const pt: Record<TranslationKey, string> = {
   "produto.modelo": "Modelo",
   "produto.descricao": "Descrição",
   "produto.section.general": "Dados do produto",
+  "produto.section.price": "Preço e IVA",
   "produto.section.estoque": "Estoque nesta filial",
   "produto.section.moto": "Ficha da moto",
   "produto.section.bicicleta": "Ficha da bicicleta",
@@ -808,6 +1030,17 @@ const pt: Record<TranslationKey, string> = {
   "produto.freio": "Freio",
   "produto.error.required": "Informe código, marca e modelo",
   "produto.error.yearsRequired": "Informe ano de fabricação e ano modelo válidos",
+  "produto.error.price": "Informe preço de lista e custo válidos (zero ou mais)",
+  "produto.iva": "IVA",
+  "produto.ivaHint": "Preço de gôndola com IVA incluído. 0, 5 ou 10%.",
+  "produto.currency": "Moeda",
+  "produto.currency.usd": "Dólar (USD)",
+  "produto.currency.pyg": "Guarani (PYG)",
+  "produto.currency.brl": "Real (BRL)",
+  "produto.listPrice": "Preço de lista",
+  "produto.listPriceHint": "Preço de gôndola com IVA incluído, na moeda escolhida.",
+  "produto.cost": "Custo",
+  "produto.costHint": "Custo na mesma moeda do preço de lista.",
   "produto.confirmLinkBranch": "O produto {codigo} já existe em {filiais}. Vincular a esta filial?",
   "produto.anoFabricacao": "Ano de fabricação",
   "produto.anoModelo": "Ano modelo",
@@ -834,9 +1067,102 @@ const pt: Record<TranslationKey, string> = {
   "estoque.backItems": "Voltar para os itens",
   "estoque.error.nameRequired": "Informe o nome do estoque",
   "estoque.error.productRequired": "Selecione o produto",
-  "estoque.error.qtyInvalid": "Quantidade e reserva não podem ser negativas",
+  "estoque.error.qtyInvalid": "Quantidade e reserva devem ser inteiros ≥ 0, e a reserva não pode ser maior que a quantidade",
+  "cotacao.new": "Nova cotação",
+  "cotacao.edit": "Editar cotação",
+  "cotacao.date": "Data",
+  "cotacao.dateHint": "Fuso America/Asunción. Não é possível informar data futura.",
+  "cotacao.usdPyg": "USD → PYG",
+  "cotacao.usdPygHint": "Quantos guaranis equivalem a 1 dólar hoje.",
+  "cotacao.brlPyg": "BRL → PYG",
+  "cotacao.brlPygHint": "Quantos guaranis equivalem a 1 real hoje.",
+  "cotacao.error.required": "Informe a data da cotação",
+  "cotacao.error.rate": "Informe as duas taxas, maiores que zero",
+  "cotacao.banner.missing": "Sem cotação do dia. Vendas, recebimentos, pagamentos e facturas eletrônicas ficam bloqueados.",
+  "cotacao.banner.wait": "Sem cotação do dia. Aguarde um administrador ou gestor informar as taxas para liberar vendas e facturas.",
+  "cotacao.banner.save": "Informar",
+  "cotacao.banner.rates": "Cotação do dia",
+  "finalizador.new": "Novo finalizador",
+  "finalizador.edit": "Editar finalizador",
+  "finalizador.type": "Tipo",
+  "finalizador.tipo.dinheiro": "Dinheiro",
+  "finalizador.tipo.cartao": "Cartão",
+  "finalizador.tipo.deposito": "Depósito",
+  "finalizador.tipo.cheque": "Cheque",
+  "finalizador.tipo.outro": "Outro",
+  "finalizador.error.nameRequired": "Informe o nome do finalizador",
+  "caixa.new": "Novo caixa",
+  "caixa.edit": "Editar caixa",
+  "caixa.session": "Sessão",
+  "caixa.session.open": "Aberto",
+  "caixa.session.closed": "Fechado",
+  "caixa.open": "Abrir caixa",
+  "caixa.close": "Fechar caixa",
+  "caixa.transfer": "Transferir",
+  "caixa.movements": "Movimentos",
+  "caixa.conferencia": "Conferência",
+  "caixa.note": "Observação",
+  "caixa.destination": "Caixa de destino",
+  "caixa.expected": "Saldo esperado",
+  "caixa.user": "Usuário",
+  "caixa.amount": "Valor",
+  "caixa.movementType": "Tipo",
+  "caixa.default": "Padrão",
+  "caixa.error.nameRequired": "Informe o nome do caixa",
+  "caixa.error.conferencia": "Informe a conferência de fechamento",
+  "caixa.error.destino": "Selecione o caixa de destino",
+  "caixa.error.valor": "Informe ao menos um valor",
+  "caixa.error.noneClosed": "Não há caixa fechado para abrir",
+  "caixa.mov.abertura": "Abertura",
+  "caixa.mov.fechamento": "Fechamento",
+  "caixa.mov.venda": "Venda",
+  "caixa.mov.transferencia_saida": "Transferência (saída)",
+  "caixa.mov.transferencia_entrada": "Transferência (entrada)",
+  "venda.new": "Nova venda",
+  "venda.view": "Venda",
+  "venda.client": "Cliente",
+  "venda.till": "Caixa",
+  "venda.tillHint": "Precisa estar aberto na filial atual",
+  "venda.items": "Itens",
+  "venda.product": "Produto",
+  "venda.qty": "Qtd.",
+  "venda.stock": "estoque",
+  "venda.add": "Adicionar",
+  "venda.total": "Total",
+  "venda.pay": "Pagamento",
+  "venda.finalizer": "Forma",
+  "venda.amount": "Valor (Gs.)",
+  "venda.addPay": "+ outra forma",
+  "venda.finish": "Finalizar venda",
+  "venda.seller": "Vendedor",
+  "venda.error.product": "Selecione um produto",
+  "venda.error.qty": "Informe uma quantidade válida",
+  "venda.error.client": "Selecione o cliente",
+  "venda.error.items": "Adicione ao menos um item",
+  "venda.error.pay": "Informe o pagamento",
+  "venda.clientSearch": "Buscar cliente",
+  "venda.clientSearchPlaceholder": "Nome ou documento",
+  "venda.changeClient": "Trocar",
+  "venda.productSearch": "Produto / SKU",
+  "venda.productSearchPlaceholder": "Código, SKU ou nome — Enter lança",
+  "venda.emptyCart": "Nenhum item. Busque e pressione Enter.",
+  "venda.subtotal": "Subtotal",
+  "venda.paid": "Pago",
+  "venda.remaining": "Falta",
+  "venda.noTill": "Nenhum caixa aberto nesta filial",
+  "venda.unit": "Unit.",
+  "usuario.caixas": "Caixas",
+  "usuario.caixaPadrao": "Caixa padrão",
   "empresa.branchParameters": "Parâmetros da filial",
   "empresa.section.parametersListagem": "Listagem",
+  "empresa.seed.title": "Dados de teste",
+  "empresa.seed.hint": "Cria clientes, produtos com estoque, um caixa extra, um finalizador e três vendas na filial principal. Dá para ligar e desligar quando quiser. Não apaga o Caixa 1 nem Dinheiro, Cartão e Depósito.",
+  "empresa.seed.statusOn": "Dados de teste ativos",
+  "empresa.seed.statusOff": "Dados de teste desligados",
+  "empresa.seed.apply": "Ligar dados de teste",
+  "empresa.seed.remove": "Desligar e remover",
+  "empresa.seed.confirmRemove": "Remover clientes, produtos, caixas e vendas de teste? O que você cadastrou fora do seed permanece.",
+  "empresa.seed.error": "Não foi possível atualizar os dados de teste",
 };
 
 const es: Record<TranslationKey, string> = {
@@ -857,6 +1183,11 @@ const es: Record<TranslationKey, string> = {
   "nav.marcas": "Marcas",
   "nav.modelos": "Modelos",
   "nav.estoques": "Depósitos",
+  "nav.cotacoes": "Cotizaciones",
+  "nav.finalizadores": "Finalizadores",
+  "nav.caixas": "Cajas",
+  "nav.caixa": "Caja del día",
+  "nav.vendas": "Ventas",
   "nav.usuarios": "Usuarios",
   "nav.paises": "Países",
   "nav.divisoes": "UF / Departamentos",
@@ -943,6 +1274,13 @@ const es: Record<TranslationKey, string> = {
   "papel.postalCodePlaceholder": "00000000",
   "papel.complement": "Complemento",
   "papel.city": "Ciudad",
+  "papel.addressType": "Tipo de dirección",
+  "papel.addressType.fiscal": "Fiscal",
+  "papel.addressType.residencial": "Residencial",
+  "papel.addressType.entrega": "Entrega",
+  "papel.addressPrincipal": "Principal",
+  "papel.addressAdd": "Agregar dirección",
+  "papel.addressRemove": "Quitar",
   "papel.noCity": "Sin ciudad",
   "papel.country": "País",
   "papel.docType": "Tipo",
@@ -1133,6 +1471,46 @@ const es: Record<TranslationKey, string> = {
   "api.ESTOQUE_COM_PRODUTOS": "No se puede eliminar un depósito que tiene productos",
   "api.ESTOQUE_PRODUTO_DUPLICADO": "Este producto ya está en este depósito",
   "api.ESTOQUE_NOME_OBRIGATORIO": "El nombre del depósito es obligatorio",
+  "api.COTACAO_DIA_AUSENTE": "Indique la cotización del día para vender, cobrar, pagar o emitir factura",
+  "api.COTACAO_DIA_DUPLICADA": "Ya existe cotización para {data}",
+  "api.COTACAO_DATA_INVALIDA": "Fecha inválida. Use AAAA-MM-DD",
+  "api.COTACAO_DATA_FUTURA": "No es posible informar cotización de fecha futura",
+  "api.COTACAO_TAXA_INVALIDA": "La tasa debe ser mayor que cero",
+  "api.FINALIZADOR_NOME_DUPLICADO": "Ya existe un finalizador con el nombre {nome}",
+  "api.FINALIZADOR_EM_USO": "No es posible eliminar un finalizador en uso",
+  "api.FINALIZADOR_NOME_OBRIGATORIO": "El nombre del finalizador es obligatorio",
+  "api.CAIXA_NOME_DUPLICADO": "Ya existe una caja con el nombre {nome} en esta sucursal",
+  "api.CAIXA_SESSAO_ABERTA": "Esta caja ya tiene sesión abierta",
+  "api.CAIXA_COM_SESSOES": "No es posible eliminar una caja que ya tuvo movimiento",
+  "api.CAIXA_PADRAO_INVALIDO": "La caja predeterminada debe estar entre las seleccionadas",
+  "api.CAIXA_INATIVO": "La caja no está activa",
+  "api.CAIXA_SESSAO_FECHADA": "La sesión de la caja está cerrada",
+  "api.CAIXA_CONFERENCIA_OBRIGATORIA": "Indique el conteo de cierre",
+  "api.CAIXA_TRANSFERENCIA_MESMO": "Origen y destino deben ser cajas distintas",
+  "api.CAIXA_TRANSFERENCIA_FILIAL": "La transferencia debe ser en la misma sucursal",
+  "api.CAIXA_DESTINO_FECHADO": "Abra la caja de destino antes de transferir",
+  "api.CAIXA_VALOR_INVALIDO": "El valor no puede ser negativo",
+  "api.CAIXA_SALDO_INSUFICIENTE": "Saldo insuficiente para transferir",
+  "api.CAIXA_FILIAL_DIVERGENTE": "La caja no pertenece a esta sucursal",
+  "api.CAIXA_NOME_OBRIGATORIO": "El nombre de la caja es obligatorio",
+  "api.CAIXAS_OBRIGATORIOS": "Seleccione al menos una caja",
+  "api.CAIXA_ACESSO_AUSENTE": "El usuario no tiene caja en esta sucursal",
+  "api.CAIXA_SESSAO_AUSENTE": "Abra la caja antes de vender",
+  "api.SEM_ACESSO_CAIXA": "Sin acceso a esta caja",
+  "api.CLIENTE_INATIVO": "El cliente no está activo",
+  "api.CLIENTE_FILIAL": "El cliente no pertenece a esta sucursal",
+  "api.VENDA_ITENS_OBRIGATORIOS": "Indique al menos un ítem",
+  "api.VENDA_QTD_INVALIDA": "La cantidad debe ser mayor que cero",
+  "api.VENDA_PRECO_AUSENTE": "Indique el precio de lista del producto",
+  "api.VENDA_TOTAL_INVALIDO": "El total de la venta debe ser mayor que cero",
+  "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Indique al menos una forma de pago",
+  "api.VENDA_VALOR_INVALIDO": "El valor del pago debe ser mayor que cero",
+  "api.VENDA_NEGOCIACAO_DIVERGENTE": "La suma de las formas de pago debe igualar el total",
+  "api.ESTOQUE_INSUFICIENTE": "Saldo insuficiente para vender",
+  "api.ESTOQUE_FILIAL": "El depósito no pertenece a esta sucursal",
+  "api.ESTOQUE_PRODUTO_AUSENTE": "Producto sin saldo en este depósito",
+  "api.PRODUTO_INATIVO": "El producto no está activo",
+  "api.IVA_ALIQUOTA_INVALIDA": "La alícuota de IVA debe ser 0, 5 o 10",
   "api.QTD_NEGATIVA": "La cantidad no puede ser negativa",
   "api.QTD_RESERVADA_NEGATIVA": "La cantidad reservada no puede ser negativa",
   "api.QTD_RESERVADA_MAIOR": "La cantidad reservada no puede ser mayor que la cantidad",
@@ -1157,6 +1535,8 @@ const es: Record<TranslationKey, string> = {
   "api.DOCUMENTO_TIPO_PESSOA": "{nome} no corresponde a esta clase de persona",
   "api.DOCUMENTO_NUMERO_OBRIGATORIO": "El número del documento es obligatorio",
   "api.DOCUMENTOS_REPETIDOS": "Hay documentos repetidos en la solicitud",
+  "api.ENDERECO_PRINCIPAL_UNICO": "Solo puede existir una dirección principal activa por persona",
+  "api.ENDERECO_PRINCIPAL_OBRIGATORIO": "Indique una dirección principal",
   "api.CPF_TAMANHO": "El CPF debe tener 11 dígitos",
   "api.CPF_INVALIDO": "CPF inválido",
   "api.CNPJ_TAMANHO": "El CNPJ debe tener 14 caracteres",
@@ -1188,6 +1568,10 @@ const es: Record<TranslationKey, string> = {
   "empresa.timbradoFim": "Vigencia fin",
   "empresa.estabelecimento": "Nº establecimiento",
   "empresa.pontoExpedicao": "Punto expedición",
+  "empresa.section.fiscal": "Fiscal",
+  "empresa.perfilFiscal": "Perfil fiscal",
+  "empresa.perfilFiscal.py_iva": "IVA Paraguay",
+  "empresa.perfilFiscal.hint": "Define el motor de la factura de esta sucursal. Hoy solo IVA paraguayo (0 / 5 / 10 %).",
   "empresa.error.required": "Complete razón social, nombre comercial y RUC",
   "empresa.error.loadFailed": "No se pudo cargar empresa y sucursales",
   "empresa.error.saveFailed": "No se pudo guardar",
@@ -1197,6 +1581,14 @@ const es: Record<TranslationKey, string> = {
   "empresa.listSuppliersBranchOnly": "Listar solo proveedores de esta sucursal",
   "empresa.branchParameters": "Parámetros de la sucursal",
   "empresa.section.parametersListagem": "Listado",
+  "empresa.seed.title": "Datos de prueba",
+  "empresa.seed.hint": "Crea clientes, productos con stock, una caja extra, un finalizador y tres ventas en la sucursal principal. Se puede activar y desactivar cuando quieras. No borra la Caja 1 ni Dinero, Tarjeta y Depósito.",
+  "empresa.seed.statusOn": "Datos de prueba activos",
+  "empresa.seed.statusOff": "Datos de prueba desactivados",
+  "empresa.seed.apply": "Activar datos de prueba",
+  "empresa.seed.remove": "Desactivar y quitar",
+  "empresa.seed.confirmRemove": "¿Quitar clientes, productos, cajas y ventas de prueba? Lo que cargaste fuera del seed se mantiene.",
+  "empresa.seed.error": "No se pudieron actualizar los datos de prueba",
   "empresa.listProductsBranchOnly": "Listar solo productos de esta sucursal",
   "produto.new": "Nuevo producto",
   "produto.edit": "Editar producto",
@@ -1209,6 +1601,7 @@ const es: Record<TranslationKey, string> = {
   "produto.modelo": "Modelo",
   "produto.descricao": "Descripción",
   "produto.section.general": "Datos del producto",
+  "produto.section.price": "Precio e IVA",
   "produto.section.estoque": "Stock en esta sucursal",
   "produto.section.moto": "Ficha de la moto",
   "produto.section.bicicleta": "Ficha de la bicicleta",
@@ -1230,6 +1623,17 @@ const es: Record<TranslationKey, string> = {
   "produto.freio": "Freno",
   "produto.error.required": "Indique código, marca y modelo",
   "produto.error.yearsRequired": "Indique año de fabricación y año modelo válidos",
+  "produto.error.price": "Indique precio de lista y costo válidos (cero o más)",
+  "produto.iva": "IVA",
+  "produto.ivaHint": "Precio de góndola con IVA incluido. 0, 5 o 10%.",
+  "produto.currency": "Moneda",
+  "produto.currency.usd": "Dólar (USD)",
+  "produto.currency.pyg": "Guaraní (PYG)",
+  "produto.currency.brl": "Real (BRL)",
+  "produto.listPrice": "Precio de lista",
+  "produto.listPriceHint": "Precio de góndola con IVA incluido, en la moneda elegida.",
+  "produto.cost": "Costo",
+  "produto.costHint": "Costo en la misma moneda del precio de lista.",
   "produto.confirmLinkBranch": "El producto {codigo} ya existe en {filiais}. ¿Vincular a esta sucursal?",
   "produto.anoFabricacao": "Año de fabricación",
   "produto.anoModelo": "Año modelo",
@@ -1256,7 +1660,92 @@ const es: Record<TranslationKey, string> = {
   "estoque.backItems": "Volver a los ítems",
   "estoque.error.nameRequired": "Indique el nombre del depósito",
   "estoque.error.productRequired": "Seleccione el producto",
-  "estoque.error.qtyInvalid": "Cantidad y reserva no pueden ser negativas",
+  "estoque.error.qtyInvalid": "Cantidad y reserva deben ser enteros ≥ 0, y la reserva no puede ser mayor que la cantidad",
+  "cotacao.new": "Nueva cotización",
+  "cotacao.edit": "Editar cotización",
+  "cotacao.date": "Fecha",
+  "cotacao.dateHint": "Zona America/Asunción. No es posible informar fecha futura.",
+  "cotacao.usdPyg": "USD → PYG",
+  "cotacao.usdPygHint": "Cuántos guaraníes equivalen a 1 dólar hoy.",
+  "cotacao.brlPyg": "BRL → PYG",
+  "cotacao.brlPygHint": "Cuántos guaraníes equivalen a 1 real hoy.",
+  "cotacao.error.required": "Indique la fecha de la cotización",
+  "cotacao.error.rate": "Indique las dos tasas, mayores que cero",
+  "cotacao.banner.missing": "Sin cotización del día. Ventas, cobros, pagos y facturas electrónicas quedan bloqueados.",
+  "cotacao.banner.wait": "Sin cotización del día. Espere a que un administrador o gestor informe las tasas para liberar ventas y facturas.",
+  "cotacao.banner.save": "Informar",
+  "cotacao.banner.rates": "Cotización del día",
+  "finalizador.new": "Nuevo finalizador",
+  "finalizador.edit": "Editar finalizador",
+  "finalizador.type": "Tipo",
+  "finalizador.tipo.dinheiro": "Efectivo",
+  "finalizador.tipo.cartao": "Tarjeta",
+  "finalizador.tipo.deposito": "Depósito",
+  "finalizador.tipo.cheque": "Cheque",
+  "finalizador.tipo.outro": "Otro",
+  "finalizador.error.nameRequired": "Indique el nombre del finalizador",
+  "caixa.new": "Nueva caja",
+  "caixa.edit": "Editar caja",
+  "caixa.session": "Sesión",
+  "caixa.session.open": "Abierta",
+  "caixa.session.closed": "Cerrada",
+  "caixa.open": "Abrir caja",
+  "caixa.close": "Cerrar caja",
+  "caixa.transfer": "Transferir",
+  "caixa.movements": "Movimientos",
+  "caixa.conferencia": "Conteo",
+  "caixa.note": "Observación",
+  "caixa.destination": "Caja de destino",
+  "caixa.expected": "Saldo esperado",
+  "caixa.user": "Usuario",
+  "caixa.amount": "Valor",
+  "caixa.movementType": "Tipo",
+  "caixa.default": "Predeterminada",
+  "caixa.error.nameRequired": "Indique el nombre de la caja",
+  "caixa.error.conferencia": "Indique el conteo de cierre",
+  "caixa.error.destino": "Seleccione la caja de destino",
+  "caixa.error.valor": "Indique al menos un valor",
+  "caixa.error.noneClosed": "No hay caja cerrada para abrir",
+  "caixa.mov.abertura": "Apertura",
+  "caixa.mov.fechamento": "Cierre",
+  "caixa.mov.venda": "Venta",
+  "caixa.mov.transferencia_saida": "Transferencia (salida)",
+  "caixa.mov.transferencia_entrada": "Transferencia (entrada)",
+  "venda.new": "Nueva venta",
+  "venda.view": "Venta",
+  "venda.client": "Cliente",
+  "venda.till": "Caja",
+  "venda.tillHint": "Debe estar abierta en la sucursal actual",
+  "venda.items": "Ítems",
+  "venda.product": "Producto",
+  "venda.qty": "Cant.",
+  "venda.stock": "stock",
+  "venda.add": "Agregar",
+  "venda.total": "Total",
+  "venda.pay": "Pago",
+  "venda.finalizer": "Forma",
+  "venda.amount": "Valor (Gs.)",
+  "venda.addPay": "+ otra forma",
+  "venda.finish": "Finalizar venta",
+  "venda.seller": "Vendedor",
+  "venda.error.product": "Seleccione un producto",
+  "venda.error.qty": "Indique una cantidad válida",
+  "venda.error.client": "Seleccione el cliente",
+  "venda.error.items": "Agregue al menos un ítem",
+  "venda.error.pay": "Indique el pago",
+  "venda.clientSearch": "Buscar cliente",
+  "venda.clientSearchPlaceholder": "Nombre o documento",
+  "venda.changeClient": "Cambiar",
+  "venda.productSearch": "Producto / SKU",
+  "venda.productSearchPlaceholder": "Código, SKU o nombre — Enter lanza",
+  "venda.emptyCart": "Ningún ítem. Busque y pulse Enter.",
+  "venda.subtotal": "Subtotal",
+  "venda.paid": "Pagado",
+  "venda.remaining": "Falta",
+  "venda.noTill": "Ninguna caja abierta en esta sucursal",
+  "venda.unit": "Unit.",
+  "usuario.caixas": "Cajas",
+  "usuario.caixaPadrao": "Caja predeterminada",
 };
 
 export const translations: Record<Locale, Record<TranslationKey, string>> = { pt, es };

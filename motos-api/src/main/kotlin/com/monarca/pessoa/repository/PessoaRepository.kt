@@ -6,6 +6,7 @@ import com.monarca.pessoa.domain.FilialVinculo
 import com.monarca.pessoa.domain.PapelCompleto
 import com.monarca.pessoa.domain.Pessoa
 import com.monarca.pessoa.domain.PessoaCompleta
+import com.monarca.pessoa.domain.TipoEndereco
 import com.monarca.pessoa.domain.TipoPessoa
 
 data class DocumentoNovo(
@@ -13,6 +14,18 @@ data class DocumentoNovo(
     val idTipoDocumento: Long?,
     val tipoLivre: String?,
     val numero: String,
+)
+
+data class EnderecoNovo(
+    val tipo: TipoEndereco,
+    val principal: Boolean,
+    val tipoLogradouro: String?,
+    val logradouro: String?,
+    val numero: String?,
+    val bairro: String?,
+    val cep: String?,
+    val complemento: String?,
+    val idCidade: Long?,
 )
 
 interface PessoaRepository {
@@ -27,8 +40,8 @@ interface PessoaRepository {
 
     suspend fun listarPessoas(): List<PessoaCompleta>
     suspend fun buscarPessoa(id: Long): PessoaCompleta?
-    suspend fun inserirPessoa(pessoa: Pessoa, documentos: List<DocumentoNovo>): Long
-    suspend fun atualizarPessoa(id: Long, pessoa: Pessoa, documentos: List<DocumentoNovo>): Boolean
+    suspend fun inserirPessoa(pessoa: Pessoa, documentos: List<DocumentoNovo>, enderecos: List<EnderecoNovo>): Long
+    suspend fun atualizarPessoa(id: Long, pessoa: Pessoa, documentos: List<DocumentoNovo>, enderecos: List<EnderecoNovo>): Boolean
     suspend fun excluirPessoa(id: Long): Boolean
 
     suspend fun buscarPessoaPorTipoUnico(idTipoDocumento: Long, numero: String, ignorarPessoaId: Long? = null): Pessoa?

@@ -35,6 +35,9 @@ class RbacTest {
         assertTrue(Rbac.possui(PerfilUsuario.GESTOR, Permissao.PESSOA_GERENCIAR))
         assertTrue(Rbac.possui(PerfilUsuario.GESTOR, Permissao.VENDA_REGISTRAR))
         assertTrue(Rbac.possui(PerfilUsuario.GESTOR, Permissao.DASHBOARD_CONSULTAR))
+        assertTrue(Rbac.possui(PerfilUsuario.GESTOR, Permissao.COTACAO_GERENCIAR))
+        assertTrue(Rbac.possui(PerfilUsuario.GESTOR, Permissao.CAIXA_GERENCIAR))
+        assertTrue(Rbac.possui(PerfilUsuario.GESTOR, Permissao.CAIXA_OPERAR))
 
         assertFalse(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.CONFIGURACAO))
         assertFalse(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.USUARIO_LISTAR))
@@ -45,11 +48,19 @@ class RbacTest {
         assertTrue(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.VENDA_REGISTRAR))
         assertTrue(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.PRODUTO_GERENCIAR))
         assertTrue(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.ESTOQUE_GERENCIAR))
+        assertFalse(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.COTACAO_GERENCIAR))
+        assertTrue(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.COTACAO_CONSULTAR))
+        assertTrue(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.CAIXA_OPERAR))
+        assertFalse(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.CAIXA_GERENCIAR))
 
         assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.PESSOA_GERENCIAR))
         assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.DASHBOARD_CONSULTAR))
+        assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.COTACAO_GERENCIAR))
         assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.VENDA_REGISTRAR))
         assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.PESSOA_CONSULTAR))
+        assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.COTACAO_CONSULTAR))
+        assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.CAIXA_OPERAR))
+        assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.CAIXA_GERENCIAR))
     }
 
     @Test
@@ -87,6 +98,14 @@ class RbacTest {
             assertEquals(HttpStatusCode.OK, client.get("/produtos") { auth(operador) }.status)
             assertEquals(HttpStatusCode.OK, client.get("/marcas") { auth(operador) }.status)
             assertEquals(HttpStatusCode.OK, client.get("/estoques") { auth(operador) }.status)
+            assertEquals(HttpStatusCode.OK, client.get("/cotacoes") { auth(operador) }.status)
+            assertEquals(HttpStatusCode.OK, client.get("/finalizadores") { auth(operador) }.status)
+            assertEquals(HttpStatusCode.OK, client.get("/caixas") { auth(operador) }.status)
+            assertEquals(HttpStatusCode.Forbidden, client.post("/finalizadores") {
+                auth(operador)
+                contentType(ContentType.Application.Json)
+                setBody("""{"nome":"Pix Op","tipo":"deposito"}""")
+            }.status)
             assertEquals(HttpStatusCode.OK, client.get("/clientes") { auth(operador) }.status)
             assertEquals(HttpStatusCode.OK, client.get("/documentos-tipos") { auth(operador) }.status)
             assertEquals(HttpStatusCode.Forbidden, client.get("/usuarios") { auth(operador) }.status)
@@ -103,6 +122,12 @@ class RbacTest {
             )
 
             assertEquals(HttpStatusCode.OK, client.get("/clientes") { auth(vendedor) }.status)
+            assertEquals(HttpStatusCode.OK, client.get("/finalizadores") { auth(vendedor) }.status)
+            assertEquals(HttpStatusCode.Forbidden, client.post("/finalizadores") {
+                auth(vendedor)
+                contentType(ContentType.Application.Json)
+                setBody("""{"nome":"Pix Vend","tipo":"deposito"}""")
+            }.status)
             assertEquals(HttpStatusCode.Forbidden, client.get("/usuarios") { auth(vendedor) }.status)
             assertEquals(
                 HttpStatusCode.Forbidden,

@@ -134,6 +134,10 @@ class ExposedProdutoRepository(
             it[descricao] = produto.descricao
             it[tipo] = produto.tipo.name.lowercase()
             it[idFilialCadastro] = idFilial
+            it[aliquotaIva] = produto.aliquotaIva
+            it[moedaPreco] = produto.moedaPreco.name.lowercase()
+            it[precoLista] = produto.precoLista
+            it[custo] = produto.custo
             it[status] = produto.status.name.lowercase()
         }
         val id = inserted[ProdutosTable.id].value
@@ -164,6 +168,10 @@ class ExposedProdutoRepository(
             it[idModelo] = produto.idModelo
             it[descricao] = produto.descricao
             it[tipo] = produto.tipo.name.lowercase()
+            it[aliquotaIva] = produto.aliquotaIva
+            it[moedaPreco] = produto.moedaPreco.name.lowercase()
+            it[precoLista] = produto.precoLista
+            it[custo] = produto.custo
             it[status] = produto.status.name.lowercase()
         } > 0
         if (ok) gravarEspecifico(id, produto.tipo, moto, bicicleta)
@@ -481,6 +489,10 @@ class ExposedProdutoRepository(
         descricao = this[ProdutosTable.descricao],
         tipo = TipoProduto.valueOf(this[ProdutosTable.tipo].uppercase()),
         idFilialCadastro = this[ProdutosTable.idFilialCadastro]?.value,
+        aliquotaIva = this[ProdutosTable.aliquotaIva],
+        moedaPreco = com.monarca.produto.domain.Moeda.valueOf(this[ProdutosTable.moedaPreco].uppercase()),
+        precoLista = this[ProdutosTable.precoLista],
+        custo = this[ProdutosTable.custo],
         status = Status.valueOf(this[ProdutosTable.status].uppercase()),
     )
 

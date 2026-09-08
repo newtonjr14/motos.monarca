@@ -21,6 +21,7 @@ data class Filial(
     val timbradoVigenciaFim: String?,
     val estabelecimentoNumero: String?,
     val pontoExpedicao: String?,
+    val perfilFiscal: PerfilFiscal,
     val principal: Boolean,
     val listarApenasClientesFilial: Boolean,
     val listarApenasFornecedoresFilial: Boolean,

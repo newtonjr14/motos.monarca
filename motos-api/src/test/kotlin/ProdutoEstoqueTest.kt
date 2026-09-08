@@ -47,6 +47,9 @@ class ProdutoEstoqueTest {
             assertEquals("Preto", produto["moto"]!!.jsonObject["cor"]!!.jsonPrimitive.content)
             assertEquals(2026, produto["moto"]!!.jsonObject["anoFabricacao"]!!.jsonPrimitive.int)
             assertEquals(2026, produto["moto"]!!.jsonObject["anoModelo"]!!.jsonPrimitive.int)
+            assertEquals(10, produto["aliquotaIva"]!!.jsonPrimitive.int)
+            assertEquals("usd", produto["moedaPreco"]!!.jsonPrimitive.content)
+            assertEquals(0.0, produto["precoLista"]!!.jsonPrimitive.content.toDouble())
 
             val updated = client.put("/produtos/$id") {
                 auth(token)
@@ -266,6 +269,41 @@ class ProdutoEstoqueTest {
             assertTrue("produto" in tabelas, "faltou audit_logs de produto: $tabelas")
             assertTrue("produto_filial" in tabelas, "faltou audit_logs de produto_filial: $tabelas")
             assertTrue("estoque_produto" in tabelas, "faltou audit_logs de estoque_produto: $tabelas")
+        }
+    }
+
+    @Test
+    fun `produto rejeita iva invalido e grava preco`() = testApplication {
+        configure()
+        withAuth { token ->
+            val n = System.nanoTime()
+            val (idMarca, idModelo) = criarModelo(token, "moto", "Iva $n")
+            val invalido = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"IVA-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","aliquotaIva":7,"moto":{"anoFabricacao":2026,"anoModelo":2026}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, invalido.status)
+            assertEquals(
+                "IVA_ALIQUOTA_INVALIDA",
+                Json.parseToJsonElement(invalido.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
+            )
+
+            val created = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"PRC-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","aliquotaIva":5,"moedaPreco":"pyg","precoLista":1500000,"custo":900000,"moto":{"anoFabricacao":2026,"anoModelo":2026}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+            val body = Json.parseToJsonElement(created.bodyAsText()).jsonObject
+            assertEquals(5, body["aliquotaIva"]!!.jsonPrimitive.int)
+            assertEquals("pyg", body["moedaPreco"]!!.jsonPrimitive.content)
+            assertEquals(1_500_000.0, body["precoLista"]!!.jsonPrimitive.content.toDouble())
+            assertEquals(900_000.0, body["custo"]!!.jsonPrimitive.content.toDouble())
         }
     }
 }

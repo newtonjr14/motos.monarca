@@ -3,6 +3,12 @@ import { createPortal } from "react-dom";
 import monarcaLogo from "@/imports/Monarca.png";
 import { useAuth } from "@/auth/AuthContext";
 import LoginPage, { LanguageSelector, ThemeToggle, UserMenu } from "@/components/AuthUi";
+import CotacoesPage from "@/components/CotacoesPage";
+import FinalizadoresPage from "@/components/FinalizadoresPage";
+import CaixasPage from "@/components/CaixasPage";
+import CaixaOperacaoPage from "@/components/CaixaOperacaoPage";
+import VendasPage from "@/components/VendasPage";
+import { CotacaoAlerta, CotacaoChip, CotacaoHojeProvider } from "@/components/CotacaoBanner";
 import { FilialGate, FilialSwitcher } from "@/components/FilialUi";
 import CidadeSearchSelect from "@/components/CidadeSearchSelect";
 import DdiSearchSelect from "@/components/DdiSearchSelect";
@@ -43,6 +49,7 @@ import {
   listarTipos,
   listarUsuarios,
   listarFiliais,
+  listarCaixas,
   criarTipoDocumento,
   atualizarTipoDocumento,
   excluirTipoDocumento,
@@ -56,10 +63,12 @@ import {
   type Pais,
   type Papel,
   type Pessoa,
+  type TipoEndereco,
   type TipoPessoa,
   type Usuario,
   type PerfilUsuario,
   type Filial,
+  type Caixa,
   type VinculoFilialConflito,
   Permissao,
 } from "@/api";
@@ -67,6 +76,7 @@ import { FilialProvider, useFilial, useFilialId } from "@/auth/FilialContext";
 import {
   PAGE_SIZE,
   apenasDigitos,
+  enderecoPrincipal,
   formatarCidade,
   formatarDocumentoEntrada,
   formatarDocumentoExibicao,
@@ -207,6 +217,10 @@ const Icon = {
   marcas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
   modelos: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
   estoques: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>,
+  cotacoes: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
+  vendas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>,
+  caixa: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M12 14h.01"/></svg>,
+  finalizadores: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>,
   search: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   sun: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
   moon: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>,
@@ -216,23 +230,28 @@ const Icon = {
   more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "vendas" | "caixa" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: string };
 
 const navOperacao: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard", permissao: Permissao.DASHBOARD_CONSULTAR },
+  { id: "vendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
+  { id: "caixa", label: "Caixa", icon: "caixa", permissao: Permissao.CAIXA_OPERAR },
   { id: "clientes", label: "Clientes", icon: "clientes", permissao: Permissao.PESSOA_GERENCIAR },
   { id: "fornecedores", label: "Fornecedores", icon: "fornecedores", permissao: Permissao.PESSOA_GERENCIAR },
   { id: "produtos", label: "Produtos", icon: "produtos", permissao: Permissao.PRODUTO_GERENCIAR },
   { id: "marcas", label: "Marcas", icon: "marcas", permissao: Permissao.PRODUTO_GERENCIAR },
   { id: "modelos", label: "Modelos", icon: "modelos", permissao: Permissao.PRODUTO_GERENCIAR },
   { id: "estoques", label: "Estoques", icon: "estoques", permissao: Permissao.ESTOQUE_GERENCIAR },
+  { id: "cotacoes", label: "Cotações", icon: "cotacoes", permissao: Permissao.COTACAO_GERENCIAR },
 ];
 
 const navCadastros: NavItem[] = [
   { id: "empresa", label: "Empresa", icon: "empresa", permissao: Permissao.CONFIGURACAO },
   { id: "usuarios", label: "Usuários", icon: "usuarios", permissao: Permissao.USUARIO_LISTAR },
+  { id: "finalizadores", label: "Finalizadores", icon: "finalizadores", permissao: Permissao.CAIXA_GERENCIAR },
+  { id: "caixas", label: "Caixas", icon: "caixa", permissao: Permissao.CAIXA_GERENCIAR },
   { id: "paises", label: "Países", icon: "paises", permissao: Permissao.LOCALIDADE_GERENCIAR },
   { id: "documentos", label: "Tipos de documento", icon: "divisoes", permissao: Permissao.DOCUMENTO_GERENCIAR },
   { id: "divisoes", label: "UFs / Departamentos", icon: "divisoes", permissao: Permissao.LOCALIDADE_GERENCIAR },
@@ -358,18 +377,6 @@ function Dashboard({ clientes, fornecedores, systemOnline }: { clientes: Papel[]
       </div>
     </div>
   );
-}
-
-function enderecoLinha(p: Pessoa, cidades: Cidade[]) {
-  const logradouro = [p.tipoLogradouro, p.logradouro].filter(Boolean).join(" ");
-  const parts = [
-    [logradouro, p.numero].filter(Boolean).join(", "),
-    p.bairro,
-    p.cep,
-    p.complemento,
-    formatarCidade(cidades, p.idCidade),
-  ].filter((x) => x && x !== "—");
-  return parts.length ? parts.join(" · ") : "—";
 }
 
 function docPrincipal(p: Papel) {
@@ -535,7 +542,8 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
   const filtered = itens.filter((p) => {
     const q = search.toLowerCase();
     const doc = docPrincipal(p);
-    return `${p.pessoa.nomeRazaoSocial} ${p.pessoa.email ?? ""} ${p.pessoa.telefone ?? ""} ${doc?.numero ?? ""} ${doc?.tipoNome ?? ""}`.toLowerCase().includes(q);
+    const cidade = formatarCidade(cidades, enderecoPrincipal(p.pessoa)?.idCidade ?? null, true);
+    return `${p.pessoa.nomeRazaoSocial} ${p.pessoa.email ?? ""} ${p.pessoa.telefone ?? ""} ${doc?.numero ?? ""} ${doc?.tipoNome ?? ""} ${cidade}`.toLowerCase().includes(q);
   });
 
   useEffect(() => { void carregar(); }, [recurso, idFilial]);
@@ -614,7 +622,7 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
               {paged.slice.map((p) => {
                 const doc = docPrincipal(p);
                 const sel = selected === p.id;
-                const cidade = formatarCidade(cidades, p.pessoa.idCidade, true);
+                const cidade = formatarCidade(cidades, enderecoPrincipal(p.pessoa)?.idCidade ?? null, true);
                 const tel = formatarTelefoneExibicao(p.pessoa.ddi, p.pessoa.telefone);
                 return (
                   <tr
@@ -671,6 +679,62 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
   );
 }
 
+type EnderecoForm = {
+  tipo: TipoEndereco;
+  principal: boolean;
+  tipoLogradouro: string;
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  cep: string;
+  complemento: string;
+  idCidade: number | "";
+};
+
+function enderecoVazio(principal = true): EnderecoForm {
+  return {
+    tipo: "fiscal",
+    principal,
+    tipoLogradouro: "",
+    logradouro: "",
+    numero: "",
+    bairro: "",
+    cep: "",
+    complemento: "",
+    idCidade: "",
+  };
+}
+
+function enderecosIniciais(pessoa?: Pessoa): EnderecoForm[] {
+  const ativos = (pessoa?.enderecos ?? []).filter((e) => e.status !== "deletado");
+  if (!ativos.length) return [enderecoVazio(true)];
+  const mapped: EnderecoForm[] = ativos.map((e) => ({
+    tipo: e.tipo,
+    principal: e.principal,
+    tipoLogradouro: e.tipoLogradouro ?? "",
+    logradouro: e.logradouro ?? "",
+    numero: e.numero ?? "",
+    bairro: e.bairro ?? "",
+    cep: e.cep ?? "",
+    complemento: e.complemento ?? "",
+    idCidade: e.idCidade == null ? "" : e.idCidade,
+  }));
+  if (!mapped.some((e) => e.principal)) mapped[0]!.principal = true;
+  return mapped;
+}
+
+function enderecoPreenchido(e: EnderecoForm): boolean {
+  return Boolean(
+    e.tipoLogradouro.trim() ||
+    e.logradouro.trim() ||
+    e.numero.trim() ||
+    e.bairro.trim() ||
+    e.cep.trim() ||
+    e.complemento.trim() ||
+    e.idCidade !== "",
+  );
+}
+
 function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onNavigate }: {
   recurso: Recurso; singular: string; cidades: Cidade[]; editando: Papel | null;
   onClose: () => void; onSaved: () => Promise<void>; onNavigate: (v: View) => void;
@@ -688,13 +752,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
   const [ddi, setDdi] = useState(pessoa?.ddi ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? "");
   const [email, setEmail] = useState(pessoa?.email ?? "");
-  const [tipoLogradouro, setTipoLogradouro] = useState(pessoa?.tipoLogradouro ?? "");
-  const [logradouro, setLogradouro] = useState(pessoa?.logradouro ?? "");
-  const [numeroEndereco, setNumeroEndereco] = useState(pessoa?.numero ?? "");
-  const [bairro, setBairro] = useState(pessoa?.bairro ?? "");
-  const [cep, setCep] = useState(pessoa?.cep ?? "");
-  const [complemento, setComplemento] = useState(pessoa?.complemento ?? "");
-  const [idCidade, setIdCidade] = useState<number | "">(pessoa?.idCidade ?? "");
+  const [enderecos, setEnderecos] = useState<EnderecoForm[]>(() => enderecosIniciais(pessoa));
   const [status, setStatus] = useState<"ativo" | "inativo">(editando?.status === "inativo" ? "inativo" : "ativo");
   const doc0 = pessoa?.documentos[0];
   const [idPais, setIdPais] = useState<number | "">(doc0?.idPais ?? "");
@@ -762,6 +820,27 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
     conflitoRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [erro]);
 
+  function patchEndereco(index: number, patch: Partial<EnderecoForm>) {
+    setEnderecos((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
+  }
+
+  function marcarPrincipal(index: number) {
+    setEnderecos((prev) => prev.map((e, i) => ({ ...e, principal: i === index })));
+  }
+
+  function adicionarEndereco() {
+    setEnderecos((prev) => [...prev, enderecoVazio(prev.length === 0)]);
+  }
+
+  function removerEndereco(index: number) {
+    setEnderecos((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((_, i) => i !== index);
+      if (!next.some((e) => e.principal) && next[0]) next[0] = { ...next[0], principal: true };
+      return next;
+    });
+  }
+
   function corpoPessoa() {
     const ddiDigits = apenasDigitos(ddi);
     const telDigits = apenasDigitos(telefone);
@@ -771,13 +850,17 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
       ddi: ddiDigits || null,
       telefone: telDigits || null,
       email: toEmailLower(email) || null,
-      tipoLogradouro: toTitleCase(tipoLogradouro) || null,
-      logradouro: toTitleCase(logradouro) || null,
-      numero: numeroEndereco.trim() || null,
-      bairro: toTitleCase(bairro) || null,
-      cep: normalizarCep(cep) || null,
-      complemento: toTitleCase(complemento) || null,
-      idCidade: idCidade === "" ? null : Number(idCidade),
+      enderecos: enderecos.filter(enderecoPreenchido).map((e, i, lista) => ({
+        tipo: e.tipo,
+        principal: lista.length === 1 ? true : e.principal,
+        tipoLogradouro: toTitleCase(e.tipoLogradouro) || null,
+        logradouro: toTitleCase(e.logradouro) || null,
+        numero: e.numero.trim() || null,
+        bairro: toTitleCase(e.bairro) || null,
+        cep: normalizarCep(e.cep) || null,
+        complemento: toTitleCase(e.complemento) || null,
+        idCidade: e.idCidade === "" ? null : Number(e.idCidade),
+      })),
       status: "ativo" as const,
       documentos: [{
         idPais: Number(idPais),
@@ -907,40 +990,97 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
         </div>
 
         <Section title={t("papel.section.address")}>
-          <div className="grid gap-3" style={{ gridTemplateColumns: "6rem 1fr 5rem" }}>
-            <Field label={t("papel.streetType")}>
-              <input className="field" value={tipoLogradouro}
-                onChange={(e) => setTipoLogradouro(e.target.value)}
-                onBlur={() => setTipoLogradouro((x) => toTitleCase(x))}
-                placeholder={t("papel.streetTypePlaceholder")} />
-            </Field>
-            <Field label={t("papel.street")}>
-              <input className="field" value={logradouro}
-                onChange={(e) => setLogradouro(e.target.value)}
-                onBlur={() => setLogradouro((x) => toTitleCase(x))}
-                placeholder={t("papel.streetPlaceholder")} />
-            </Field>
-            <Field label={t("papel.number")}>
-              <input className="field" value={numeroEndereco} onChange={(e) => setNumeroEndereco(e.target.value)} placeholder={t("papel.numberPlaceholder")} />
-            </Field>
-          </div>
-          <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: "1fr 9rem 1fr" }}>
-            <Field label={t("papel.neighborhood")}>
-              <input className="field" value={bairro}
-                onChange={(e) => setBairro(e.target.value)}
-                onBlur={() => setBairro((x) => toTitleCase(x))} />
-            </Field>
-            <Field label={t("papel.postalCode")}>
-              <input className="field font-mono" value={cep} onChange={(e) => setCep(normalizarCep(e.target.value))} placeholder={t("papel.postalCodePlaceholder")} />
-            </Field>
-            <Field label={t("papel.complement")}>
-              <input className="field" value={complemento}
-                onChange={(e) => setComplemento(e.target.value)}
-                onBlur={() => setComplemento((x) => toTitleCase(x))} />
-            </Field>
-          </div>
-          <div className="mt-3">
-            <CidadeSearchSelect cidades={cidades} value={idCidade} onChange={setIdCidade} />
+          <div className="space-y-4">
+            {enderecos.map((e, i) => (
+              <div
+                key={i}
+                className="rounded-md p-3 space-y-3"
+                style={{ border: `1px solid ${v("--border")}`, background: v("--card2") }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="grid gap-3 flex-1" style={{ gridTemplateColumns: "1fr auto" }}>
+                    <Field label={t("papel.addressType")}>
+                      <select
+                        className="field"
+                        value={e.tipo}
+                        onChange={(ev) => patchEndereco(i, { tipo: ev.target.value as TipoEndereco })}
+                      >
+                        <option value="fiscal">{t("papel.addressType.fiscal")}</option>
+                        <option value="residencial">{t("papel.addressType.residencial")}</option>
+                        <option value="entrega">{t("papel.addressType.entrega")}</option>
+                      </select>
+                    </Field>
+                    <label className="flex items-center gap-2 text-[13px] mt-6 cursor-pointer" style={{ color: v("--text-sub") }}>
+                      <input
+                        type="checkbox"
+                        checked={e.principal}
+                        onChange={() => { if (!e.principal) marcarPrincipal(i); }}
+                      />
+                      {t("papel.addressPrincipal")}
+                    </label>
+                  </div>
+                  {enderecos.length > 1 && (
+                    <button
+                      type="button"
+                      className="text-xs cursor-pointer shrink-0"
+                      style={{ color: v("--text-muted") }}
+                      onClick={() => removerEndereco(i)}
+                    >
+                      {t("papel.addressRemove")}
+                    </button>
+                  )}
+                </div>
+                <div className="grid gap-3" style={{ gridTemplateColumns: "6rem 1fr 5rem" }}>
+                  <Field label={t("papel.streetType")}>
+                    <input className="field" value={e.tipoLogradouro}
+                      onChange={(ev) => patchEndereco(i, { tipoLogradouro: ev.target.value })}
+                      onBlur={() => patchEndereco(i, { tipoLogradouro: toTitleCase(e.tipoLogradouro) })}
+                      placeholder={t("papel.streetTypePlaceholder")} />
+                  </Field>
+                  <Field label={t("papel.street")}>
+                    <input className="field" value={e.logradouro}
+                      onChange={(ev) => patchEndereco(i, { logradouro: ev.target.value })}
+                      onBlur={() => patchEndereco(i, { logradouro: toTitleCase(e.logradouro) })}
+                      placeholder={t("papel.streetPlaceholder")} />
+                  </Field>
+                  <Field label={t("papel.number")}>
+                    <input className="field" value={e.numero}
+                      onChange={(ev) => patchEndereco(i, { numero: ev.target.value })}
+                      placeholder={t("papel.numberPlaceholder")} />
+                  </Field>
+                </div>
+                <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 9rem 1fr" }}>
+                  <Field label={t("papel.neighborhood")}>
+                    <input className="field" value={e.bairro}
+                      onChange={(ev) => patchEndereco(i, { bairro: ev.target.value })}
+                      onBlur={() => patchEndereco(i, { bairro: toTitleCase(e.bairro) })} />
+                  </Field>
+                  <Field label={t("papel.postalCode")}>
+                    <input className="field font-mono" value={e.cep}
+                      onChange={(ev) => patchEndereco(i, { cep: normalizarCep(ev.target.value) })}
+                      placeholder={t("papel.postalCodePlaceholder")} />
+                  </Field>
+                  <Field label={t("papel.complement")}>
+                    <input className="field" value={e.complemento}
+                      onChange={(ev) => patchEndereco(i, { complemento: ev.target.value })}
+                      onBlur={() => patchEndereco(i, { complemento: toTitleCase(e.complemento) })} />
+                  </Field>
+                </div>
+                <CidadeSearchSelect
+                  cidades={cidades}
+                  value={e.idCidade}
+                  onChange={(id) => patchEndereco(i, { idCidade: id })}
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              className="text-xs cursor-pointer underline-offset-2 hover:underline"
+              style={{ color: v("--gold") }}
+              onClick={adicionarEndereco}
+            >
+              {t("papel.addressAdd")}
+            </button>
           </div>
         </Section>
 
@@ -1245,7 +1385,10 @@ function UsuariosPage({ navReset }: { navReset: number }) {
   const [perfil, setPerfil] = useState<PerfilUsuario>("operador");
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [idsFiliais, setIdsFiliais] = useState<number[]>([]);
+  const [idsCaixas, setIdsCaixas] = useState<number[]>([]);
+  const [idCaixaPadrao, setIdCaixaPadrao] = useState<number | null>(null);
   const [filiaisDisponiveis, setFiliaisDisponiveis] = useState<Filial[]>([]);
+  const [caixasDisponiveis, setCaixasDisponiveis] = useState<Caixa[]>([]);
   const [salvando, setSalvando] = useState(false);
   const erroRef = useRef<HTMLDivElement>(null);
   const protegido = editando?.login === "system";
@@ -1268,6 +1411,28 @@ function UsuariosPage({ navReset }: { navReset: number }) {
   useEffect(() => {
     void listarFiliais().then(setFiliaisDisponiveis).catch(() => setFiliaisDisponiveis([]));
   }, []);
+  useEffect(() => {
+    if (!idsFiliais.length) {
+      setCaixasDisponiveis([]);
+      return;
+    }
+    void Promise.all(idsFiliais.map((id) => listarCaixas(id)))
+      .then((listas) => {
+        const todos = listas.flat();
+        setCaixasDisponiveis(todos);
+        setIdsCaixas((atual) => {
+          const ids = todos.map((c) => c.id);
+          const keep = atual.filter((id) => ids.includes(id));
+          return keep.length ? keep : ids;
+        });
+        setIdCaixaPadrao((atual) => {
+          const ids = todos.map((c) => c.id);
+          if (atual && ids.includes(atual)) return atual;
+          return ids[0] ?? null;
+        });
+      })
+      .catch(() => setCaixasDisponiveis([]));
+  }, [idsFiliais]);
   useEffect(() => { setPage(1); }, [search]);
   useEffect(() => {
     if (erro) erroRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1288,6 +1453,9 @@ function UsuariosPage({ navReset }: { navReset: number }) {
       const principal = filiaisDisponiveis.find((f) => f.principal);
       setIdsFiliais(principal ? [principal.id] : filiaisDisponiveis[0] ? [filiaisDisponiveis[0].id] : []);
     }
+    const caixasUser = item?.caixas ?? [];
+    setIdsCaixas(caixasUser.map((c) => c.id));
+    setIdCaixaPadrao(caixasUser.find((c) => c.padrao)?.id ?? caixasUser[0]?.id ?? null);
     setErro(null);
     setFormAberto(true);
   }
@@ -1323,6 +1491,8 @@ function UsuariosPage({ navReset }: { navReset: number }) {
         perfil,
         status,
         idsFiliais,
+        idsCaixas,
+        idCaixaPadrao,
       };
       if (senha.trim()) body.senha = senha.trim();
       if (editando) await atualizarUsuario(editando.id, body);
@@ -1399,6 +1569,46 @@ function UsuariosPage({ navReset }: { navReset: number }) {
                 </label>
               ))}
               {!filiaisDisponiveis.length && (
+                <p className="text-xs py-3" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</p>
+              )}
+            </div>
+          </div>
+          <div>
+            <span className="text-[13px] font-medium" style={{ color: v("--text-sub") }}>
+              {t("usuario.caixas")}<span style={{ color: v("--gold") }}> *</span>
+            </span>
+            <div className="mt-1.5 rounded-md px-3" style={{ background: v("--card2"), border: `1px solid ${v("--border")}` }}>
+              {caixasDisponiveis.map((c, i) => (
+                <label
+                  key={c.id}
+                  className={`flex items-center gap-2 py-2.5 ${protegido ? "cursor-default" : "cursor-pointer"}`}
+                  style={{ borderBottom: i < caixasDisponiveis.length - 1 ? `1px solid ${v("--border")}` : undefined }}
+                >
+                  <input
+                    type="checkbox"
+                    disabled={protegido}
+                    checked={idsCaixas.includes(c.id)}
+                    onChange={(e) => {
+                      setIdsCaixas((atual) => {
+                        const next = e.target.checked ? [...atual, c.id] : atual.filter((id) => id !== c.id);
+                        if (!next.includes(idCaixaPadrao ?? -1)) setIdCaixaPadrao(next[0] ?? null);
+                        return next;
+                      });
+                    }}
+                  />
+                  <span className="text-sm flex-1" style={{ color: v("--text") }}>{c.nome} · {c.filialNome}</span>
+                  <label className="flex items-center gap-1 text-[11px]" style={{ color: v("--text-muted") }}>
+                    <input
+                      type="radio"
+                      disabled={protegido || !idsCaixas.includes(c.id)}
+                      checked={idCaixaPadrao === c.id}
+                      onChange={() => setIdCaixaPadrao(c.id)}
+                    />
+                    {t("usuario.caixaPadrao")}
+                  </label>
+                </label>
+              ))}
+              {!caixasDisponiveis.length && (
                 <p className="text-xs py-3" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</p>
               )}
             </div>
@@ -2011,12 +2221,17 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
 
   const titles: Record<View, string> = {
     dashboard: t("nav.dashboard"),
+    vendas: t("nav.vendas"),
+    caixa: t("nav.caixa"),
     clientes: t("nav.clientes"),
     fornecedores: t("nav.fornecedores"),
     produtos: t("nav.produtos"),
     marcas: t("nav.marcas"),
     modelos: t("nav.modelos"),
     estoques: t("nav.estoques"),
+    cotacoes: t("nav.cotacoes"),
+    finalizadores: t("nav.finalizadores"),
+    caixas: t("nav.caixas"),
     usuarios: t("nav.usuarios"),
     empresa: t("nav.empresa"),
     paises: t("nav.paises"),
@@ -2035,29 +2250,37 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
     <div className="flex min-h-screen" style={{ background: v("--bg") }}>
       <Sidebar view={view} onNavigate={navigateTo} systemStatus={systemStatus} />
       <main className="flex-1 min-w-0 overflow-y-auto">
-        <div className="sticky top-0 z-10 px-8 py-3 flex items-center justify-between"
-          style={{ background: v("--topbar-bg"), borderBottom: `1px solid ${v("--border")}`, backdropFilter: "blur(8px)" }}>
-          <div className="flex items-center gap-2 text-xs font-mono" style={{ color: v("--text-muted") }}>
-            <span style={{ color: v("--gold") }}>{t("app.name")}</span>
-            <span>/</span>
-            <span>{view ? titles[view] : t("access.vendasSoon")}</span>
+        <div className="sticky top-0 z-10" style={{ background: v("--topbar-bg"), backdropFilter: "blur(8px)" }}>
+          <div className="px-8 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${v("--border")}` }}>
+            <div className="flex items-center gap-2 text-xs font-mono" style={{ color: v("--text-muted") }}>
+              <span style={{ color: v("--gold") }}>{t("app.name")}</span>
+              <span>/</span>
+              <span>{view ? titles[view] : t("access.vendasSoon")}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CotacaoChip />
+              <FilialSwitcher />
+              <ThemeToggle light={light} onToggle={toggle} compact />
+              <LanguageSelector />
+              <UserMenu />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <FilialSwitcher />
-            <ThemeToggle light={light} onToggle={toggle} compact />
-            <LanguageSelector />
-            <UserMenu />
-          </div>
+          <CotacaoAlerta onOpenCadastro={() => navigateTo("cotacoes")} />
         </div>
         <div className="px-8 py-6" key={filial?.id ?? "filial"}>
           {view === null && <VendasEmBreve />}
           {view === "dashboard" && <Dashboard clientes={clientes} fornecedores={fornecedores} systemOnline={systemOnline} />}
+          {view === "vendas" && <VendasPage navReset={navReset} />}
+          {view === "caixa" && <CaixaOperacaoPage navReset={navReset} />}
           {view === "clientes" && <PapelPage recurso="clientes" titulo={t("nav.clientes")} singular={t("entity.cliente")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
           {view === "fornecedores" && <PapelPage recurso="fornecedores" titulo={t("nav.fornecedores")} singular={t("entity.fornecedor")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
           {view === "produtos" && <ProdutosPage navReset={navReset} />}
           {view === "marcas" && <MarcasPage navReset={navReset} />}
           {view === "modelos" && <ModelosPage navReset={navReset} />}
           {view === "estoques" && <EstoquesPage navReset={navReset} />}
+          {view === "cotacoes" && <CotacoesPage navReset={navReset} />}
+          {view === "finalizadores" && <FinalizadoresPage navReset={navReset} />}
+          {view === "caixas" && <CaixasPage navReset={navReset} />}
           {view === "usuarios" && <UsuariosPage navReset={navReset} />}
           {view === "empresa" && <EmpresaPage cidades={cidades} navReset={navReset} />}
           {view === "paises" && <PaisesPage navReset={navReset} />}
@@ -2093,10 +2316,12 @@ export default function App() {
   }
 
   return (
-    <FilialProvider>
-      <FilialGate light={light} onToggleTheme={toggle} systemStatus={systemStatus}>
-        <AppShell systemStatus={systemStatus} />
-      </FilialGate>
-    </FilialProvider>
+    <CotacaoHojeProvider>
+      <FilialProvider>
+        <FilialGate light={light} onToggleTheme={toggle} systemStatus={systemStatus}>
+          <AppShell systemStatus={systemStatus} />
+        </FilialGate>
+      </FilialProvider>
+    </CotacaoHojeProvider>
   );
 }

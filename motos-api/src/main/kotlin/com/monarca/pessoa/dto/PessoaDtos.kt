@@ -1,6 +1,7 @@
 package com.monarca.pessoa.dto
 
 import com.monarca.common.enums.Status
+import com.monarca.pessoa.domain.TipoEndereco
 import com.monarca.pessoa.domain.TipoPessoa
 import kotlinx.serialization.Serializable
 
@@ -45,12 +46,9 @@ data class DocumentoResponse(
 )
 
 @Serializable
-data class PessoaRequest(
-    val nomeRazaoSocial: String,
-    val tipoPessoa: TipoPessoa,
-    val ddi: String? = null,
-    val telefone: String? = null,
-    val email: String? = null,
+data class EnderecoRequest(
+    val tipo: TipoEndereco = TipoEndereco.FISCAL,
+    val principal: Boolean = false,
     val tipoLogradouro: String? = null,
     val logradouro: String? = null,
     val numero: String? = null,
@@ -58,6 +56,31 @@ data class PessoaRequest(
     val cep: String? = null,
     val complemento: String? = null,
     val idCidade: Long? = null,
+)
+
+@Serializable
+data class EnderecoResponse(
+    val id: Long,
+    val tipo: TipoEndereco,
+    val principal: Boolean,
+    val tipoLogradouro: String? = null,
+    val logradouro: String? = null,
+    val numero: String? = null,
+    val bairro: String? = null,
+    val cep: String? = null,
+    val complemento: String? = null,
+    val idCidade: Long? = null,
+    val status: Status,
+)
+
+@Serializable
+data class PessoaRequest(
+    val nomeRazaoSocial: String,
+    val tipoPessoa: TipoPessoa,
+    val ddi: String? = null,
+    val telefone: String? = null,
+    val email: String? = null,
+    val enderecos: List<EnderecoRequest> = emptyList(),
     val status: Status = Status.ATIVO,
     val documentos: List<DocumentoRequest>,
     val confirmarNovaPessoa: Boolean = false,
@@ -71,13 +94,7 @@ data class PessoaResponse(
     val ddi: String? = null,
     val telefone: String? = null,
     val email: String? = null,
-    val tipoLogradouro: String? = null,
-    val logradouro: String? = null,
-    val numero: String? = null,
-    val bairro: String? = null,
-    val cep: String? = null,
-    val complemento: String? = null,
-    val idCidade: Long? = null,
+    val enderecos: List<EnderecoResponse> = emptyList(),
     val status: Status,
     val documentos: List<DocumentoResponse>,
 )

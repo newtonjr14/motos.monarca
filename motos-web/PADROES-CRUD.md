@@ -75,6 +75,16 @@ Mesma regra de cliente e fornecedor:
 - Se o registro já existe em outra filial (mesmo documento/SKU): HTTP 409 `VINCULO_FILIAL` e o front pede confirmação.
 - DELETE com `?idFilial=` remove o **vínculo** daquela filial; sem `idFilial` soft-delete o cadastro.
 
+**Perfil fiscal** (`perfil_fiscal` na filial, default `py_iva`): motor da factura desta sucursal. País vem da cidade. Hoje só IVA Paraguai. Brasil (quando existir): outra **empresa** com CNPJ; valores `br_pendente` / `br_simples` / `br_presumido` / `br_real` filtrados pela cidade; não misturar com `py_iva`. Alíquota fica no produto.
+
+## Cotação do dia
+
+- Uma cotação por data (fuso `America/Asuncion`): taxas obrigatórias **USD→PYG** e **BRL→PYG**. Só **adm e gestor** informam (`cotacao:gerenciar`). Operador e vendedor só consultam.
+- Sem cotação **ativa** no dia, cadastros continuam liberados. A API responde 403 `COTACAO_DIA_AUSENTE` só em vendas, recebimentos, pagamentos e facturas/NF-e (e `CotacaoService.exigirAtiva()` nesses services). O front mostra um **alerta fixo no topo** (não é modal e não se dispensa): adm/gestor informam as taxas ali mesmo; os demais veem o aviso. Com cotação ativa, um chip no topo mostra as taxas do dia.
+- A cotação do mesmo dia pode ser editada. Data futura é rejeitada. Menu **Operação → Cotações** (só adm/gestor).
+- Produto: IVA 0/5/10 (default 10), um preço de lista + moeda (default USD) e custo na **mesma** moeda. Preço de gôndola com IVA incluído.
+- **Caixa e venda:** cadastro de `finalizador` e `caixa` (por filial) em Cadastros (adm/gestor). Operação: abrir/fechar sessão com conferência, transferir entre caixas abertos da mesma filial, e PDV (`venda` + `venda_item` + `venda_negociacao` em N formas). Venda baixa estoque e lança movimento no caixa na mesma transação. Abertura de caixa não exige cotação; venda exige. Acesso em `usuario_caixa` (um padrão). RBAC: `caixa:gerenciar`, `caixa:operar`, `venda:registrar`.
+
 ## Entidade geral + específica
 
 Quando o cadastro tem um núcleo comum e fichas diferentes (pessoa+papel, produto+moto/bicicleta):

@@ -18,6 +18,7 @@ import {
   listarProdutos,
   type Marca,
   type Modelo,
+  type Moeda,
   type Produto,
   type TipoProduto,
   type VinculoFilialProdutoConflito,
@@ -122,6 +123,10 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
   const [tipo, setTipo] = useState<TipoProduto>("moto");
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [specs, setSpecs] = useState<Specs>(specsVazio);
+  const [aliquotaIva, setAliquotaIva] = useState<0 | 5 | 10>(10);
+  const [moedaPreco, setMoedaPreco] = useState<Moeda>("usd");
+  const [precoLista, setPrecoLista] = useState("");
+  const [custo, setCusto] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   const resetLista = useCallback(() => {
@@ -161,6 +166,10 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     setDescricao(item?.descricao ?? "");
     setTipo(item?.tipo ?? "moto");
     setStatus(item?.status === "inativo" ? "inativo" : "ativo");
+    setAliquotaIva(item?.aliquotaIva === 0 || item?.aliquotaIva === 5 ? item.aliquotaIva : 10);
+    setMoedaPreco(item?.moedaPreco ?? "usd");
+    setPrecoLista(item != null ? String(item.precoLista) : "");
+    setCusto(item != null ? String(item.custo) : "");
     setSpecs(specsDe(item));
     setErro(null);
     setFormAberto(true);
@@ -227,6 +236,10 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       status,
       idFilialCadastro: idFilial,
       confirmarVinculoFilial,
+      aliquotaIva,
+      moedaPreco,
+      precoLista: num(precoLista) ?? 0,
+      custo: num(custo) ?? 0,
       moto,
       bicicleta,
     };
@@ -246,6 +259,12 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
         setErro(t("produto.error.yearsRequired"));
         return;
       }
+    }
+    const preco = num(precoLista);
+    const custoN = num(custo);
+    if (preco == null || preco < 0 || custoN == null || custoN < 0) {
+      setErro(t("produto.error.price"));
+      return;
     }
     setSalvando(true);
     try {
@@ -350,6 +369,30 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                 </select>
               </Field>
             )}
+          </Section>
+          <Section title={t("produto.section.price")}>
+            <div className="form-grid-2">
+              <Field label={t("produto.iva")} required hint={t("produto.ivaHint")}>
+                <select className="field" value={aliquotaIva} onChange={(e) => setAliquotaIva(Number(e.target.value) as 0 | 5 | 10)}>
+                  <option value={10}>10%</option>
+                  <option value={5}>5%</option>
+                  <option value={0}>0%</option>
+                </select>
+              </Field>
+              <Field label={t("produto.currency")} required>
+                <select className="field" value={moedaPreco} onChange={(e) => setMoedaPreco(e.target.value as Moeda)}>
+                  <option value="usd">{t("produto.currency.usd")}</option>
+                  <option value="pyg">{t("produto.currency.pyg")}</option>
+                  <option value="brl">{t("produto.currency.brl")}</option>
+                </select>
+              </Field>
+              <Field label={t("produto.listPrice")} required hint={t("produto.listPriceHint")}>
+                <input className="field font-mono" inputMode="decimal" value={precoLista} onChange={(e) => setPrecoLista(e.target.value)} />
+              </Field>
+              <Field label={t("produto.cost")} required hint={t("produto.costHint")}>
+                <input className="field font-mono" inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} />
+              </Field>
+            </div>
           </Section>
           <Section title={tipo === "moto" ? t("produto.section.moto") : t("produto.section.bicicleta")}>
             <div className="form-grid-2">
@@ -470,7 +513,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "col.code", "common.name", "produto.marca", "produto.tipo", "estoque.available", "common.status", ""]} />
+            <TableHeadRow cols={["col.id", "col.code", "common.name", "produto.marca", "produto.tipo", "produto.listPrice", "estoque.available", "common.status", ""]} />
           </thead>
           <tbody>
             {paged.slice.map((p) => {
@@ -487,6 +530,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                   <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{p.nome}</td>
                   <Td sub>{p.marca}</Td>
                   <Td sub>{p.tipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")}</Td>
+                  <Td mono>{p.precoLista} {p.moedaPreco?.toUpperCase()}</Td>
                   <Td mono>{p.quantidadeDisponivel ?? 0}</Td>
                   <td className="px-4 py-3"><StatusBadge status={p.status === "inativo" ? "inativo" : "ativo"} /></td>
                   <td className="px-4 py-3 text-right">

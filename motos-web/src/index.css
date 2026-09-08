@@ -327,3 +327,13 @@ select.field:disabled {
     grid-template-columns: 1fr 1fr;
   }
 }
+.pdv-grid {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+@media (min-width: 960px) {
+  .pdv-grid {
+    grid-template-columns: minmax(0, 1fr) 16.5rem;
+  }
+}

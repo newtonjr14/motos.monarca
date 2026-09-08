@@ -8,6 +8,7 @@ import {
 
 export type TipoPessoa = "fisica" | "juridica";
 export type Status = "ativo" | "inativo" | "deletado";
+export type PerfilFiscal = "py_iva";
 export type IdiomaUsuario = "pt" | "es";
 export type PerfilUsuario = "administrador" | "gestor" | "operador" | "vendedor";
 
@@ -21,6 +22,10 @@ export const Permissao = {
   CONFIGURACAO: "configuracao:gerenciar",
   PRODUTO_GERENCIAR: "produto:gerenciar",
   ESTOQUE_GERENCIAR: "estoque:gerenciar",
+  COTACAO_CONSULTAR: "cotacao:consultar",
+  COTACAO_GERENCIAR: "cotacao:gerenciar",
+  CAIXA_GERENCIAR: "caixa:gerenciar",
+  CAIXA_OPERAR: "caixa:operar",
 } as const;
 
 export interface TokenResponse {
@@ -88,13 +93,12 @@ export interface Documento {
   unico: boolean;
 }
 
-export interface Pessoa {
+export type TipoEndereco = "fiscal" | "residencial" | "entrega";
+
+export interface PessoaEndereco {
   id: number;
-  nomeRazaoSocial: string;
-  tipoPessoa: TipoPessoa;
-  ddi: string | null;
-  telefone: string | null;
-  email: string | null;
+  tipo: TipoEndereco;
+  principal: boolean;
   tipoLogradouro: string | null;
   logradouro: string | null;
   numero: string | null;
@@ -102,6 +106,17 @@ export interface Pessoa {
   cep: string | null;
   complemento: string | null;
   idCidade: number | null;
+  status: Status;
+}
+
+export interface Pessoa {
+  id: number;
+  nomeRazaoSocial: string;
+  tipoPessoa: TipoPessoa;
+  ddi: string | null;
+  telefone: string | null;
+  email: string | null;
+  enderecos: PessoaEndereco[];
   status: Status;
   documentos: Documento[];
 }
@@ -155,6 +170,7 @@ export interface Filial {
   timbradoVigenciaFim: string | null;
   estabelecimentoNumero: string | null;
   pontoExpedicao: string | null;
+  perfilFiscal: PerfilFiscal;
   listarApenasClientesFilial: boolean;
   listarApenasFornecedoresFilial: boolean;
   listarApenasProdutosFilial: boolean;
@@ -246,8 +262,19 @@ export async function api<T>(
   }
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
+  if (
+    res.status === 403 &&
+    data?.codigo === "COTACAO_DIA_AUSENTE" &&
+    !path.startsWith("/cotacoes")
+  ) {
+    window.dispatchEvent(new Event("monarca:cotacao-ausente"));
+  }
   if (!res.ok) throw new ApiError(res.status, data);
   return data as T;
+}
+
+export function avisarCotacaoMudou() {
+  window.dispatchEvent(new Event("monarca:cotacao-mudou"));
 }
 
 export interface Divisao {
@@ -267,6 +294,15 @@ export interface Usuario {
   idioma: IdiomaUsuario;
   status: Status;
   filiais: FilialAcesso[];
+  caixas?: UsuarioCaixaAcesso[];
+}
+
+export interface UsuarioCaixaAcesso {
+  id: number;
+  nome: string;
+  idFilial: number;
+  filialNome: string;
+  padrao: boolean;
 }
 
 export const login = (loginValue: string, senha: string) =>
@@ -386,6 +422,8 @@ export const atualizarFilial = (id: number, body: unknown) =>
 export const excluirFilial = (id: number) => api<void>(`/filiais/${id}`, { method: "DELETE" });
 
 export type TipoProduto = "moto" | "bicicleta";
+export type Moeda = "usd" | "pyg" | "brl";
+export type AliquotaIva = 0 | 5 | 10;
 
 export interface ProdutoMoto {
   chassi: string | null;
@@ -440,6 +478,10 @@ export interface Produto {
   idFilialCadastro: number | null;
   filialNome?: string | null;
   filiaisVinculadas?: FilialVinculo[];
+  aliquotaIva: AliquotaIva;
+  moedaPreco: Moeda;
+  precoLista: number;
+  custo: number;
   status: Status;
   moto: ProdutoMoto | null;
   bicicleta: ProdutoBicicleta | null;
@@ -561,3 +603,177 @@ export const atualizarEstoqueProduto = (id: number, body: unknown) =>
   api<EstoqueProduto>(`/estoque-produtos/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const excluirEstoqueProduto = (id: number) =>
   api<void>(`/estoque-produtos/${id}`, { method: "DELETE" });
+
+export interface Cotacao {
+  id: number;
+  data: string;
+  usdPyg: number;
+  brlPyg: number;
+  status: Status;
+}
+
+export const listarCotacoes = () => api<Cotacao[]>("/cotacoes");
+export const buscarCotacaoHoje = () => api<Cotacao>("/cotacoes/hoje");
+export const criarCotacao = (body: unknown) =>
+  api<Cotacao>("/cotacoes", { method: "POST", body: JSON.stringify(body) });
+export const atualizarCotacao = (id: number, body: unknown) =>
+  api<Cotacao>(`/cotacoes/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const excluirCotacao = (id: number) => api<void>(`/cotacoes/${id}`, { method: "DELETE" });
+
+export type TipoFinalizador = "dinheiro" | "cartao" | "deposito" | "cheque" | "outro";
+export type TipoMovimentacaoCaixa =
+  | "abertura"
+  | "fechamento"
+  | "venda"
+  | "transferencia_saida"
+  | "transferencia_entrada";
+export type StatusSessaoCaixa = "aberto" | "fechado";
+export type StatusVenda = "finalizada" | "cancelada";
+
+export interface Finalizador {
+  id: number;
+  nome: string;
+  tipo: TipoFinalizador;
+  status: Status;
+}
+
+export interface Caixa {
+  id: number;
+  idFilial: number;
+  filialNome: string;
+  nome: string;
+  status: Status;
+  sessaoAbertaId?: number | null;
+  padrao?: boolean;
+}
+
+export interface ValorFinalizador {
+  idFinalizador: number;
+  finalizadorNome?: string | null;
+  valor: number;
+}
+
+export interface CaixaSessao {
+  id: number;
+  idCaixa: number;
+  caixaNome: string;
+  idFilial: number;
+  data: string;
+  abertoEm: number;
+  fechadoEm: number | null;
+  idUsuarioAbertura: number;
+  usuarioAberturaNome: string;
+  idUsuarioFechamento?: number | null;
+  observacaoAbertura?: string | null;
+  observacaoFechamento?: string | null;
+  status: StatusSessaoCaixa;
+  saldos: ValorFinalizador[];
+}
+
+export interface CaixaMovimentacao {
+  id: number;
+  idCaixaSessao: number;
+  tipo: TipoMovimentacaoCaixa;
+  idUsuario: number;
+  usuarioNome: string;
+  idVenda?: number | null;
+  criadoEm: number;
+  observacao?: string | null;
+  finalizadores: ValorFinalizador[];
+}
+
+export interface VendaItem {
+  id: number;
+  idProduto: number;
+  produtoCodigo: string;
+  produtoNome: string;
+  idEstoque: number;
+  estoqueNome: string;
+  quantidade: number;
+  aliquotaIva: number;
+  moedaPreco: string;
+  precoLista: number;
+  precoUnitarioPyg: number;
+  totalPyg: number;
+}
+
+export interface VendaNegociacao {
+  id: number;
+  idFinalizador: number;
+  finalizadorNome: string;
+  valor: number;
+}
+
+export interface Venda {
+  id: number;
+  idFilial: number;
+  filialNome: string;
+  idCliente: number;
+  clienteNome: string;
+  idVendedor: number;
+  vendedorNome: string;
+  idCaixaSessao: number;
+  idCotacao: number;
+  totalPyg: number;
+  observacao?: string | null;
+  criadoEm: number;
+  status: StatusVenda;
+  itens: VendaItem[];
+  negociacao: VendaNegociacao[];
+}
+
+export const listarFinalizadores = () => api<Finalizador[]>("/finalizadores");
+export const criarFinalizador = (body: unknown) =>
+  api<Finalizador>("/finalizadores", { method: "POST", body: JSON.stringify(body) });
+export const atualizarFinalizador = (id: number, body: unknown) =>
+  api<Finalizador>(`/finalizadores/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const excluirFinalizador = (id: number) => api<void>(`/finalizadores/${id}`, { method: "DELETE" });
+
+export const listarCaixas = (idFilial?: number, somenteComAcesso = false) => {
+  const q = new URLSearchParams();
+  if (idFilial != null) q.set("idFilial", String(idFilial));
+  if (somenteComAcesso) q.set("somenteComAcesso", "true");
+  const suffix = q.toString() ? `?${q}` : "";
+  return api<Caixa[]>(`/caixas${suffix}`);
+};
+export const criarCaixa = (body: unknown) =>
+  api<Caixa>("/caixas", { method: "POST", body: JSON.stringify(body) });
+export const atualizarCaixa = (id: number, body: unknown) =>
+  api<Caixa>(`/caixas/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const excluirCaixa = (id: number) => api<void>(`/caixas/${id}`, { method: "DELETE" });
+
+export const listarMeusCaixas = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<UsuarioCaixaAcesso[]>(`/meus-caixas${q}`);
+};
+export const listarCaixaSessoes = (idCaixa: number) => api<CaixaSessao[]>(`/caixas/${idCaixa}/sessoes`);
+export const buscarCaixaSessao = (id: number) => api<CaixaSessao>(`/caixa-sessoes/${id}`);
+export const abrirCaixaSessao = (body: unknown) =>
+  api<CaixaSessao>("/caixa-sessoes", { method: "POST", body: JSON.stringify(body) });
+export const fecharCaixaSessao = (id: number, body: unknown) =>
+  api<CaixaSessao>(`/caixa-sessoes/${id}/fechar`, { method: "POST", body: JSON.stringify(body) });
+export const transferirCaixa = (idSessao: number, body: unknown) =>
+  api<void>(`/caixa-sessoes/${idSessao}/transferencias`, { method: "POST", body: JSON.stringify(body) });
+export const listarCaixaMovimentacoes = (idSessao: number) =>
+  api<CaixaMovimentacao[]>(`/caixa-sessoes/${idSessao}/movimentacoes`);
+
+export const listarVendas = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<Venda[]>(`/vendas${q}`);
+};
+export const buscarVenda = (id: number) => api<Venda>(`/vendas/${id}`);
+export const criarVenda = (body: unknown) =>
+  api<Venda>("/vendas", { method: "POST", body: JSON.stringify(body) });
+
+export interface SeedDemoStatus {
+  aplicado: boolean;
+  clientes: number;
+  produtos: number;
+  vendas: number;
+  caixas: number;
+  finalizadores: number;
+}
+
+export const statusSeedDemo = () => api<SeedDemoStatus>("/seed/demo");
+export const aplicarSeedDemo = () => api<SeedDemoStatus>("/seed/demo", { method: "POST" });
+export const removerSeedDemo = () => api<SeedDemoStatus>("/seed/demo", { method: "DELETE" });

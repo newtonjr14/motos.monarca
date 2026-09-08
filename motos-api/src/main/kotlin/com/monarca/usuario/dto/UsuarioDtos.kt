@@ -22,6 +22,7 @@ data class UsuarioResponse(
     val idioma: IdiomaUsuario,
     val status: Status,
     val filiais: List<FilialAcessoResponse> = emptyList(),
+    val caixas: List<com.monarca.caixa.dto.CaixaAcessoResponse> = emptyList(),
 )
 
 @Serializable
@@ -34,4 +35,6 @@ data class UsuarioRequest(
     val idioma: IdiomaUsuario = IdiomaUsuario.PT,
     val status: Status = Status.ATIVO,
     val idsFiliais: List<Long>? = null,
+    val idsCaixas: List<Long>? = null,
+    val idCaixaPadrao: Long? = null,
 )
