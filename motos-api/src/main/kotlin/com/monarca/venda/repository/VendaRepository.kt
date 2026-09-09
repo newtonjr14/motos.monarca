@@ -19,7 +19,9 @@ data class VendaNegociacaoPersistencia(
     val id: Long = 0,
     val idFinalizador: Long,
     val finalizadorNome: String,
+    val moeda: String,
     val valor: Double,
+    val valorPyg: Double,
 )
 
 data class VendaCompleta(

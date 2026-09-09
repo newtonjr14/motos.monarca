@@ -4,6 +4,7 @@ import com.monarca.caixa.domain.StatusSessaoCaixa
 import com.monarca.caixa.domain.TipoFinalizador
 import com.monarca.caixa.domain.TipoMovimentacaoCaixa
 import com.monarca.common.enums.Status
+import com.monarca.produto.domain.Moeda
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -52,6 +53,7 @@ data class CaixaAcessoResponse(
 data class ValorFinalizadorRequest(
     val idFinalizador: Long,
     val valor: Double,
+    val moeda: Moeda = Moeda.PYG,
 )
 
 @Serializable
@@ -59,6 +61,8 @@ data class ValorFinalizadorResponse(
     val idFinalizador: Long,
     val finalizadorNome: String? = null,
     val valor: Double,
+    val moeda: Moeda = Moeda.PYG,
+    val valorPyg: Double = 0.0,
 )
 
 @Serializable

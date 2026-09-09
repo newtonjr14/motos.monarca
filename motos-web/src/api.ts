@@ -11,6 +11,7 @@ export type Status = "ativo" | "inativo" | "deletado";
 export type PerfilFiscal = "py_iva";
 export type IdiomaUsuario = "pt" | "es";
 export type PerfilUsuario = "administrador" | "gestor" | "operador" | "vendedor";
+export type Moeda = "usd" | "pyg" | "brl";
 
 export const Permissao = {
   USUARIO_LISTAR: "usuario:listar",
@@ -39,6 +40,7 @@ export interface FilialAcesso {
   id: number;
   nome: string;
   principal: boolean;
+  moedaOperacao?: Moeda;
 }
 
 export interface PerfilAutenticado {
@@ -171,6 +173,7 @@ export interface Filial {
   estabelecimentoNumero: string | null;
   pontoExpedicao: string | null;
   perfilFiscal: PerfilFiscal;
+  moedaOperacao: Moeda;
   listarApenasClientesFilial: boolean;
   listarApenasFornecedoresFilial: boolean;
   listarApenasProdutosFilial: boolean;
@@ -422,7 +425,6 @@ export const atualizarFilial = (id: number, body: unknown) =>
 export const excluirFilial = (id: number) => api<void>(`/filiais/${id}`, { method: "DELETE" });
 
 export type TipoProduto = "moto" | "bicicleta";
-export type Moeda = "usd" | "pyg" | "brl";
 export type AliquotaIva = 0 | 5 | 10;
 
 export interface ProdutoMoto {
@@ -651,6 +653,8 @@ export interface ValorFinalizador {
   idFinalizador: number;
   finalizadorNome?: string | null;
   valor: number;
+  moeda?: Moeda;
+  valorPyg?: number;
 }
 
 export interface CaixaSessao {
@@ -701,7 +705,9 @@ export interface VendaNegociacao {
   id: number;
   idFinalizador: number;
   finalizadorNome: string;
+  moeda: Moeda;
   valor: number;
+  valorPyg: number;
 }
 
 export interface Venda {
@@ -757,21 +763,35 @@ export const transferirCaixa = (idSessao: number, body: unknown) =>
 export const listarCaixaMovimentacoes = (idSessao: number) =>
   api<CaixaMovimentacao[]>(`/caixa-sessoes/${idSessao}/movimentacoes`);
 
+export interface VendedorOpcao {
+  id: number;
+  nome: string;
+}
+
 export const listarVendas = (idFilial?: number) => {
   const q = idFilial != null ? `?idFilial=${idFilial}` : "";
   return api<Venda[]>(`/vendas${q}`);
+};
+export const listarVendedoresVenda = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<VendedorOpcao[]>(`/vendas/vendedores${q}`);
 };
 export const buscarVenda = (id: number) => api<Venda>(`/vendas/${id}`);
 export const criarVenda = (body: unknown) =>
   api<Venda>("/vendas", { method: "POST", body: JSON.stringify(body) });
 
 export interface SeedDemoStatus {
+  habilitado?: boolean;
   aplicado: boolean;
   clientes: number;
+  fornecedores?: number;
   produtos: number;
   vendas: number;
   caixas: number;
   finalizadores: number;
+  usuarios?: number;
+  marcas?: number;
+  estoques?: number;
 }
 
 export const statusSeedDemo = () => api<SeedDemoStatus>("/seed/demo");

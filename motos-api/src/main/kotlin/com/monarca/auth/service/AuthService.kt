@@ -162,7 +162,7 @@ class AuthService(
         idioma = idioma,
         permissoes = Rbac.codigos(perfil).toList().sorted(),
         filiais = usuarioRepository.listarFiliais(id).map {
-            FilialAcessoResponse(id = it.id, nome = it.nome, principal = it.principal)
+            FilialAcessoResponse(id = it.id, nome = it.nome, principal = it.principal, moedaOperacao = it.moedaOperacao)
         },
     )
 }

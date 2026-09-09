@@ -54,6 +54,7 @@ Use `CatalogHeader` (`@/components/crud/ListUi`):
 
 - Card: `rounded-lg p-5` ou `p-6`, `background: var(--card)`, borda `--border`.
 - Campos: `Field` e `Section` de `@/components/crud/Field`.
+- Cadastros longos (cliente, fornecedor, produto): **guias** com `FormTabs` no topo do card. 3–4 abas no máximo. **Um Salvar** no rodapé (produto novo também tem **Salvar e novo**: grava e abre outro cadastro em branco; **Salvar** volta à lista). A validação troca para a guia do campo. Tab ou Enter no último campo da guia abre a próxima. Não aninhar aba dentro de aba nem usar modal.
 - Layout em 2 colunas em telas largas: classe `form-grid-2`.
 - Botões no rodapé: **Cancelar** (`btn-ghost`) + **Salvar** (`btn-gold`).
 - Normalização ao salvar/blur:
@@ -82,8 +83,10 @@ Mesma regra de cliente e fornecedor:
 - Uma cotação por data (fuso `America/Asuncion`): taxas obrigatórias **USD→PYG** e **BRL→PYG**. Só **adm e gestor** informam (`cotacao:gerenciar`). Operador e vendedor só consultam.
 - Sem cotação **ativa** no dia, cadastros continuam liberados. A API responde 403 `COTACAO_DIA_AUSENTE` só em vendas, recebimentos, pagamentos e facturas/NF-e (e `CotacaoService.exigirAtiva()` nesses services). O front mostra um **alerta fixo no topo** (não é modal e não se dispensa): adm/gestor informam as taxas ali mesmo; os demais veem o aviso. Com cotação ativa, um chip no topo mostra as taxas do dia.
 - A cotação do mesmo dia pode ser editada. Data futura é rejeitada. Menu **Operação → Cotações** (só adm/gestor).
-- Produto: IVA 0/5/10 (default 10), um preço de lista + moeda (default USD) e custo na **mesma** moeda. Preço de gôndola com IVA incluído.
-- **Caixa e venda:** cadastro de `finalizador` e `caixa` (por filial) em Cadastros (adm/gestor). Operação: abrir/fechar sessão com conferência, transferir entre caixas abertos da mesma filial, e PDV (`venda` + `venda_item` + `venda_negociacao` em N formas). Venda baixa estoque e lança movimento no caixa na mesma transação. Abertura de caixa não exige cotação; venda exige. Acesso em `usuario_caixa` (um padrão). RBAC: `caixa:gerenciar`, `caixa:operar`, `venda:registrar`.
+- Produto: IVA 0/5/10 (default 10), um preço de lista e custo na **moeda de operação da filial** (parâmetro em Empresa → parâmetros da filial; default USD). Quem cadastra produto não escolhe moeda. O PDV e o cadastro mostram o equivalente nas outras duas (Gs. / US$ / R$) pela cotação do dia. Recebimento da venda continua nas três moedas.
+- **Caixa e venda:** cadastro de `finalizador` e `caixa` (por filial) em Cadastros (adm/gestor). Operação: abrir/fechar sessão com conferência, transferir entre caixas abertos da mesma filial, e PDV (`venda` + `venda_item` + `venda_negociacao` em N formas). Cada linha de pagamento tem **forma + moeda** (`pyg`/`usd`/`brl`); `valor` é o recebido na moeda e `valor_pyg` fecha a venda pela cotação do dia. O caixa guarda a mesma tríade; saldo e conferência são por forma+moeda. Troco fica para depois. Venda baixa estoque e lança movimento no caixa na mesma transação. Abertura de caixa não exige cotação; venda exige. Acesso em `usuario_caixa` (um padrão). RBAC: `caixa:gerenciar`, `caixa:operar`, `venda:registrar`. `venda.id_vendedor` é o **usuário** ativo da filial (não há CRUD de vendedor); o PDV inicia com o logado e **Trocar** escolhe outro. Operador do caixa continua sendo quem está autenticado.
+- **PDV (Operação → Vendas):** tela sempre aberta (catálogo em cards + carrinho). Não mistura lista e não tem “Nova venda”. Após finalizar, o carrinho zera, permanece no PDV e o foco volta à busca. Clicar de novo em Vendas (`navReset`) limpa o carrinho. Pagamento (formas + Gs./US$/R$) é o **segundo passo** do painel direito: o operador monta o carrinho e clica **Ir para pagamento**; não é modal e não fica visível enquanto lança itens. A vitrine mostra até 24 produtos com estoque (busca até 48), ordenados por quantidade; o leitor/código consulta o catálogo inteiro da filial.
+- **Histórico (Operação → Histórico):** lista `drive-table` + detalhe (sem modal, sem “Novo”). Mesma permissão `venda:registrar`. Caixa do dia continua em Operação → Caixa.
 
 ## Entidade geral + específica
 
@@ -93,7 +96,7 @@ Quando o cadastro tem um núcleo comum e fichas diferentes (pessoa+papel, produt
 - Tabela 1:1 por tipo (`produto_moto`, `produto_bicicleta`) com FK para o geral.
 - Enum `tipo` no geral; **não** mudar o tipo depois de criado.
 - Não criar tipo “reservado” para o futuro (ex.: peça). Quando surgir, nova tabela + valor no enum.
-- Form: seção geral + seção específica conforme o tipo.
+- Form: guias **Cadastro** | **Ficha técnica** | **Preço e IVA** | **Estoque** (somente leitura; quantidade se ajusta em Operação → Estoques).
 
 ## Backend
 
@@ -143,7 +146,7 @@ A API rejeita documento inválido com HTTP 400. O front pode exibir com máscara
 
 ## Pessoa (cliente / fornecedor)
 
-- Form em **2 colunas**: Identificação | Contato; depois Endereço e Documento em largura total compacta.
+- Form em **3 guias** (`FormTabs`): Dados | Endereços | Documento. Um Salvar. Identificação e contato na primeira guia, em **2 colunas**.
 - **DDI**: `DdiSearchSelect` — busca por país, sigla ou código; opção “Outro” para DDI manual.
 - **CEP**: label **“CEP / Código Postal”** (até 12 dígitos).
 - **Documento**: país + tipo (catálogo) + número; link “Gerenciar tipos de documento” → menu Cadastros → Tipos de documento.

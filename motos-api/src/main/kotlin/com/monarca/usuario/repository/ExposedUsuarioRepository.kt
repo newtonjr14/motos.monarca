@@ -41,6 +41,21 @@ class ExposedUsuarioRepository(
             .toList()
     }
 
+    override suspend fun listarAtivosDaFilial(idFilial: Long): List<Usuario> = suspendTransaction(database) {
+        UsuariosTable
+            .innerJoin(UsuarioFiliaisTable)
+            .selectAll()
+            .where {
+                (UsuarioFiliaisTable.idFilial eq idFilial) and
+                    (UsuarioFiliaisTable.status eq Status.ATIVO.name.lowercase()) and
+                    (UsuariosTable.status eq Status.ATIVO.name.lowercase()) and
+                    (UsuariosTable.login neq SystemUser.LOGIN)
+            }
+            .orderBy(UsuariosTable.nome to SortOrder.ASC)
+            .map { it.toUsuario() }
+            .toList()
+    }
+
     override suspend fun buscar(id: Long): Usuario? = suspendTransaction(database) {
         UsuariosTable.selectAll()
             .where { (UsuariosTable.id eq id) and (UsuariosTable.status neq Status.DELETADO.name.lowercase()) }
@@ -203,6 +218,7 @@ class ExposedUsuarioRepository(
                     id = it[FiliaisTable.id].value,
                     nome = it[FiliaisTable.nome],
                     principal = it[FiliaisTable.principal],
+                    moedaOperacao = it[FiliaisTable.moedaOperacao],
                 )
             }
             .toList()

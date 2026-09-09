@@ -101,6 +101,7 @@ class RbacTest {
             assertEquals(HttpStatusCode.OK, client.get("/cotacoes") { auth(operador) }.status)
             assertEquals(HttpStatusCode.OK, client.get("/finalizadores") { auth(operador) }.status)
             assertEquals(HttpStatusCode.OK, client.get("/caixas") { auth(operador) }.status)
+            assertEquals(HttpStatusCode.OK, client.get("/vendas/vendedores") { auth(operador) }.status)
             assertEquals(HttpStatusCode.Forbidden, client.post("/finalizadores") {
                 auth(operador)
                 contentType(ContentType.Application.Json)
@@ -122,6 +123,7 @@ class RbacTest {
             )
 
             assertEquals(HttpStatusCode.OK, client.get("/clientes") { auth(vendedor) }.status)
+            assertEquals(HttpStatusCode.OK, client.get("/vendas/vendedores") { auth(vendedor) }.status)
             assertEquals(HttpStatusCode.OK, client.get("/finalizadores") { auth(vendedor) }.status)
             assertEquals(HttpStatusCode.Forbidden, client.post("/finalizadores") {
                 auth(vendedor)

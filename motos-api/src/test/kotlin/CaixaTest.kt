@@ -79,6 +79,7 @@ class CaixaTest {
             val idSessao = Json.parseToJsonElement(aberta.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
             val saldos = Json.parseToJsonElement(aberta.bodyAsText()).jsonObject["saldos"]!!.jsonArray
             assertTrue(saldos.any { it.jsonObject["valor"]!!.jsonPrimitive.double == 10000.0 })
+            assertTrue(saldos.any { it.jsonObject["moeda"]!!.jsonPrimitive.content == "pyg" })
 
             val dup = client.post("/caixa-sessoes") {
                 auth(token)

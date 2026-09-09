@@ -257,6 +257,7 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
         estabelecimentoNumero: estabelecimento.trim() || null,
         pontoExpedicao: pontoExpedicao.trim() || null,
         perfilFiscal,
+        moedaOperacao: editandoFilial?.moedaOperacao ?? "usd",
         principal,
         listarApenasClientesFilial: editandoFilial?.listarApenasClientesFilial ?? true,
         listarApenasFornecedoresFilial: editandoFilial?.listarApenasFornecedoresFilial ?? true,
@@ -439,34 +440,36 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
         </Section>
       </form>
 
-      <div className="rounded-lg p-5 space-y-3" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
-        <Section title={t("empresa.seed.title")}>
-          <p className="text-sm" style={{ color: v("--text-sub") }}>{t("empresa.seed.hint")}</p>
-          <p className="text-sm font-medium" style={{ color: seed?.aplicado ? "var(--success)" : v("--text-muted") }}>
-            {seed?.aplicado ? t("empresa.seed.statusOn") : t("empresa.seed.statusOff")}
-          </p>
-          {seedErro ? <p className="text-sm" style={{ color: "#ef4444" }}>{seedErro}</p> : null}
-          <div className="flex flex-wrap gap-2 pt-1">
-            <button
-              type="button"
-              className="btn-gold px-4 py-2 text-sm"
-              disabled={seedSalvando || seed?.aplicado === true}
-              onClick={() => void ligarSeed()}
-            >
-              {seedSalvando && !seed?.aplicado ? t("common.saving") : t("empresa.seed.apply")}
-            </button>
-            <button
-              type="button"
-              className="btn-ghost px-4 py-2 text-sm"
-              disabled={seedSalvando || seed?.aplicado !== true}
-              onClick={() => void desligarSeed()}
-              style={{ color: seed?.aplicado ? "#ef4444" : undefined }}
-            >
-              {t("empresa.seed.remove")}
-            </button>
-          </div>
-        </Section>
-      </div>
+      {seed?.habilitado === true ? (
+        <div className="rounded-lg p-5 space-y-3" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
+          <Section title={t("empresa.seed.title")}>
+            <p className="text-sm" style={{ color: v("--text-sub") }}>{t("empresa.seed.hint")}</p>
+            <p className="text-sm font-medium" style={{ color: seed.aplicado ? "var(--success)" : v("--text-muted") }}>
+              {seed.aplicado ? t("empresa.seed.statusOn") : t("empresa.seed.statusOff")}
+            </p>
+            {seedErro ? <p className="text-sm" style={{ color: "#ef4444" }}>{seedErro}</p> : null}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                className="btn-gold px-4 py-2 text-sm"
+                disabled={seedSalvando || seed.aplicado === true}
+                onClick={() => void ligarSeed()}
+              >
+                {seedSalvando && !seed.aplicado ? t("common.saving") : t("empresa.seed.apply")}
+              </button>
+              <button
+                type="button"
+                className="btn-ghost px-4 py-2 text-sm"
+                disabled={seedSalvando || seed.aplicado !== true}
+                onClick={() => void desligarSeed()}
+                style={{ color: seed.aplicado ? "#ef4444" : undefined }}
+              >
+                {t("empresa.seed.remove")}
+              </button>
+            </div>
+          </Section>
+        </div>
+      ) : null}
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">

@@ -4,10 +4,15 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SeedDemoStatusResponse(
+    val habilitado: Boolean = false,
     val aplicado: Boolean,
     val clientes: Int = 0,
+    val fornecedores: Int = 0,
     val produtos: Int = 0,
     val vendas: Int = 0,
     val caixas: Int = 0,
     val finalizadores: Int = 0,
+    val usuarios: Int = 0,
+    val marcas: Int = 0,
+    val estoques: Int = 0,
 )

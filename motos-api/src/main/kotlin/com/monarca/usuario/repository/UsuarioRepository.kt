@@ -10,6 +10,7 @@ interface UsuarioRepository {
     suspend fun inicializar()
 
     suspend fun listar(): List<Usuario>
+    suspend fun listarAtivosDaFilial(idFilial: Long): List<Usuario>
     suspend fun buscar(id: Long): Usuario?
     suspend fun buscarPorLogin(login: String): Usuario?
     suspend fun existePorEmail(email: String, ignorarId: Long? = null): Boolean

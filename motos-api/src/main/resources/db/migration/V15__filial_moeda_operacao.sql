@@ -1,0 +1,1 @@
+ALTER TABLE filial ADD COLUMN moeda_operacao VARCHAR(3) NOT NULL DEFAULT 'usd';

@@ -1,7 +1,9 @@
-import { atualizarProduto, buscarProduto, excluirProduto, type Produto } from "@/api";
-import { useFilialId } from "@/auth/FilialContext";
+import EquivalentesMoeda from "@/components/EquivalentesMoeda";
+import { atualizarProduto, buscarCotacaoHoje, buscarProduto, excluirProduto, type Cotacao, type Produto } from "@/api";
+import { useFilial, useFilialId } from "@/auth/FilialContext";
 import { Section } from "@/components/crud/Field";
 import { StatusBadge } from "@/components/crud/ListUi";
+import { converterMoeda, formatMoeda, moedaOperacaoDe } from "@/format";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import { useEffect, useState, type ReactNode } from "react";
@@ -54,7 +56,10 @@ export default function ProdutoFicha({
 }) {
   const { t } = useI18n();
   const idFilial = useFilialId();
+  const { filial } = useFilial();
+  const moedaOp = moedaOperacaoDe(filial?.moedaOperacao);
   const [item, setItem] = useState<Produto>(fallback);
+  const [cotacao, setCotacao] = useState<Cotacao | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [loading, setLoading] = useState<"status" | "delete" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -69,6 +74,7 @@ export default function ProdutoFicha({
       .then((detalhe) => { if (ativo) setItem(detalhe); })
       .catch((e) => { if (ativo) setErro(mensagemErroApi(e, t, "common.error.loadFailed")); })
       .finally(() => { if (ativo) setCarregando(false); });
+    void buscarCotacaoHoje().then((c) => { if (ativo) setCotacao(c); }).catch(() => { if (ativo) setCotacao(null); });
     return () => { ativo = false; };
   }, [id, idFilial, fallback.id, t]);
 
@@ -108,8 +114,9 @@ export default function ProdutoFicha({
         idModelo: item.idModelo,
         descricao: item.descricao,
         tipo: item.tipo,
+        idFilialCadastro: idFilial,
         aliquotaIva: item.aliquotaIva ?? 10,
-        moedaPreco: item.moedaPreco ?? "usd",
+        moedaPreco: moedaOp,
         precoLista: item.precoLista ?? 0,
         custo: item.custo ?? 0,
         status: proximo,
@@ -205,11 +212,23 @@ export default function ProdutoFicha({
             <div className="grid gap-3 sm:grid-cols-2">
               <Dado label={t("produto.iva")} value={`${item.aliquotaIva ?? 10}%`} />
               <Dado
-                label={t("produto.currency")}
-                value={item.moedaPreco === "pyg" ? t("produto.currency.pyg") : item.moedaPreco === "brl" ? t("produto.currency.brl") : t("produto.currency.usd")}
+                label={t("empresa.moedaOperacao")}
+                value={moedaOp === "pyg" ? t("produto.currency.pyg") : moedaOp === "brl" ? t("produto.currency.brl") : t("produto.currency.usd")}
               />
-              <Dado label={t("produto.listPrice")} value={`${item.precoLista ?? 0} ${(item.moedaPreco ?? "usd").toUpperCase()}`} />
-              <Dado label={t("produto.cost")} value={`${item.custo ?? 0} ${(item.moedaPreco ?? "usd").toUpperCase()}`} />
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("produto.listPrice")}</p>
+                <p className="text-sm mt-1 font-mono" style={{ color: v("--text") }}>
+                  {formatMoeda(converterMoeda(item.precoLista ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}
+                </p>
+                <EquivalentesMoeda valor={converterMoeda(item.precoLista ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("produto.cost")}</p>
+                <p className="text-sm mt-1 font-mono" style={{ color: v("--text") }}>
+                  {formatMoeda(converterMoeda(item.custo ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}
+                </p>
+                <EquivalentesMoeda valor={converterMoeda(item.custo ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
+              </div>
             </div>
           </Section>
 

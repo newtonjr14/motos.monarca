@@ -1,29 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Field, Section } from "@/components/crud/Field";
+import EquivalentesMoeda from "@/components/EquivalentesMoeda";
+import { Field, FormTabs, navegarGuiaNoTeclado, Section } from "@/components/crud/Field";
 import { CatalogHeader, StatusBadge, TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
 import ProdutoFicha from "@/components/ProdutoFicha";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import { tf } from "@/i18n/format";
-import { useFilialId } from "@/auth/FilialContext";
+import { useFilial, useFilialId } from "@/auth/FilialContext";
 import {
   ApiError,
   atualizarProduto,
+  buscarCotacaoHoje,
   buscarProduto,
   criarProduto,
   excluirProduto,
   listarMarcas,
   listarModelos,
   listarProdutos,
+  type Cotacao,
   type Marca,
   type Modelo,
-  type Moeda,
   type Produto,
   type TipoProduto,
   type VinculoFilialProdutoConflito,
 } from "@/api";
-import { PAGE_SIZE, slicePage, toTitleCase } from "@/format";
+import { PAGE_SIZE, converterMoeda, formatMoeda, moedaOperacaoDe, slicePage, toTitleCase } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
@@ -106,6 +108,8 @@ function specsDe(item?: Produto | null): Specs {
 export default function ProdutosPage({ navReset }: { navReset: number }) {
   const { t } = useI18n();
   const idFilial = useFilialId();
+  const { filial } = useFilial();
+  const moedaOp = moedaOperacaoDe(filial?.moedaOperacao);
   const [itens, setItens] = useState<Produto[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -124,10 +128,11 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [specs, setSpecs] = useState<Specs>(specsVazio);
   const [aliquotaIva, setAliquotaIva] = useState<0 | 5 | 10>(10);
-  const [moedaPreco, setMoedaPreco] = useState<Moeda>("usd");
   const [precoLista, setPrecoLista] = useState("");
   const [custo, setCusto] = useState("");
+  const [cotacao, setCotacao] = useState<Cotacao | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [guia, setGuia] = useState<"cadastro" | "ficha" | "preco" | "estoque">("cadastro");
 
   const resetLista = useCallback(() => {
     setFormAberto(false);
@@ -142,6 +147,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       const [produtos, catalogo] = await Promise.all([listarProdutos(idFilial), listarMarcas()]);
       setItens(produtos);
       setMarcas(catalogo);
+      try { setCotacao(await buscarCotacaoHoje()); } catch { setCotacao(null); }
     } catch (e) {
       setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     } finally {
@@ -167,11 +173,18 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     setTipo(item?.tipo ?? "moto");
     setStatus(item?.status === "inativo" ? "inativo" : "ativo");
     setAliquotaIva(item?.aliquotaIva === 0 || item?.aliquotaIva === 5 ? item.aliquotaIva : 10);
-    setMoedaPreco(item?.moedaPreco ?? "usd");
-    setPrecoLista(item != null ? String(item.precoLista) : "");
-    setCusto(item != null ? String(item.custo) : "");
+    if (item != null && item.moedaPreco !== moedaOp && cotacao) {
+      const preco = converterMoeda(item.precoLista, item.moedaPreco, moedaOp, cotacao);
+      const custoConv = converterMoeda(item.custo, item.moedaPreco, moedaOp, cotacao);
+      setPrecoLista(moedaOp === "pyg" ? String(Math.round(preco)) : preco.toFixed(2));
+      setCusto(moedaOp === "pyg" ? String(Math.round(custoConv)) : custoConv.toFixed(2));
+    } else {
+      setPrecoLista(item != null ? String(item.precoLista) : "");
+      setCusto(item != null ? String(item.custo) : "");
+    }
     setSpecs(specsDe(item));
     setErro(null);
+    setGuia("cadastro");
     setFormAberto(true);
     setSelected(null);
   }
@@ -237,7 +250,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       idFilialCadastro: idFilial,
       confirmarVinculoFilial,
       aliquotaIva,
-      moedaPreco,
+      moedaPreco: moedaOp,
       precoLista: num(precoLista) ?? 0,
       custo: num(custo) ?? 0,
       moto,
@@ -245,10 +258,11 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     };
   }
 
-  async function salvar(confirmarVinculoFilial = false) {
+  async function salvar(confirmarVinculoFilial = false, novoDepois = false) {
     setErro(null);
     if (!codigo.trim() || idMarca === "" || idModelo === "") {
       setErro(t("produto.error.required"));
+      setGuia("cadastro");
       return;
     }
     if (tipo === "moto") {
@@ -257,6 +271,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       const maxAno = new Date().getFullYear() + 1;
       if (!Number.isInteger(fab) || !Number.isInteger(mod) || fab < 1990 || mod < 1990 || fab > maxAno || mod > maxAno || mod < fab) {
         setErro(t("produto.error.yearsRequired"));
+        setGuia("ficha");
         return;
       }
     }
@@ -264,14 +279,20 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     const custoN = num(custo);
     if (preco == null || preco < 0 || custoN == null || custoN < 0) {
       setErro(t("produto.error.price"));
+      setGuia("preco");
       return;
     }
     setSalvando(true);
     try {
       if (editando) await atualizarProduto(editando.id, corpo());
       else await criarProduto(corpo(confirmarVinculoFilial));
-      setFormAberto(false);
-      await carregar();
+      if (novoDepois && !editando) {
+        preencher(null);
+        await carregar();
+      } else {
+        setFormAberto(false);
+        await carregar();
+      }
     } catch (e) {
       if (!editando && e instanceof ApiError && e.status === 409) {
         const body = e.body as VinculoFilialProdutoConflito;
@@ -279,7 +300,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
           const filiais = body.filiaisVinculadas.map((f) => f.nome).join(", ");
           if (confirm(tf(t, "produto.confirmLinkBranch", { codigo: body.produto.codigo, filiais }))) {
             setSalvando(false);
-            await salvar(true);
+            await salvar(true, novoDepois);
             return;
           }
         }
@@ -315,8 +336,20 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
           {editando ? t("produto.edit") : t("produto.new")}
         </h1>
         <form className="rounded-lg p-6 space-y-5" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
-          onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
+          onSubmit={(e) => { e.preventDefault(); void salvar(); }}
+          onKeyDown={(e) => navegarGuiaNoTeclado(e, ["cadastro", "ficha", "preco", "estoque"], guia, setGuia)}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+          <FormTabs
+            value={guia}
+            onChange={setGuia}
+            tabs={[
+              { id: "cadastro", label: t("produto.tab.cadastro") },
+              { id: "ficha", label: t("produto.tab.ficha") },
+              { id: "preco", label: t("produto.section.price") },
+              { id: "estoque", label: t("produto.section.estoque") },
+            ]}
+          />
+          <div role="tabpanel" id="form-panel-cadastro" aria-labelledby="form-tab-cadastro" hidden={guia !== "cadastro"} className="space-y-5">
           <Section title={t("produto.section.general")}>
             <div className="form-grid-2">
               <Field label={t("produto.codigo")} required hint={t("produto.codigoHint")}>
@@ -370,31 +403,9 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
               </Field>
             )}
           </Section>
-          <Section title={t("produto.section.price")}>
-            <div className="form-grid-2">
-              <Field label={t("produto.iva")} required hint={t("produto.ivaHint")}>
-                <select className="field" value={aliquotaIva} onChange={(e) => setAliquotaIva(Number(e.target.value) as 0 | 5 | 10)}>
-                  <option value={10}>10%</option>
-                  <option value={5}>5%</option>
-                  <option value={0}>0%</option>
-                </select>
-              </Field>
-              <Field label={t("produto.currency")} required>
-                <select className="field" value={moedaPreco} onChange={(e) => setMoedaPreco(e.target.value as Moeda)}>
-                  <option value="usd">{t("produto.currency.usd")}</option>
-                  <option value="pyg">{t("produto.currency.pyg")}</option>
-                  <option value="brl">{t("produto.currency.brl")}</option>
-                </select>
-              </Field>
-              <Field label={t("produto.listPrice")} required hint={t("produto.listPriceHint")}>
-                <input className="field font-mono" inputMode="decimal" value={precoLista} onChange={(e) => setPrecoLista(e.target.value)} />
-              </Field>
-              <Field label={t("produto.cost")} required hint={t("produto.costHint")}>
-                <input className="field font-mono" inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} />
-              </Field>
-            </div>
-          </Section>
-          <Section title={tipo === "moto" ? t("produto.section.moto") : t("produto.section.bicicleta")}>
+          </div>
+          <div role="tabpanel" id="form-panel-ficha" aria-labelledby="form-tab-ficha" hidden={guia !== "ficha"}>
+          <Section title={t("produto.tab.ficha")}>
             <div className="form-grid-2">
               {tipo === "moto" && (
                 <>
@@ -483,8 +494,76 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
               </Field>
             </div>
           </Section>
+          </div>
+          <div role="tabpanel" id="form-panel-preco" aria-labelledby="form-tab-preco" hidden={guia !== "preco"}>
+          <Section title={t("produto.section.price")}>
+            <div className="form-grid-2">
+              <Field label={t("produto.iva")} required hint={t("produto.ivaHint")}>
+                <select className="field" value={aliquotaIva} onChange={(e) => setAliquotaIva(Number(e.target.value) as 0 | 5 | 10)}>
+                  <option value={10}>10%</option>
+                  <option value={5}>5%</option>
+                  <option value={0}>0%</option>
+                </select>
+              </Field>
+              <Field label={t("empresa.moedaOperacao")} hint={t("empresa.moedaOperacao.hint")}>
+                <p className="field flex items-center" style={{ background: v("--card2") }}>
+                  {moedaOp === "pyg" ? t("produto.currency.pyg") : moedaOp === "brl" ? t("produto.currency.brl") : t("produto.currency.usd")}
+                </p>
+              </Field>
+              <Field label={t("produto.listPrice")} required hint={t("produto.listPriceHint")}>
+                <input className="field font-mono" inputMode="decimal" value={precoLista} onChange={(e) => setPrecoLista(e.target.value)} />
+                <EquivalentesMoeda valor={num(precoLista) ?? 0} de={moedaOp} cotacao={cotacao} />
+              </Field>
+              <Field label={t("produto.cost")} required hint={t("produto.costHint")}>
+                <input className="field font-mono" inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} />
+                <EquivalentesMoeda valor={num(custo) ?? 0} de={moedaOp} cotacao={cotacao} />
+              </Field>
+            </div>
+          </Section>
+          </div>
+          <div role="tabpanel" id="form-panel-estoque" aria-labelledby="form-tab-estoque" hidden={guia !== "estoque"} className="space-y-3">
+            <Section title={t("produto.section.estoque")}>
+              {!editando ? (
+                <p className="text-sm" style={{ color: v("--text-muted") }}>{t("produto.stockAfterSave")}</p>
+              ) : (editando.estoques ?? []).length === 0 ? (
+                <p className="text-sm" style={{ color: v("--text-muted") }}>{t("produto.noStock")}</p>
+              ) : (
+                <>
+                  <div className="rounded-md overflow-hidden" style={{ border: `1px solid ${v("--border")}` }}>
+                    <table className="drive-table w-full">
+                      <thead>
+                        <tr>
+                          <th className="drive-th">{t("nav.estoques")}</th>
+                          <th className="drive-th">{t("estoque.qty")}</th>
+                          <th className="drive-th">{t("estoque.reserved")}</th>
+                          <th className="drive-th">{t("estoque.available")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(editando.estoques ?? []).map((e) => (
+                          <tr key={e.idEstoque} style={{ borderBottom: `1px solid ${v("--border")}` }}>
+                            <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{e.estoqueNome}</td>
+                            <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{e.quantidade}</td>
+                            <td className="drive-td font-mono" style={{ color: v("--text-muted") }}>{e.quantidadeReservada}</td>
+                            <td className="drive-td font-mono" style={{ color: v("--text") }}>{e.quantidadeDisponivel}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs" style={{ color: v("--text-muted") }}>{t("produto.stockHint")}</p>
+                </>
+              )}
+            </Section>
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>{t("common.cancel")}</button>
+            {!editando && (
+              <button type="button" disabled={salvando} className="btn-ghost px-4 py-2 text-sm"
+                onClick={() => void salvar(false, true)}>
+                {salvando ? t("common.saving") : t("common.saveAndNew")}
+              </button>
+            )}
             <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">{salvando ? t("common.saving") : t("common.save")}</button>
           </div>
         </form>
@@ -530,7 +609,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                   <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{p.nome}</td>
                   <Td sub>{p.marca}</Td>
                   <Td sub>{p.tipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")}</Td>
-                  <Td mono>{p.precoLista} {p.moedaPreco?.toUpperCase()}</Td>
+                  <Td mono>{formatMoeda(converterMoeda(p.precoLista, p.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}</Td>
                   <Td mono>{p.quantidadeDisponivel ?? 0}</Td>
                   <td className="px-4 py-3"><StatusBadge status={p.status === "inativo" ? "inativo" : "ativo"} /></td>
                   <td className="px-4 py-3 text-right">

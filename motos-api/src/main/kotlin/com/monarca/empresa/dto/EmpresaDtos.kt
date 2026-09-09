@@ -2,6 +2,7 @@ package com.monarca.empresa.dto
 
 import com.monarca.common.enums.Status
 import com.monarca.empresa.domain.PerfilFiscal
+import com.monarca.produto.domain.Moeda
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -45,6 +46,7 @@ data class FilialRequest(
     val estabelecimentoNumero: String? = null,
     val pontoExpedicao: String? = null,
     val perfilFiscal: PerfilFiscal = PerfilFiscal.PY_IVA,
+    val moedaOperacao: Moeda = Moeda.USD,
     val principal: Boolean = false,
     val listarApenasClientesFilial: Boolean = true,
     val listarApenasFornecedoresFilial: Boolean = true,
@@ -78,6 +80,7 @@ data class FilialResponse(
     val estabelecimentoNumero: String? = null,
     val pontoExpedicao: String? = null,
     val perfilFiscal: PerfilFiscal,
+    val moedaOperacao: Moeda,
     val principal: Boolean,
     val listarApenasClientesFilial: Boolean,
     val listarApenasFornecedoresFilial: Boolean,

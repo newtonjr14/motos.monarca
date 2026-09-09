@@ -235,4 +235,5 @@ private fun FilialAcesso.toResponse() = FilialAcessoResponse(
     id = id,
     nome = nome,
     principal = principal,
+    moedaOperacao = moedaOperacao,
 )

@@ -9,11 +9,11 @@ import com.monarca.common.http.respondNotFound
 import com.monarca.localidade.service.AcessoNegado
 import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.RequisicaoInvalida
+import com.monarca.seed.dto.SeedDemoStatusResponse
 import com.monarca.seed.service.DemoSeedService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.log
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond
@@ -21,36 +21,46 @@ import io.ktor.server.resources.delete
 import io.ktor.server.resources.get
 import io.ktor.server.resources.post
 import io.ktor.server.routing.routing
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.launch
 import org.koin.ktor.ext.get as koinGet
 
 fun Application.configureSeed() {
     val service = koinGet<DemoSeedService>()
-    val auto = environment.config.propertyOrNull("seed.demo")?.getString()?.toBooleanStrictOrNull() == true
+    val habilitado = environment.config.propertyOrNull("seed.demo")
+        ?.getString()
+        ?.toBooleanStrictOrNull() == true
+
+    if (habilitado) {
+        log.info("Seed DEMO habilitado (seed.demo=true). Ligar e desligar em Cadastros → Empresa")
+    } else {
+        log.info("Seed DEMO desligado (seed.demo=false). Sem botão e sem API de dados de teste")
+    }
 
     routing {
         authenticate(JWT_AUTH) {
             get<SeedDemo> {
                 call.handleSeed {
                     call.podeGerenciarEmpresa()
-                    call.respond(service.status())
+                    if (!habilitado) {
+                        call.respond(SeedDemoStatusResponse(habilitado = false, aplicado = false))
+                    } else {
+                        call.respond(service.status())
+                    }
                 }
             }
             post<SeedDemo> {
                 call.handleSeed {
                     call.podeGerenciarEmpresa()
+                    call.exigirSeedHabilitado(habilitado)
                     call.withAudit {
-                        val status = service.aplicar()
-                        call.respond(HttpStatusCode.OK, status)
+                        call.respond(HttpStatusCode.OK, service.aplicar())
                     }
                 }
             }
             delete<SeedDemo> {
                 call.handleSeed {
                     call.podeGerenciarEmpresa()
+                    call.exigirSeedHabilitado(habilitado)
                     call.withAudit {
                         call.respond(service.remover())
                     }
@@ -58,27 +68,11 @@ fun Application.configureSeed() {
             }
         }
     }
+}
 
-    if (!auto) {
-        log.info("Seed DEMO desligado (seed.demo=false). Ligue em Cadastros → Empresa ou seed.demo: true")
-        return
-    }
-
-    log.info("Seed DEMO ligado — aplica depois da API subir")
-    monitor.subscribe(ApplicationStarted) {
-        CoroutineScope(Dispatchers.Default).launch {
-            try {
-                log.info("Seed DEMO aplicando dados de teste")
-                val status = service.aplicar()
-                log.info(
-                    "Seed DEMO aplicado: clientes=${status.clientes} produtos=${status.produtos} vendas=${status.vendas}",
-                )
-            } catch (e: TimeoutCancellationException) {
-                log.error("Seed DEMO estourou o tempo ao aplicar", e)
-            } catch (e: Exception) {
-                log.error("Seed DEMO falhou ao aplicar", e)
-            }
-        }
+private fun ApplicationCall.exigirSeedHabilitado(habilitado: Boolean) {
+    if (!habilitado) {
+        throw RecursoNaoEncontrado("Dados de teste desligados", "SEED_DESLIGADO")
     }
 }
 

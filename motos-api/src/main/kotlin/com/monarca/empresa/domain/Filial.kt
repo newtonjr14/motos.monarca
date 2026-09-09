@@ -1,6 +1,7 @@
 package com.monarca.empresa.domain
 
 import com.monarca.common.enums.Status
+import com.monarca.produto.domain.Moeda
 
 data class Filial(
     val id: Long,
@@ -22,6 +23,7 @@ data class Filial(
     val estabelecimentoNumero: String?,
     val pontoExpedicao: String?,
     val perfilFiscal: PerfilFiscal,
+    val moedaOperacao: Moeda,
     val principal: Boolean,
     val listarApenasClientesFilial: Boolean,
     val listarApenasFornecedoresFilial: Boolean,

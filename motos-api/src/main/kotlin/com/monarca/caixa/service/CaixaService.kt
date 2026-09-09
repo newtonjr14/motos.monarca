@@ -26,6 +26,7 @@ import com.monarca.empresa.service.EmpresaService
 import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.acesso
 import com.monarca.localidade.service.invalido
+import com.monarca.produto.domain.Moeda
 import com.monarca.usuario.repository.UsuarioRepository
 import java.time.LocalDate
 import java.time.ZoneId
@@ -258,9 +259,9 @@ class CaixaService(
         if (valores.isEmpty()) {
             throw invalido("CAIXA_VALOR_INVALIDO", "Informe ao menos um valor para transferir")
         }
-        val saldos = origem.saldos.associate { it.idFinalizador to it.valor }
+        val saldos = origem.saldos.associate { (it.idFinalizador to it.moeda) to it.valor }
         for (linha in valores) {
-            val tem = saldos[linha.idFinalizador] ?: 0.0
+            val tem = saldos[linha.idFinalizador to linha.moeda] ?: 0.0
             if (linha.valor > tem + 0.009) {
                 throw invalido("CAIXA_SALDO_INSUFICIENTE", "Saldo insuficiente para transferir")
             }
@@ -331,14 +332,23 @@ class CaixaService(
     }
 
     private suspend fun validarValores(linhas: List<ValorFinalizadorRequest>): List<ValorFinalizador> {
-        val agrupado = mutableMapOf<Long, Double>()
+        val agrupado = mutableMapOf<Pair<Long, Moeda>, Double>()
         for (linha in linhas) {
             if (linha.valor < 0) throw invalido("CAIXA_VALOR_INVALIDO", "O valor não pode ser negativo")
             repository.buscarFinalizador(linha.idFinalizador)
                 ?: throw RecursoNaoEncontrado("Finalizador ${linha.idFinalizador} não encontrado")
-            agrupado[linha.idFinalizador] = (agrupado[linha.idFinalizador] ?: 0.0) + linha.valor
+            val chave = linha.idFinalizador to linha.moeda
+            agrupado[chave] = (agrupado[chave] ?: 0.0) + linha.valor
         }
-        return agrupado.map { ValorFinalizador(it.key, it.value) }
+        return agrupado.map { (chave, valor) ->
+            val pyg = if (chave.second == Moeda.PYG) kotlin.math.round(valor) else 0.0
+            ValorFinalizador(
+                idFinalizador = chave.first,
+                valor = valor,
+                moeda = chave.second,
+                valorPyg = pyg,
+            )
+        }
     }
 
     private suspend fun resolverFilialComAcesso(idUsuario: Long, idFilial: Long?): Long {
@@ -386,7 +396,13 @@ class CaixaService(
             observacaoAbertura = sessao.observacaoAbertura,
             status = sessao.status,
             saldos = saldos.map {
-                ValorFinalizadorResponse(it.idFinalizador, nomes[it.idFinalizador], it.valor)
+                ValorFinalizadorResponse(
+                    idFinalizador = it.idFinalizador,
+                    finalizadorNome = nomes[it.idFinalizador],
+                    valor = it.valor,
+                    moeda = it.moeda,
+                    valorPyg = it.valorPyg,
+                )
             },
         )
 
@@ -400,7 +416,13 @@ class CaixaService(
         criadoEm = movimento.criadoEm,
         observacao = movimento.observacao,
         finalizadores = movimento.finalizadores.map {
-            ValorFinalizadorResponse(it.idFinalizador, finalizadorNomes[it.idFinalizador], it.valor)
+            ValorFinalizadorResponse(
+                idFinalizador = it.idFinalizador,
+                finalizadorNome = finalizadorNomes[it.idFinalizador],
+                valor = it.valor,
+                moeda = it.moeda,
+                valorPyg = it.valorPyg,
+            )
         },
     )
 }

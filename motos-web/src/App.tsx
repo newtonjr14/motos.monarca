@@ -8,6 +8,7 @@ import FinalizadoresPage from "@/components/FinalizadoresPage";
 import CaixasPage from "@/components/CaixasPage";
 import CaixaOperacaoPage from "@/components/CaixaOperacaoPage";
 import VendasPage from "@/components/VendasPage";
+import HistoricoVendasPage from "@/components/HistoricoVendasPage";
 import { CotacaoAlerta, CotacaoChip, CotacaoHojeProvider } from "@/components/CotacaoBanner";
 import { FilialGate, FilialSwitcher } from "@/components/FilialUi";
 import CidadeSearchSelect from "@/components/CidadeSearchSelect";
@@ -19,6 +20,7 @@ import ModelosPage from "@/components/ModelosPage";
 import ProdutosPage from "@/components/ProdutosPage";
 import PapelFicha from "@/components/PapelFicha";
 import PessoaPreviewModal from "@/components/PessoaPreviewModal";
+import { FormTabs, navegarGuiaNoTeclado } from "@/components/crud/Field";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useSystemHeartbeat } from "@/hooks/useSystemHeartbeat";
 import { useI18n } from "@/i18n";
@@ -219,6 +221,7 @@ const Icon = {
   estoques: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>,
   cotacoes: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
   vendas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>,
+  historico: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>,
   caixa: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M12 14h.01"/></svg>,
   finalizadores: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>,
   search: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
@@ -230,13 +233,14 @@ const Icon = {
   more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "vendas" | "caixa" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "vendas" | "historico" | "caixa" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: string };
 
 const navOperacao: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard", permissao: Permissao.DASHBOARD_CONSULTAR },
   { id: "vendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
+  { id: "historico", label: "Histórico", icon: "historico", permissao: Permissao.VENDA_REGISTRAR },
   { id: "caixa", label: "Caixa", icon: "caixa", permissao: Permissao.CAIXA_OPERAR },
   { id: "clientes", label: "Clientes", icon: "clientes", permissao: Permissao.PESSOA_GERENCIAR },
   { id: "fornecedores", label: "Fornecedores", icon: "fornecedores", permissao: Permissao.PESSOA_GERENCIAR },
@@ -766,6 +770,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
   const [idPessoaPendente, setIdPessoaPendente] = useState<number | null>(null);
   const [previewPessoaId, setPreviewPessoaId] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [guia, setGuia] = useState<"dados" | "enderecos" | "documentos">("dados");
 
   useEffect(() => { void listarPaises().then(setPaises); }, []);
   useEffect(() => {
@@ -806,6 +811,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
 
   useEffect(() => {
     if (!erroNumero) return;
+    setGuia("documentos");
     numeroRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     numeroRef.current?.focus();
   }, [erroNumero]);
@@ -873,20 +879,24 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
   function validarLocal(): boolean {
     if (!nome.trim()) {
       setErro(t("papel.error.nameRequired"));
+      setGuia("dados");
       return false;
     }
     const ddiDigits = apenasDigitos(ddi);
     const telDigits = apenasDigitos(telefone);
     if (Boolean(ddiDigits) !== Boolean(telDigits)) {
       setErro(t("papel.error.phonePair"));
+      setGuia("dados");
       return false;
     }
     if (idPais === "" || idTipo === "") {
       setErro(t("papel.error.docRequired"));
+      setGuia("documentos");
       return false;
     }
     if (!numero.trim()) {
       setErroNumero(t("papel.error.docNumberRequired"));
+      setGuia("documentos");
       return false;
     }
     return true;
@@ -925,8 +935,11 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
         }
       } else if (isErroCampoDocumento(e)) {
         setErroNumero(msg);
+        setGuia("documentos");
       } else {
         setErro(msg);
+        const codigo = e instanceof ApiError ? (e.body as { codigo?: string })?.codigo : undefined;
+        if (codigo?.startsWith("ENDERECO_")) setGuia("enderecos");
       }
     } finally {
       setSalvando(false);
@@ -949,80 +962,90 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
       </div>
 
       <form className="rounded-lg p-5 space-y-5" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
-        onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
+        onSubmit={(e) => { e.preventDefault(); void salvar(); }}
+        onKeyDown={(e) => navegarGuiaNoTeclado(e, ["dados", "enderecos", "documentos"], guia, setGuia)}>
 
-        <div className="form-grid-2">
-          <Section title={t("papel.section.identification")}>
-            <Field label={t("papel.name")} required>
-              <input className="field" autoFocus value={nome}
-                onChange={(e) => { setNome(e.target.value); setErro(null); }}
-                onBlur={() => setNome((x) => toTitleCase(x))}
-                placeholder={t("papel.namePlaceholder")} />
-            </Field>
-            <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: editando ? "1fr 1fr" : "1fr" }}>
-              <Field label={t("papel.personType")}>
-                <select className="field" value={tipoPessoa} onChange={(e) => setTipoPessoa(e.target.value as TipoPessoa)}>
-                  <option value="fisica">{t("papel.personType.fisica")}</option>
-                  <option value="juridica">{t("papel.personType.juridica")}</option>
-                </select>
+        <FormTabs
+          value={guia}
+          onChange={setGuia}
+          tabs={[
+            { id: "dados", label: t("form.tab.data") },
+            { id: "enderecos", label: t("form.tab.address") },
+            { id: "documentos", label: t("form.tab.document") },
+          ]}
+        />
+
+        <div role="tabpanel" id="form-panel-dados" aria-labelledby="form-tab-dados" hidden={guia !== "dados"}>
+          <div className="form-grid-2">
+            <Section title={t("papel.section.identification")}>
+              <Field label={t("papel.name")} required>
+                <input className="field" autoFocus value={nome}
+                  onChange={(e) => { setNome(e.target.value); setErro(null); }}
+                  onBlur={() => setNome((x) => toTitleCase(x))}
+                  placeholder={t("papel.namePlaceholder")} />
               </Field>
-              {editando && (
-                <Field label={t("common.status")}>
-                  <select className="field" value={status} onChange={(e) => setStatus(e.target.value as "ativo" | "inativo")}>
-                    <option value="ativo">{t("common.active")}</option>
-                    <option value="inativo">{t("common.inactive")}</option>
+              <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: editando ? "1fr 1fr" : "1fr" }}>
+                <Field label={t("papel.personType")}>
+                  <select className="field" value={tipoPessoa} onChange={(e) => setTipoPessoa(e.target.value as TipoPessoa)}>
+                    <option value="fisica">{t("papel.personType.fisica")}</option>
+                    <option value="juridica">{t("papel.personType.juridica")}</option>
                   </select>
                 </Field>
-              )}
-            </div>
-          </Section>
+                {editando && (
+                  <Field label={t("common.status")}>
+                    <select className="field" value={status} onChange={(e) => setStatus(e.target.value as "ativo" | "inativo")}>
+                      <option value="ativo">{t("common.active")}</option>
+                      <option value="inativo">{t("common.inactive")}</option>
+                    </select>
+                  </Field>
+                )}
+              </div>
+            </Section>
 
-          <Section title={t("papel.section.contact")}>
-            <DdiSearchSelect ddi={ddi} telefone={telefone}
-              onChange={({ ddi: nextDdi, telefone: nextTel }) => { setDdi(nextDdi); setTelefone(nextTel); }} />
-            <Field label={t("common.email")} className="mt-3">
-              <input className="field" type="email" value={email}
-                onChange={(e) => setEmail(toEmailLower(e.target.value))}
-                onBlur={() => setEmail((x) => toEmailLower(x))}
-                placeholder="email@exemplo.com" />
-            </Field>
-          </Section>
+            <Section title={t("papel.section.contact")}>
+              <DdiSearchSelect ddi={ddi} telefone={telefone}
+                onChange={({ ddi: nextDdi, telefone: nextTel }) => { setDdi(nextDdi); setTelefone(nextTel); }} />
+              <Field label={t("common.email")} className="mt-3">
+                <input className="field" type="email" value={email}
+                  onChange={(e) => setEmail(toEmailLower(e.target.value))}
+                  onBlur={() => setEmail((x) => toEmailLower(x))}
+                  placeholder="email@exemplo.com" />
+              </Field>
+            </Section>
+          </div>
         </div>
 
-        <Section title={t("papel.section.address")}>
-          <div className="space-y-4">
-            {enderecos.map((e, i) => (
-              <div
-                key={i}
-                className="rounded-md p-3 space-y-3"
-                style={{ border: `1px solid ${v("--border")}`, background: v("--card2") }}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="grid gap-3 flex-1" style={{ gridTemplateColumns: "1fr auto" }}>
-                    <Field label={t("papel.addressType")}>
-                      <select
-                        className="field"
-                        value={e.tipo}
-                        onChange={(ev) => patchEndereco(i, { tipo: ev.target.value as TipoEndereco })}
-                      >
-                        <option value="fiscal">{t("papel.addressType.fiscal")}</option>
-                        <option value="residencial">{t("papel.addressType.residencial")}</option>
-                        <option value="entrega">{t("papel.addressType.entrega")}</option>
-                      </select>
-                    </Field>
-                    <label className="flex items-center gap-2 text-[13px] mt-6 cursor-pointer" style={{ color: v("--text-sub") }}>
-                      <input
-                        type="checkbox"
-                        checked={e.principal}
-                        onChange={() => { if (!e.principal) marcarPrincipal(i); }}
-                      />
-                      {t("papel.addressPrincipal")}
-                    </label>
-                  </div>
+        <div role="tabpanel" id="form-panel-enderecos" aria-labelledby="form-tab-enderecos" hidden={guia !== "enderecos"} className="space-y-5">
+          {enderecos.map((e, i) => (
+            <Section
+              key={i}
+              title={enderecos.length > 1 ? `${t("papel.section.address")} ${i + 1}` : t("papel.section.address")}
+            >
+              <div className="form-grid-2">
+                <Field label={t("papel.addressType")}>
+                  <select
+                    className="field"
+                    value={e.tipo}
+                    onChange={(ev) => patchEndereco(i, { tipo: ev.target.value as TipoEndereco })}
+                  >
+                    <option value="fiscal">{t("papel.addressType.fiscal")}</option>
+                    <option value="residencial">{t("papel.addressType.residencial")}</option>
+                    <option value="entrega">{t("papel.addressType.entrega")}</option>
+                  </select>
+                </Field>
+                <div className="flex items-end justify-between gap-3">
+                  <label className="flex items-center gap-2 text-[13px] pb-2.5 cursor-pointer" style={{ color: v("--text-sub") }}>
+                    <input
+                      type="checkbox"
+                      checked={e.principal}
+                      onChange={() => { if (!e.principal) marcarPrincipal(i); }}
+                    />
+                    {t("papel.addressPrincipal")}
+                  </label>
                   {enderecos.length > 1 && (
                     <button
                       type="button"
-                      className="text-xs cursor-pointer shrink-0"
+                      className="text-xs cursor-pointer pb-2.5"
                       style={{ color: v("--text-muted") }}
                       onClick={() => removerEndereco(i)}
                     >
@@ -1030,60 +1053,63 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
                     </button>
                   )}
                 </div>
-                <div className="grid gap-3" style={{ gridTemplateColumns: "6rem 1fr 5rem" }}>
-                  <Field label={t("papel.streetType")}>
-                    <input className="field" value={e.tipoLogradouro}
-                      onChange={(ev) => patchEndereco(i, { tipoLogradouro: ev.target.value })}
-                      onBlur={() => patchEndereco(i, { tipoLogradouro: toTitleCase(e.tipoLogradouro) })}
-                      placeholder={t("papel.streetTypePlaceholder")} />
-                  </Field>
-                  <Field label={t("papel.street")}>
-                    <input className="field" value={e.logradouro}
-                      onChange={(ev) => patchEndereco(i, { logradouro: ev.target.value })}
-                      onBlur={() => patchEndereco(i, { logradouro: toTitleCase(e.logradouro) })}
-                      placeholder={t("papel.streetPlaceholder")} />
-                  </Field>
-                  <Field label={t("papel.number")}>
-                    <input className="field" value={e.numero}
-                      onChange={(ev) => patchEndereco(i, { numero: ev.target.value })}
-                      placeholder={t("papel.numberPlaceholder")} />
-                  </Field>
-                </div>
-                <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 9rem 1fr" }}>
-                  <Field label={t("papel.neighborhood")}>
-                    <input className="field" value={e.bairro}
-                      onChange={(ev) => patchEndereco(i, { bairro: ev.target.value })}
-                      onBlur={() => patchEndereco(i, { bairro: toTitleCase(e.bairro) })} />
-                  </Field>
-                  <Field label={t("papel.postalCode")}>
-                    <input className="field font-mono" value={e.cep}
-                      onChange={(ev) => patchEndereco(i, { cep: normalizarCep(ev.target.value) })}
-                      placeholder={t("papel.postalCodePlaceholder")} />
-                  </Field>
-                  <Field label={t("papel.complement")}>
-                    <input className="field" value={e.complemento}
-                      onChange={(ev) => patchEndereco(i, { complemento: ev.target.value })}
-                      onBlur={() => patchEndereco(i, { complemento: toTitleCase(e.complemento) })} />
-                  </Field>
-                </div>
+              </div>
+              <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: "6rem 1fr 5rem" }}>
+                <Field label={t("papel.streetType")}>
+                  <input className="field" value={e.tipoLogradouro}
+                    onChange={(ev) => patchEndereco(i, { tipoLogradouro: ev.target.value })}
+                    onBlur={() => patchEndereco(i, { tipoLogradouro: toTitleCase(e.tipoLogradouro) })}
+                    placeholder={t("papel.streetTypePlaceholder")} />
+                </Field>
+                <Field label={t("papel.street")}>
+                  <input className="field" value={e.logradouro}
+                    onChange={(ev) => patchEndereco(i, { logradouro: ev.target.value })}
+                    onBlur={() => patchEndereco(i, { logradouro: toTitleCase(e.logradouro) })}
+                    placeholder={t("papel.streetPlaceholder")} />
+                </Field>
+                <Field label={t("papel.number")}>
+                  <input className="field" value={e.numero}
+                    onChange={(ev) => patchEndereco(i, { numero: ev.target.value })}
+                    placeholder={t("papel.numberPlaceholder")} />
+                </Field>
+              </div>
+              <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: "1fr 9rem 1fr" }}>
+                <Field label={t("papel.neighborhood")}>
+                  <input className="field" value={e.bairro}
+                    onChange={(ev) => patchEndereco(i, { bairro: ev.target.value })}
+                    onBlur={() => patchEndereco(i, { bairro: toTitleCase(e.bairro) })} />
+                </Field>
+                <Field label={t("papel.postalCode")}>
+                  <input className="field font-mono" value={e.cep}
+                    onChange={(ev) => patchEndereco(i, { cep: normalizarCep(ev.target.value) })}
+                    placeholder={t("papel.postalCodePlaceholder")} />
+                </Field>
+                <Field label={t("papel.complement")}>
+                  <input className="field" value={e.complemento}
+                    onChange={(ev) => patchEndereco(i, { complemento: ev.target.value })}
+                    onBlur={() => patchEndereco(i, { complemento: toTitleCase(e.complemento) })} />
+                </Field>
+              </div>
+              <div className="mt-3">
                 <CidadeSearchSelect
                   cidades={cidades}
                   value={e.idCidade}
                   onChange={(id) => patchEndereco(i, { idCidade: id })}
                 />
               </div>
-            ))}
-            <button
-              type="button"
-              className="text-xs cursor-pointer underline-offset-2 hover:underline"
-              style={{ color: v("--gold") }}
-              onClick={adicionarEndereco}
-            >
-              {t("papel.addressAdd")}
-            </button>
-          </div>
-        </Section>
+            </Section>
+          ))}
+          <button
+            type="button"
+            className="text-xs cursor-pointer underline-offset-2 hover:underline"
+            style={{ color: v("--gold") }}
+            onClick={adicionarEndereco}
+          >
+            {t("papel.addressAdd")}
+          </button>
+        </div>
 
+        <div role="tabpanel" id="form-panel-documentos" aria-labelledby="form-tab-documentos" hidden={guia !== "documentos"}>
         <Section title={t("papel.section.document")}>
           {hasPermission(Permissao.DOCUMENTO_GERENCIAR) && (
             <div className="flex items-center justify-end gap-2 mb-1">
@@ -1120,6 +1146,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
             </Field>
           </div>
         </Section>
+        </div>
 
         {(erro || conflito) && (
           <div ref={conflitoRef} className="space-y-2 pt-1" style={{ borderTop: `1px solid ${v("--border")}` }}>
@@ -2222,6 +2249,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
   const titles: Record<View, string> = {
     dashboard: t("nav.dashboard"),
     vendas: t("nav.vendas"),
+    historico: t("nav.historico"),
     caixa: t("nav.caixa"),
     clientes: t("nav.clientes"),
     fornecedores: t("nav.fornecedores"),
@@ -2271,6 +2299,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
           {view === null && <VendasEmBreve />}
           {view === "dashboard" && <Dashboard clientes={clientes} fornecedores={fornecedores} systemOnline={systemOnline} />}
           {view === "vendas" && <VendasPage navReset={navReset} />}
+          {view === "historico" && <HistoricoVendasPage navReset={navReset} />}
           {view === "caixa" && <CaixaOperacaoPage navReset={navReset} />}
           {view === "clientes" && <PapelPage recurso="clientes" titulo={t("nav.clientes")} singular={t("entity.cliente")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
           {view === "fornecedores" && <PapelPage recurso="fornecedores" titulo={t("nav.fornecedores")} singular={t("entity.fornecedor")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}

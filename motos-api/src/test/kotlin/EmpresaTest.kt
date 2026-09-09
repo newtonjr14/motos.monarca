@@ -35,6 +35,7 @@ class EmpresaTest {
             ).jsonObject
             assertEquals(true, principal["principal"]!!.jsonPrimitive.content.toBoolean())
             assertEquals("py_iva", principal["perfilFiscal"]!!.jsonPrimitive.content)
+            assertTrue(principal["moedaOperacao"]!!.jsonPrimitive.content in setOf("usd", "pyg", "brl"))
             assertEquals(empresa["id"]!!.jsonPrimitive.long, principal["idEmpresa"]!!.jsonPrimitive.long)
         }
     }
@@ -72,6 +73,14 @@ class EmpresaTest {
                 client.get("/filiais/principal") { auth(token) }.bodyAsText(),
             ).jsonObject
             assertEquals(id, principal["id"]!!.jsonPrimitive.long)
+
+            val moeda = client.put("/filiais/$id") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idEmpresa":$empresaId,"nome":"Sucursal Editada $n","moedaOperacao":"pyg","principal":true}""")
+            }
+            assertEquals(HttpStatusCode.OK, moeda.status)
+            assertEquals("pyg", Json.parseToJsonElement(moeda.bodyAsText()).jsonObject["moedaOperacao"]!!.jsonPrimitive.content)
         }
     }
 }

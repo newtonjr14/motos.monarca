@@ -1,6 +1,7 @@
 package com.monarca.caixa.domain
 
 import com.monarca.common.enums.Status
+import com.monarca.produto.domain.Moeda
 
 data class Finalizador(
     val id: Long,
@@ -40,6 +41,8 @@ data class CaixaSessao(
 data class ValorFinalizador(
     val idFinalizador: Long,
     val valor: Double,
+    val moeda: Moeda = Moeda.PYG,
+    val valorPyg: Double = valor,
 )
 
 data class CaixaMovimentacao(

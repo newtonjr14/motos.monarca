@@ -8,6 +8,7 @@ import com.monarca.localidade.service.acesso
 import com.monarca.localidade.service.invalido
 import com.monarca.pessoa.domain.FilialVinculo
 import com.monarca.pessoa.dto.FilialVinculoResponse
+import com.monarca.produto.domain.Moeda
 import com.monarca.produto.domain.Produto
 import com.monarca.produto.domain.ProdutoBicicleta
 import com.monarca.produto.domain.ProdutoCompleto
@@ -66,7 +67,7 @@ class ProdutoService(
     suspend fun criar(request: ProdutoRequest, idUsuario: Long): ProdutoResponse {
         val idFilial = resolverFilialComAcesso(idUsuario, request.idFilialCadastro)
         val filialAlvo = empresaService.buscarFilial(idFilial)
-        val produto = validarProduto(request, id = 0)
+        val produto = validarProduto(request, id = 0, moedaPreco = filialAlvo.moedaOperacao)
         val moto = if (produto.tipo == TipoProduto.MOTO) validarMoto(request.moto, 0, 0) else null
         val bicicleta = if (produto.tipo == TipoProduto.BICICLETA) validarBicicleta(request.bicicleta, 0, 0) else null
         moto?.chassi?.let { exigirChassiLivre(it, null) }
@@ -93,7 +94,10 @@ class ProdutoService(
         if (request.tipo != atual.produto.tipo) {
             throw invalido("PRODUTO_TIPO_IMUTAVEL", "Não é possível alterar o tipo do produto")
         }
-        val produto = validarProduto(request, id)
+        val idFilialMoeda = request.idFilialCadastro ?: atual.produto.idFilialCadastro
+            ?: throw RecursoNaoEncontrado("Filial do produto não encontrada")
+        val moedaOperacao = empresaService.buscarFilial(idFilialMoeda).moedaOperacao
+        val produto = validarProduto(request, id, moedaPreco = moedaOperacao)
         if (repository.existeCodigo(produto.codigo, ignorarId = id)) {
             throw invalido("PRODUTO_CODIGO_DUPLICADO", "Já existe um produto com o código ${produto.codigo}", "codigo" to produto.codigo)
         }
@@ -154,7 +158,7 @@ class ProdutoService(
         repository.vincularFilial(existente.produto.id, idFilial)
     }
 
-    private suspend fun validarProduto(request: ProdutoRequest, id: Long): Produto {
+    private suspend fun validarProduto(request: ProdutoRequest, id: Long, moedaPreco: Moeda): Produto {
         val codigo = request.codigo.trim().uppercase()
         if (codigo.length < 2) throw invalido("PRODUTO_CODIGO_OBRIGATORIO", "Código do produto é obrigatório")
         val modelo = marcaRepository.buscarModelo(request.idModelo)
@@ -181,7 +185,7 @@ class ProdutoService(
             tipo = request.tipo,
             idFilialCadastro = request.idFilialCadastro,
             aliquotaIva = validarAliquota(request.aliquotaIva),
-            moedaPreco = request.moedaPreco,
+            moedaPreco = moedaPreco,
             precoLista = validarDinheiro(request.precoLista, "Preço de lista"),
             custo = validarDinheiro(request.custo, "Custo"),
             status = status,

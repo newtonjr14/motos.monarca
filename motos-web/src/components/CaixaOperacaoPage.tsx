@@ -18,12 +18,15 @@ import {
   type CaixaMovimentacao,
   type CaixaSessao,
   type Finalizador,
+  type Moeda,
 } from "@/api";
-import { formatPyg, slicePage } from "@/format";
+import { formatMoeda, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
 type Modo = "abrir" | "fechar" | "transferir" | "movimentos" | null;
+const MOEDAS: Moeda[] = ["pyg", "usd", "brl"];
+const chaveValor = (idFinalizador: number, moeda: Moeda) => `${idFinalizador}:${moeda}`;
 
 export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
   const { t } = useI18n();
@@ -36,7 +39,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
   const [modo, setModo] = useState<Modo>(null);
   const [alvo, setAlvo] = useState<Caixa | null>(null);
   const [sessao, setSessao] = useState<CaixaSessao | null>(null);
-  const [valores, setValores] = useState<Record<number, string>>({});
+  const [valores, setValores] = useState<Record<string, string>>({});
   const [idDestino, setIdDestino] = useState<number | "">("");
   const [observacao, setObservacao] = useState("");
   const [movs, setMovs] = useState<CaixaMovimentacao[]>([]);
@@ -66,9 +69,13 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
   useEffect(() => { setPage(1); }, [search]);
 
   function valoresBody() {
-    return finalizadores
-      .map((f) => ({ idFinalizador: f.id, valor: Number((valores[f.id] ?? "").replace(",", ".")) || 0 }))
-      .filter((l) => l.valor > 0);
+    return finalizadores.flatMap((f) =>
+      MOEDAS.map((moeda) => ({
+        idFinalizador: f.id,
+        moeda,
+        valor: Number((valores[chaveValor(f.id, moeda)] ?? "").replace(",", ".")) || 0,
+      })),
+    ).filter((l) => l.valor > 0);
   }
 
   async function iniciar(caixa: Caixa, next: Modo) {
@@ -83,8 +90,10 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
         const atual = await buscarCaixaSessao(caixa.sessaoAbertaId);
         setSessao(atual);
         if (next === "fechar") {
-          const preset: Record<number, string> = {};
-          for (const s of atual.saldos) preset[s.idFinalizador] = String(s.valor);
+          const preset: Record<string, string> = {};
+          for (const s of atual.saldos) {
+            preset[chaveValor(s.idFinalizador, s.moeda ?? "pyg")] = String(s.valor);
+          }
           setValores(preset);
         }
         if (next === "movimentos") {
@@ -155,12 +164,20 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
   function camposValores() {
     return (
       <Section title={t("caixa.conferencia")}>
-        <div className="space-y-3">
+        <div className="space-y-4">
           {finalizadores.map((f) => (
-            <Field key={f.id} label={f.nome}>
-              <input className="field font-mono" inputMode="decimal" value={valores[f.id] ?? ""}
-                onChange={(e) => setValores((atual) => ({ ...atual, [f.id]: e.target.value }))} />
-            </Field>
+            <div key={f.id} className="space-y-2">
+              <p className="text-sm font-medium" style={{ color: v("--text") }}>{f.nome}</p>
+              <div className="grid grid-cols-3 gap-2">
+                {MOEDAS.map((moeda) => (
+                  <Field key={moeda} label={moeda === "pyg" ? t("venda.currency.pyg") : moeda === "brl" ? t("venda.currency.brl") : t("venda.currency.usd")}>
+                    <input className="field font-mono" inputMode="decimal"
+                      value={valores[chaveValor(f.id, moeda)] ?? ""}
+                      onChange={(e) => setValores((atual) => ({ ...atual, [chaveValor(f.id, moeda)]: e.target.value }))} />
+                  </Field>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </Section>
@@ -173,7 +190,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
         : modo === "transferir" ? t("caixa.transfer")
           : t("caixa.movements");
     return (
-      <div className="space-y-5 max-w-xl">
+      <div className="space-y-5 max-w-2xl">
         <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={() => setModo(null)}>
           ← {t("common.back")}
         </button>
@@ -182,7 +199,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
         </h1>
         {sessao && modo !== "abrir" && (
           <p className="text-sm font-mono" style={{ color: v("--text-muted") }}>
-            {t("caixa.expected")}: {sessao.saldos.map((s) => `${s.finalizadorNome ?? s.idFinalizador} ${formatPyg(s.valor)}`).join(" · ") || "—"}
+            {t("caixa.expected")}: {sessao.saldos.map((s) => `${s.finalizadorNome ?? s.idFinalizador} ${formatMoeda(s.valor, s.moeda ?? "pyg")}`).join(" · ") || "—"}
           </p>
         )}
         {modo === "movimentos" ? (
@@ -197,7 +214,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
                   <tr key={m.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
                     <Td>{t(`caixa.mov.${m.tipo}` as TranslationKey)}</Td>
                     <Td>{m.usuarioNome}</Td>
-                    <Td mono>{m.finalizadores.map((f) => `${f.finalizadorNome ?? ""} ${formatPyg(f.valor)}`).join(" · ")}</Td>
+                    <Td mono>{m.finalizadores.map((f) => `${f.finalizadorNome ?? ""} ${formatMoeda(f.valor, f.moeda ?? "pyg")}`).join(" · ")}</Td>
                     <Td sub>{m.observacao ?? ""}</Td>
                   </tr>
                 ))}

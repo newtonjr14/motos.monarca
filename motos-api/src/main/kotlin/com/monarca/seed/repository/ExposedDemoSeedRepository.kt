@@ -8,16 +8,23 @@ import com.monarca.caixa.repository.FinalizadoresTable
 import com.monarca.caixa.repository.UsuarioCaixasTable
 import com.monarca.common.enums.Status
 import com.monarca.estoque.repository.EstoqueProdutosTable
+import com.monarca.estoque.repository.EstoquesTable
 import com.monarca.pessoa.repository.ClienteFilialTable
 import com.monarca.pessoa.repository.ClientesTable
+import com.monarca.pessoa.repository.FornecedorFilialTable
+import com.monarca.pessoa.repository.FornecedoresTable
 import com.monarca.pessoa.repository.PessoaDocumentosTable
+import com.monarca.pessoa.repository.PessoaEnderecosTable
 import com.monarca.pessoa.repository.PessoasTable
+import com.monarca.produto.repository.MarcasTable
 import com.monarca.produto.repository.ModelosTable
 import com.monarca.produto.repository.ProdutoBicicletasTable
 import com.monarca.produto.repository.ProdutoFilialTable
 import com.monarca.produto.repository.ProdutoMotosTable
 import com.monarca.produto.repository.ProdutosTable
 import com.monarca.seed.dto.SeedDemoStatusResponse
+import com.monarca.usuario.repository.UsuarioFiliaisTable
+import com.monarca.usuario.repository.UsuariosTable
 import com.monarca.venda.repository.VendaItensTable
 import com.monarca.venda.repository.VendaNegociacoesTable
 import com.monarca.venda.repository.VendasTable
@@ -37,12 +44,17 @@ class ExposedDemoSeedRepository(
 ) {
     suspend fun status(): SeedDemoStatusResponse = suspendTransaction(database) {
         SeedDemoStatusResponse(
+            habilitado = true,
             aplicado = temMarcador(),
             clientes = contar("cliente"),
+            fornecedores = contar("fornecedor"),
             produtos = contar("produto"),
             vendas = contar("venda"),
             caixas = contar("caixa"),
             finalizadores = contar("finalizador"),
+            usuarios = contar("usuario"),
+            marcas = contar("marca"),
+            estoques = contar("estoque"),
         )
     }
 
@@ -203,6 +215,19 @@ class ExposedDemoSeedRepository(
             }
         }
 
+        val marcas = idsDe("marca")
+        if (marcas.isNotEmpty()) {
+            val comModelo = ModelosTable.selectAll()
+                .where { ModelosTable.idMarca inList marcas }
+                .toList()
+                .map { it[ModelosTable.idMarca].value }
+                .toSet()
+            val livres = marcas.filter { it !in comModelo }
+            if (livres.isNotEmpty()) {
+                MarcasTable.deleteWhere { MarcasTable.id inList livres }
+            }
+        }
+
         if (clientes.isNotEmpty()) {
             val emVenda = VendasTable.selectAll()
                 .where { VendasTable.idCliente inList clientes }
@@ -222,17 +247,42 @@ class ExposedDemoSeedRepository(
             }
         }
 
+        val fornecedores = idsDe("fornecedor")
+        if (fornecedores.isNotEmpty()) {
+            FornecedorFilialTable.deleteWhere { FornecedorFilialTable.idFornecedor inList fornecedores }
+            FornecedoresTable.deleteWhere { FornecedoresTable.id inList fornecedores }
+        }
+
         if (pessoas.isNotEmpty()) {
             val aindaCliente = ClientesTable.selectAll()
                 .where { ClientesTable.idPessoa inList pessoas }
                 .toList()
                 .map { it[ClientesTable.idPessoa].value }
                 .toSet()
-            val livres = pessoas.filter { it !in aindaCliente }
+            val aindaFornecedor = FornecedoresTable.selectAll()
+                .where { FornecedoresTable.idPessoa inList pessoas }
+                .toList()
+                .map { it[FornecedoresTable.idPessoa].value }
+                .toSet()
+            val livres = pessoas.filter { it !in aindaCliente && it !in aindaFornecedor }
             if (livres.isNotEmpty()) {
+                PessoaEnderecosTable.deleteWhere { PessoaEnderecosTable.idPessoa inList livres }
                 PessoaDocumentosTable.deleteWhere { PessoaDocumentosTable.idPessoa inList livres }
                 PessoasTable.deleteWhere { PessoasTable.id inList livres }
             }
+        }
+
+        val estoques = idsDe("estoque")
+        if (estoques.isNotEmpty()) {
+            EstoqueProdutosTable.deleteWhere { EstoqueProdutosTable.idEstoque inList estoques }
+            EstoquesTable.deleteWhere { EstoquesTable.id inList estoques }
+        }
+
+        val usuarios = idsDe("usuario")
+        if (usuarios.isNotEmpty()) {
+            UsuarioCaixasTable.deleteWhere { UsuarioCaixasTable.idUsuario inList usuarios }
+            UsuarioFiliaisTable.deleteWhere { UsuarioFiliaisTable.idUsuario inList usuarios }
+            UsuariosTable.deleteWhere { UsuariosTable.id inList usuarios }
         }
 
         SeedDemoMarcadoresTable.deleteWhere { SeedDemoMarcadoresTable.entidade eq SeedDemoMarcadoresTable.entidade }

@@ -40,4 +40,4 @@ cotacao:
   exigirDoDia: false
 
 seed:
-  demo: false
+  demo: true

@@ -108,7 +108,9 @@ class ExposedVendaRepository(
             VendaNegociacoesTable.insert {
                 it[VendaNegociacoesTable.idVenda] = idVenda
                 it[VendaNegociacoesTable.idFinalizador] = linha.idFinalizador
+                it[VendaNegociacoesTable.moeda] = linha.moeda
                 it[VendaNegociacoesTable.valor] = linha.valor
+                it[VendaNegociacoesTable.valorPyg] = linha.valorPyg
             }
         }
         val mov = CaixaMovimentacoesTable.insert {
@@ -124,7 +126,9 @@ class ExposedVendaRepository(
             CaixaMovimentacaoFinalizadoresTable.insert {
                 it[CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao] = idMov
                 it[CaixaMovimentacaoFinalizadoresTable.idFinalizador] = linha.idFinalizador
+                it[CaixaMovimentacaoFinalizadoresTable.moeda] = linha.moeda
                 it[CaixaMovimentacaoFinalizadoresTable.valor] = linha.valor
+                it[CaixaMovimentacaoFinalizadoresTable.valorPyg] = linha.valorPyg
             }
         }
         gravarAuditLog("venda", idVenda.toString(), AuditAction.INSERT, newValues = """{"totalPyg":$totalPyg}""")
@@ -171,7 +175,9 @@ class ExposedVendaRepository(
                     id = it[VendaNegociacoesTable.id].value,
                     idFinalizador = it[VendaNegociacoesTable.idFinalizador].value,
                     finalizadorNome = it[FinalizadoresTable.nome],
+                    moeda = it[VendaNegociacoesTable.moeda],
                     valor = it[VendaNegociacoesTable.valor],
+                    valorPyg = it[VendaNegociacoesTable.valorPyg],
                 )
             }
             .toList()

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
-import { atualizarFilial, type Filial } from "@/api";
+import { atualizarFilial, type Filial, type Moeda } from "@/api";
 
 const v = (name: string) => `var(${name})`;
 
@@ -44,7 +44,7 @@ function ParamCheckbox({
   );
 }
 
-function filialBody(filial: Filial, params: { listarClientes: boolean; listarFornecedores: boolean; listarProdutos: boolean }) {
+function filialBody(filial: Filial, params: { listarClientes: boolean; listarFornecedores: boolean; listarProdutos: boolean; moedaOperacao: Filial["moedaOperacao"] }) {
   return {
     idEmpresa: filial.idEmpresa,
     nome: filial.nome,
@@ -64,6 +64,7 @@ function filialBody(filial: Filial, params: { listarClientes: boolean; listarFor
     estabelecimentoNumero: filial.estabelecimentoNumero,
     pontoExpedicao: filial.pontoExpedicao,
     perfilFiscal: filial.perfilFiscal,
+    moedaOperacao: params.moedaOperacao,
     principal: filial.principal,
     listarApenasClientesFilial: params.listarClientes,
     listarApenasFornecedoresFilial: params.listarFornecedores,
@@ -99,6 +100,7 @@ export default function FilialParametrosModal({
   const [listarClientes, setListarClientes] = useState(filial.listarApenasClientesFilial);
   const [listarFornecedores, setListarFornecedores] = useState(filial.listarApenasFornecedoresFilial);
   const [listarProdutos, setListarProdutos] = useState(filial.listarApenasProdutosFilial);
+  const [moedaOperacao, setMoedaOperacao] = useState<Moeda>(filial.moedaOperacao ?? "usd");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -108,7 +110,7 @@ export default function FilialParametrosModal({
     try {
       const atualizada = await atualizarFilial(
         filial.id,
-        filialBody(filial, { listarClientes, listarFornecedores, listarProdutos }),
+        filialBody(filial, { listarClientes, listarFornecedores, listarProdutos, moedaOperacao }),
       );
       onSaved(atualizada);
       onClose();
@@ -143,6 +145,25 @@ export default function FilialParametrosModal({
 
         <div className="ficha-modal-body px-6 py-4 space-y-4">
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+
+          <section>
+            <h3 className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: v("--text-muted") }}>
+              {t("empresa.section.parametersMoeda")}
+            </h3>
+            <label className="block">
+              <span className="text-sm" style={{ color: v("--text-sub") }}>{t("empresa.moedaOperacao")}</span>
+              <select
+                className="field mt-1.5"
+                value={moedaOperacao}
+                onChange={(e) => setMoedaOperacao(e.target.value as Moeda)}
+              >
+                <option value="usd">{t("produto.currency.usd")}</option>
+                <option value="pyg">{t("produto.currency.pyg")}</option>
+                <option value="brl">{t("produto.currency.brl")}</option>
+              </select>
+              <span className="block text-xs mt-1.5" style={{ color: v("--text-muted") }}>{t("empresa.moedaOperacao.hint")}</span>
+            </label>
+          </section>
 
           <section>
             <h3 className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: v("--text-muted") }}>

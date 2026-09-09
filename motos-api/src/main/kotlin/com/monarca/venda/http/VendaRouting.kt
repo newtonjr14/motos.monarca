@@ -34,6 +34,12 @@ fun Application.configureVenda() {
                     call.respond(service.listar(resource.idFilial, call.usuarioAutenticado().id))
                 }
             }
+            get<Vendas.Vendedores> { resource ->
+                call.handleVenda {
+                    call.podeRegistrarVenda()
+                    call.respond(service.listarVendedores(resource.idFilial, call.usuarioAutenticado().id))
+                }
+            }
             get<Vendas.Id> { resource ->
                 call.handleVenda {
                     call.podeRegistrarVenda()

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Field, Section } from "@/components/crud/Field";
-import { CatalogHeader, TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
+import EquivalentesMoeda from "@/components/EquivalentesMoeda";
+import { Field } from "@/components/crud/Field";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
-import { useFilialId } from "@/auth/FilialContext";
+import { tf } from "@/i18n/format";
+import { useAuth } from "@/auth/AuthContext";
+import { useFilial, useFilialId } from "@/auth/FilialContext";
 import {
   buscarCotacaoHoje,
   criarVenda,
@@ -12,32 +14,46 @@ import {
   listarFinalizadores,
   listarPapeis,
   listarProdutos,
-  listarVendas,
+  listarVendedoresVenda,
   type Caixa,
   type Cotacao,
   type Finalizador,
+  type Moeda,
   type Papel,
   type Produto,
-  type Venda,
+  type TipoProduto,
+  type VendedorOpcao,
 } from "@/api";
 import {
+  converterMoeda,
   formatarDocumentoExibicao,
-  formatarTelefoneExibicao,
+  formatMoeda,
   formatPyg,
-  slicePage,
+  moedaOperacaoDe,
+  paraPyg,
+  dePyg,
 } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 const border1 = () => `1px solid ${v("--border")}`;
 
 type ItemDraft = { idProduto: number; quantidade: number };
-type PagDraft = { idFinalizador: number; valor: string };
+type PagDraft = { idFinalizador: number; moeda: Moeda; valor: string };
+type FiltroTipo = "todos" | TipoProduto;
+const MOEDAS: Moeda[] = ["pyg", "usd", "brl"];
+const VITRINE_LIMITE = 24;
+const VITRINE_BUSCA = 48;
 
-function paraPyg(preco: number, moeda: string, cotacao: Cotacao | null): number {
-  if (!cotacao) return 0;
-  if (moeda === "usd") return Math.round(preco * cotacao.usdPyg);
-  if (moeda === "brl") return Math.round(preco * cotacao.brlPyg);
-  return Math.round(preco);
+function estoqueDe(p: Produto): number {
+  return p.quantidadeDisponivel ?? 0;
+}
+
+function formatarValorMoeda(pyg: number, moeda: Moeda, cotacao: Cotacao | null): string {
+  if (pyg <= 0) return "";
+  if (moeda === "pyg") return String(Math.round(pyg));
+  const raw = dePyg(pyg, moeda, cotacao);
+  if (!Number.isFinite(raw) || raw <= 0) return "";
+  return raw.toFixed(2);
 }
 
 function parseGs(valor: string): number {
@@ -62,35 +78,22 @@ function textoProduto(p: Produto): string {
 export default function VendasPage({ navReset }: { navReset: number }) {
   const { t } = useI18n();
   const idFilial = useFilialId();
-  const [itens, setItens] = useState<Venda[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [clientes, setClientes] = useState<Papel[]>([]);
   const [finalizadores, setFinalizadores] = useState<Finalizador[]>([]);
   const [caixas, setCaixas] = useState<Caixa[]>([]);
   const [cotacao, setCotacao] = useState<Cotacao | null>(null);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
-  const [formAberto, setFormAberto] = useState(false);
-  const [vendo, setVendo] = useState<Venda | null>(null);
-
-  const resetLista = useCallback(() => {
-    setFormAberto(false);
-    setVendo(null);
-  }, []);
-  useCrudReset(navReset, resetLista);
 
   async function carregar() {
     try {
       setErro(null);
-      const [vendas, prods, clis, fins, cxs] = await Promise.all([
-        listarVendas(idFilial),
+      const [prods, clis, fins, cxs] = await Promise.all([
         listarProdutos(idFilial),
         listarPapeis("clientes", idFilial),
         listarFinalizadores(),
         listarCaixas(idFilial, true),
       ]);
-      setItens(vendas);
       setProdutos(prods.filter((p) => p.status === "ativo" && p.precoLista > 0));
       setClientes(clis.filter((c) => c.status === "ativo"));
       setFinalizadores(fins.filter((f) => f.status === "ativo"));
@@ -101,45 +104,10 @@ export default function VendasPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, [idFilial]);
-  useEffect(() => { setPage(1); }, [search]);
 
-  if (formAberto && vendo) {
-    return (
-      <div className="space-y-5 max-w-5xl">
-        <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={() => { setFormAberto(false); setVendo(null); }}>
-          ← {t("common.back")}
-        </button>
-        <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
-          {t("venda.view")} #{vendo.id}
-        </h1>
-        <div className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: border1() }}>
-          <p className="text-sm" style={{ color: v("--text-sub") }}>{vendo.clienteNome} · {vendo.vendedorNome}</p>
-          <p className="text-sm font-mono" style={{ color: v("--gold") }}>Gs. {formatPyg(vendo.totalPyg)}</p>
-          <table className="drive-table w-full">
-            <thead>
-              <TableHeadRow cols={["col.code", "common.name", "venda.qty", "venda.total"]} />
-            </thead>
-            <tbody>
-              {vendo.itens.map((i) => (
-                <tr key={i.id} style={{ borderBottom: border1() }}>
-                  <Td mono>{i.produtoCodigo}</Td>
-                  <Td>{i.produtoNome}</Td>
-                  <Td mono>{i.quantidade}</Td>
-                  <Td mono>Gs. {formatPyg(i.totalPyg)}</Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="text-sm" style={{ color: v("--text-muted") }}>
-            {vendo.negociacao.map((n) => `${n.finalizadorNome} Gs. ${formatPyg(n.valor)}`).join(" · ")}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (formAberto) {
-    return (
+  return (
+    <div>
+      {erro && <p className="text-sm mb-3" style={{ color: "#ef4444" }}>{erro}</p>}
       <VendaForm
         idFilial={idFilial}
         produtos={produtos}
@@ -147,48 +115,15 @@ export default function VendasPage({ navReset }: { navReset: number }) {
         finalizadores={finalizadores}
         caixas={caixas}
         cotacao={cotacao}
-        onClose={() => setFormAberto(false)}
-        onSaved={async () => { setFormAberto(false); await carregar(); }}
+        navReset={navReset}
+        onSaved={carregar}
       />
-    );
-  }
-
-  const filtered = itens.filter((e) => `${e.id} ${e.clienteNome} ${e.vendedorNome}`.toLowerCase().includes(search.toLowerCase()));
-  const paged = slicePage(filtered, page);
-
-  return (
-    <div className="space-y-5">
-      <CatalogHeader titulo={t("nav.vendas")} count={itens.length} novoLabel={t("venda.new")} onNovo={() => { setVendo(null); setFormAberto(true); }} />
-      {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
-        className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: border1(), color: v("--text") }} />
-      <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: border1() }}>
-        <table className="drive-table w-full">
-          <thead>
-            <TableHeadRow cols={["col.id", "venda.client", "venda.total", "venda.seller"]} />
-          </thead>
-          <tbody>
-            {paged.slice.map((e) => (
-              <tr key={e.id} className="drive-row-clickable" style={{ borderBottom: border1() }}
-                onClick={() => { setVendo(e); setFormAberto(true); }}>
-                <Td mono gold>{e.id}</Td>
-                <Td>{e.clienteNome}</Td>
-                <Td mono>Gs. {formatPyg(e.totalPyg)}</Td>
-                <Td>{e.vendedorNome}</Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!filtered.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
-        {filtered.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
-      </div>
     </div>
   );
 }
 
 function VendaForm({
-  idFilial, produtos, clientes, finalizadores, caixas, cotacao, onClose, onSaved,
+  idFilial, produtos, clientes, finalizadores, caixas, cotacao, navReset, onSaved,
 }: {
   idFilial: number;
   produtos: Produto[];
@@ -196,30 +131,67 @@ function VendaForm({
   finalizadores: Finalizador[];
   caixas: Caixa[];
   cotacao: Cotacao | null;
-  onClose: () => void;
+  navReset: number;
   onSaved: () => Promise<void>;
 }) {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const { filial } = useFilial();
+  const moedaOp = moedaOperacaoDe(filial?.moedaOperacao);
   const caixasAbertos = caixas.filter((c) => c.sessaoAbertaId);
   const [idCliente, setIdCliente] = useState<number | "">("");
-  const [idSessao, setIdSessao] = useState<number | "">(() =>
-    caixas.find((c) => c.padrao && c.sessaoAbertaId)?.sessaoAbertaId
-    ?? caixas.find((c) => c.sessaoAbertaId)?.sessaoAbertaId
-    ?? "",
-  );
+  const [idVendedor, setIdVendedor] = useState<number | "">(user?.id ?? "");
+  const [vendedores, setVendedores] = useState<VendedorOpcao[]>([]);
+  const [idSessao, setIdSessao] = useState<number | "">("");
   const [linhas, setLinhas] = useState<ItemDraft[]>([]);
   const [pagamentos, setPagamentos] = useState<PagDraft[]>([]);
   const [observacao, setObservacao] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>("todos");
+  const [passo, setPasso] = useState<"itens" | "pagamento">("itens");
 
   const [buscaCliente, setBuscaCliente] = useState("");
   const [listaCliente, setListaCliente] = useState(false);
+  const [buscaVendedor, setBuscaVendedor] = useState("");
+  const [listaVendedor, setListaVendedor] = useState(false);
   const [buscaProduto, setBuscaProduto] = useState("");
-  const [listaProduto, setListaProduto] = useState(false);
   const produtoRef = useRef<HTMLInputElement>(null);
+  const clienteRef = useRef<HTMLInputElement>(null);
+  const carrinhoRef = useRef<HTMLDivElement>(null);
 
   const cliente = idCliente === "" ? undefined : clientes.find((c) => c.id === idCliente);
+  const vendedor = idVendedor === ""
+    ? undefined
+    : vendedores.find((vdd) => vdd.id === idVendedor)
+      ?? (user && user.id === idVendedor ? { id: user.id, nome: user.nome } : undefined);
+  const caixaAtual = caixasAbertos.find((c) => c.sessaoAbertaId === idSessao);
+
+  const limparCarrinho = useCallback(() => {
+    setLinhas([]);
+    setPagamentos([]);
+    setObservacao("");
+    setErro(null);
+    setBuscaProduto("");
+    setPasso("itens");
+    produtoRef.current?.focus();
+  }, []);
+  useCrudReset(navReset, limparCarrinho);
+
+  useEffect(() => {
+    void listarVendedoresVenda(idFilial)
+      .then(setVendedores)
+      .catch(() => setVendedores([]));
+  }, [idFilial]);
+
+  useEffect(() => {
+    setIdSessao((atual) => {
+      if (atual !== "" && caixas.some((c) => c.sessaoAbertaId === atual)) return atual;
+      return caixas.find((c) => c.padrao && c.sessaoAbertaId)?.sessaoAbertaId
+        ?? caixas.find((c) => c.sessaoAbertaId)?.sessaoAbertaId
+        ?? "";
+    });
+  }, [caixas]);
 
   const totalPyg = useMemo(() => linhas.reduce((acc, linha) => {
     const p = produtos.find((x) => x.id === linha.idProduto);
@@ -227,13 +199,14 @@ function VendaForm({
     return acc + paraPyg(p.precoLista, p.moedaPreco, cotacao) * linha.quantidade;
   }, 0), [linhas, produtos, cotacao]);
 
-  const pago = pagamentos.reduce((acc, p) => acc + parseGs(p.valor), 0);
+  const pago = pagamentos.reduce((acc, p) => acc + paraPyg(parseGs(p.valor), p.moeda, cotacao), 0);
   const falta = Math.round(totalPyg - pago);
 
   useEffect(() => {
     setPagamentos((atual) => {
       if (atual.length !== 1) return atual;
       const unico = atual[0]!;
+      if (unico.moeda !== "pyg") return atual;
       const alvo = totalPyg > 0 ? String(Math.round(totalPyg)) : "";
       return unico.valor === alvo ? atual : [{ ...unico, valor: alvo }];
     });
@@ -245,13 +218,29 @@ function VendaForm({
     return base.slice(0, 8);
   }, [clientes, buscaCliente]);
 
-  const produtosFiltrados = useMemo(() => {
+  const vendedoresFiltrados = useMemo(() => {
+    const q = buscaVendedor.trim().toLowerCase();
+    const base = q ? vendedores.filter((vdd) => vdd.nome.toLowerCase().includes(q)) : vendedores;
+    return base.slice(0, 8);
+  }, [vendedores, buscaVendedor]);
+
+  const produtosVitrine = useMemo(() => {
     const q = buscaProduto.trim().toLowerCase();
-    if (!q) return produtos.slice(0, 8);
-    const exato = produtos.filter((p) => p.codigo.toLowerCase() === q);
-    if (exato.length) return exato;
-    return produtos.filter((p) => textoProduto(p).toLowerCase().includes(q)).slice(0, 8);
-  }, [produtos, buscaProduto]);
+    const filtrados = produtos.filter((p) => {
+      if (filtroTipo !== "todos" && p.tipo !== filtroTipo) return false;
+      if (!q) return true;
+      return textoProduto(p).toLowerCase().includes(q);
+    });
+    const ordenados = [...filtrados].sort((a, b) => {
+      const ea = estoqueDe(a);
+      const eb = estoqueDe(b);
+      if ((ea > 0) !== (eb > 0)) return ea > 0 ? -1 : 1;
+      if (eb !== ea) return eb - ea;
+      return a.nome.localeCompare(b.nome, "pt");
+    });
+    const limite = q ? VITRINE_BUSCA : VITRINE_LIMITE;
+    return { itens: ordenados.slice(0, limite), total: ordenados.length };
+  }, [produtos, buscaProduto, filtroTipo]);
 
   function lancarProduto(id: number) {
     const p = produtos.find((x) => x.id === id);
@@ -268,16 +257,15 @@ function VendaForm({
     setLinhas((lista) => {
       const i = lista.findIndex((l) => l.idProduto === id);
       if (i >= 0) {
-        const copy = [...lista];
-        copy[i] = { ...copy[i]!, quantidade: next };
-        return copy;
+        const linha = { ...lista[i]!, quantidade: next };
+        return [linha, ...lista.filter((_, idx) => idx !== i)];
       }
-      return [...lista, { idProduto: id, quantidade: 1 }];
+      return [{ idProduto: id, quantidade: 1 }, ...lista];
     });
     setBuscaProduto("");
-    setListaProduto(false);
     setErro(null);
     produtoRef.current?.focus();
+    requestAnimationFrame(() => { carrinhoRef.current && (carrinhoRef.current.scrollTop = 0); });
   }
 
   function alterarQtd(idProduto: number, delta: number) {
@@ -299,23 +287,61 @@ function VendaForm({
   }
 
   function escolherFinalizador(id: number) {
-    const ja = pagamentos.find((p) => p.idFinalizador === id);
-    if (ja) {
-      if (pagamentos.length > 1) {
-        setPagamentos((atual) => atual.filter((p) => p.idFinalizador !== id));
-      }
+    const linhasPag = pagamentos.filter((p) => p.idFinalizador === id);
+    if (linhasPag.length === 0) {
+      const rest = Math.max(0, Math.round(totalPyg - pago));
+      setPagamentos((atual) => [...atual, { idFinalizador: id, moeda: "pyg", valor: rest > 0 ? String(rest) : "" }]);
+      setErro(null);
       return;
     }
-    const pagoAtual = pagamentos.reduce((acc, p) => acc + parseGs(p.valor), 0);
-    const rest = Math.max(0, Math.round(totalPyg - pagoAtual));
-    setPagamentos((atual) => [...atual, { idFinalizador: id, valor: rest > 0 ? String(rest) : "" }]);
-    setErro(null);
+    const usadas = new Set(linhasPag.map((p) => p.moeda));
+    const proxima = MOEDAS.find((m) => !usadas.has(m) && (m === "pyg" || cotacao));
+    if (proxima) {
+      const rest = Math.max(0, totalPyg - pago);
+      setPagamentos((atual) => [...atual, {
+        idFinalizador: id,
+        moeda: proxima,
+        valor: formatarValorMoeda(rest, proxima, cotacao),
+      }]);
+      setErro(null);
+      return;
+    }
+    if (pagamentos.length > 1) {
+      setPagamentos((atual) => atual.filter((p) => p.idFinalizador !== id));
+    }
+  }
+
+  function mudarMoeda(idx: number, moeda: Moeda) {
+    if (moeda !== "pyg" && !cotacao) return;
+    setPagamentos((atual) => {
+      const alvo = atual[idx];
+      if (!alvo) return atual;
+      if (atual.some((p, i) => i !== idx && p.idFinalizador === alvo.idFinalizador && p.moeda === moeda)) {
+        return atual;
+      }
+      const pyg = paraPyg(parseGs(alvo.valor), alvo.moeda, cotacao);
+      return atual.map((p, i) => i === idx
+        ? { ...p, moeda, valor: formatarValorMoeda(pyg || Math.max(0, totalPyg - (pago - pyg)), moeda, cotacao) }
+        : p);
+    });
+  }
+
+  function escolherCliente(id: number) {
+    setIdCliente(id);
+    setListaCliente(false);
+    setBuscaCliente("");
+    produtoRef.current?.focus();
   }
 
   async function salvar() {
     setErro(null);
     if (idCliente === "") {
       setErro(t("venda.error.client"));
+      clienteRef.current?.focus();
+      return;
+    }
+    if (idVendedor === "") {
+      setErro(t("venda.error.seller"));
       return;
     }
     if (!linhas.length) {
@@ -323,13 +349,14 @@ function VendaForm({
       return;
     }
     const negociacao = pagamentos
-      .map((p) => ({ idFinalizador: p.idFinalizador, valor: parseGs(p.valor) }))
+      .map((p) => ({ idFinalizador: p.idFinalizador, moeda: p.moeda, valor: parseGs(p.valor) }))
       .filter((p) => p.valor > 0);
     if (!negociacao.length) {
       setErro(t("venda.error.pay"));
       return;
     }
-    if (Math.abs(negociacao.reduce((a, p) => a + p.valor, 0) - totalPyg) > 1) {
+    const pagoPyg = negociacao.reduce((a, p) => a + paraPyg(p.valor, p.moeda, cotacao), 0);
+    if (Math.abs(pagoPyg - totalPyg) > 1) {
       setErro(t("api.VENDA_NEGOCIACAO_DIVERGENTE"));
       return;
     }
@@ -338,12 +365,15 @@ function VendaForm({
       await criarVenda({
         idFilial,
         idCliente,
+        idVendedor,
         idCaixaSessao: idSessao === "" ? null : idSessao,
         itens: linhas.map((l) => ({ idProduto: l.idProduto, quantidade: l.quantidade })),
         negociacao,
         observacao: observacao.trim() || null,
       });
+      limparCarrinho();
       await onSaved();
+      produtoRef.current?.focus();
     } catch (e) {
       setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
@@ -351,248 +381,417 @@ function VendaForm({
     }
   }
 
+  const qtdItens = linhas.reduce((acc, l) => acc + l.quantidade, 0);
+  const podePagar = idCliente !== "" && idVendedor !== "" && linhas.length > 0;
+  const podeFinalizar = podePagar && falta === 0 && pagamentos.some((p) => parseGs(p.valor) > 0);
+
+  function irParaPagamento() {
+    setErro(null);
+    if (idCliente === "") {
+      setErro(t("venda.error.client"));
+      clienteRef.current?.focus();
+      return;
+    }
+    if (idVendedor === "") {
+      setErro(t("venda.error.seller"));
+      return;
+    }
+    if (!linhas.length) {
+      setErro(t("venda.error.items"));
+      return;
+    }
+    setPasso("pagamento");
+  }
+
   return (
-    <div className="space-y-5 max-w-5xl">
-      <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={onClose}>
-        ← {t("common.back")}
-      </button>
-      <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{t("venda.new")}</h1>
+    <div className="pdv-page">
+      {erro && <p className="text-sm mb-2 shrink-0" style={{ color: "#ef4444" }}>{erro}</p>}
 
-      <form className="pdv-grid" onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
-          <div className="rounded-lg p-5 space-y-5" style={{ background: v("--card"), border: border1() }}>
-            {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-
-            <Section title={t("venda.client")}>
-              {cliente ? (
-                <div className="rounded-md px-3 py-2.5 flex items-start justify-between gap-3" style={{ background: v("--card2"), border: border1() }}>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: v("--text") }}>{cliente.pessoa.nomeRazaoSocial}</p>
-                    <p className="text-xs mt-0.5 font-mono" style={{ color: v("--text-muted") }}>
-                      {[docCliente(cliente), formatarTelefoneExibicao(cliente.pessoa.ddi, cliente.pessoa.telefone)]
-                        .filter((x) => x && x !== "—")
-                        .join(" · ")}
-                    </p>
-                  </div>
-                  <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: v("--gold") }}
-                    onClick={() => { setIdCliente(""); setBuscaCliente(""); setListaCliente(true); }}>
-                    {t("venda.changeClient")}
-                  </button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <Field label={t("venda.clientSearch")} required>
-                    <input
-                      className="field"
-                      autoFocus
-                      value={buscaCliente}
-                      placeholder={t("venda.clientSearchPlaceholder")}
-                      onChange={(e) => { setBuscaCliente(e.target.value); setListaCliente(true); }}
-                      onFocus={() => setListaCliente(true)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          const first = clientesFiltrados[0];
-                          if (first) {
-                            setIdCliente(first.id);
-                            setListaCliente(false);
-                            setBuscaCliente("");
-                            produtoRef.current?.focus();
-                          }
-                        } else if (e.key === "Escape") {
-                          setListaCliente(false);
-                        }
-                      }}
-                    />
-                  </Field>
-                  {listaCliente && (
-                    <>
-                      <div className="fixed inset-0 z-20" onClick={() => setListaCliente(false)} />
-                      <ul className="absolute left-0 right-0 mt-1 z-30 rounded-md shadow-lg overflow-hidden max-h-56 overflow-y-auto"
-                        style={{ background: v("--card"), border: border1() }}>
-                        {clientesFiltrados.map((c) => (
-                          <li key={c.id}>
-                            <button type="button" className="w-full text-left px-3 py-2 cursor-pointer hover:opacity-90"
-                              style={{ color: v("--text-sub") }}
-                              onClick={() => { setIdCliente(c.id); setListaCliente(false); setBuscaCliente(""); produtoRef.current?.focus(); }}>
-                              <span className="block text-sm" style={{ color: v("--text") }}>{c.pessoa.nomeRazaoSocial}</span>
-                              {docCliente(c) && <span className="block text-xs font-mono" style={{ color: v("--text-muted") }}>{docCliente(c)}</span>}
-                            </button>
-                          </li>
-                        ))}
-                        {clientesFiltrados.length === 0 && (
-                          <li className="px-3 py-2 text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</li>
-                        )}
-                      </ul>
-                    </>
-                  )}
-                </div>
+      <div className="pdv-top">
+        <div className="pdv-chip">
+          <span className="pdv-chip-label">{t("venda.client")}</span>
+          {cliente && !listaCliente ? (
+            <div className="flex items-center justify-between gap-2 min-w-0 flex-1">
+              <span className="pdv-chip-value truncate">{cliente.pessoa.nomeRazaoSocial}</span>
+              <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: v("--gold") }}
+                onClick={() => { setListaCliente(true); setBuscaCliente(""); setTimeout(() => clienteRef.current?.focus(), 0); }}>
+                {t("venda.changeClient")}
+              </button>
+            </div>
+          ) : (
+            <div className="relative flex-1 min-w-0">
+              <input
+                ref={clienteRef}
+                className="pdv-chip-input"
+                autoFocus
+                value={buscaCliente}
+                placeholder={t("venda.clientSearchPlaceholder")}
+                onChange={(e) => { setBuscaCliente(e.target.value); setListaCliente(true); }}
+                onFocus={() => setListaCliente(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const first = clientesFiltrados[0];
+                    if (first) escolherCliente(first.id);
+                  } else if (e.key === "Escape") {
+                    setListaCliente(false);
+                  }
+                }}
+              />
+              {listaCliente && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setListaCliente(false)} />
+                  <ul className="absolute left-0 right-0 mt-1 z-30 rounded-md shadow-lg overflow-hidden max-h-56 overflow-y-auto"
+                    style={{ background: v("--card"), border: border1() }}>
+                    {clientesFiltrados.map((c) => (
+                      <li key={c.id}>
+                        <button type="button" className="w-full text-left px-3 py-2 cursor-pointer"
+                          onClick={() => escolherCliente(c.id)}>
+                          <span className="block text-sm" style={{ color: v("--text") }}>{c.pessoa.nomeRazaoSocial}</span>
+                          {docCliente(c) && <span className="block text-xs font-mono" style={{ color: v("--text-muted") }}>{docCliente(c)}</span>}
+                        </button>
+                      </li>
+                    ))}
+                    {clientesFiltrados.length === 0 && (
+                      <li className="px-3 py-2 text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</li>
+                    )}
+                  </ul>
+                </>
               )}
-            </Section>
+            </div>
+          )}
+        </div>
 
-            <Section title={t("venda.items")}>
-              <div className="relative">
-                <Field label={t("venda.productSearch")}>
-                  <input
-                    ref={produtoRef}
-                    className="field"
-                    value={buscaProduto}
-                    placeholder={t("venda.productSearchPlaceholder")}
-                    onChange={(e) => { setBuscaProduto(e.target.value); setListaProduto(true); }}
-                    onFocus={() => setListaProduto(true)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const first = produtosFiltrados[0];
-                        if (first) lancarProduto(first.id);
-                      } else if (e.key === "Escape") {
-                        setListaProduto(false);
-                      }
-                    }}
-                  />
-                </Field>
-                {listaProduto && (
-                  <>
-                    <div className="fixed inset-0 z-20" onClick={() => setListaProduto(false)} />
-                    <ul className="absolute left-0 right-0 mt-1 z-30 rounded-md shadow-lg overflow-hidden max-h-56 overflow-y-auto"
-                      style={{ background: v("--card"), border: border1() }}>
-                      {produtosFiltrados.map((p) => (
-                        <li key={p.id}>
-                          <button type="button" className="w-full text-left px-3 py-2 cursor-pointer hover:opacity-90"
-                            onClick={() => lancarProduto(p.id)}>
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="min-w-0">
-                                <span className="block text-sm" style={{ color: v("--text") }}>{p.nome}</span>
-                                <span className="block text-xs font-mono" style={{ color: v("--text-muted") }}>
-                                  {p.codigo} · {t("venda.stock")} {p.quantidadeDisponivel ?? 0}
-                                </span>
-                              </span>
-                              <span className="text-xs font-mono shrink-0" style={{ color: v("--gold") }}>
-                                Gs. {formatPyg(paraPyg(p.precoLista, p.moedaPreco, cotacao))}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                      {produtosFiltrados.length === 0 && (
-                        <li className="px-3 py-2 text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</li>
-                      )}
-                    </ul>
-                  </>
-                )}
-              </div>
+        <div className="pdv-chip">
+          <span className="pdv-chip-label">{t("venda.seller")}</span>
+          {vendedor && !listaVendedor ? (
+            <div className="flex items-center justify-between gap-2 min-w-0 flex-1">
+              <span className="pdv-chip-value truncate">{vendedor.nome}</span>
+              <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: v("--gold") }}
+                onClick={() => { setListaVendedor(true); setBuscaVendedor(""); }}>
+                {t("venda.changeSeller")}
+              </button>
+            </div>
+          ) : (
+            <div className="relative flex-1 min-w-0">
+              <input
+                className="pdv-chip-input"
+                value={buscaVendedor}
+                placeholder={t("venda.sellerSearchPlaceholder")}
+                onChange={(e) => { setBuscaVendedor(e.target.value); setListaVendedor(true); }}
+                onFocus={() => setListaVendedor(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const first = vendedoresFiltrados[0];
+                    if (first) {
+                      setIdVendedor(first.id);
+                      setListaVendedor(false);
+                      setBuscaVendedor("");
+                    }
+                  } else if (e.key === "Escape") {
+                    setListaVendedor(false);
+                    setBuscaVendedor("");
+                  }
+                }}
+              />
+              {listaVendedor && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => { setListaVendedor(false); setBuscaVendedor(""); }} />
+                  <ul className="absolute left-0 right-0 mt-1 z-30 rounded-md shadow-lg overflow-hidden max-h-56 overflow-y-auto"
+                    style={{ background: v("--card"), border: border1() }}>
+                    {vendedoresFiltrados.map((vdd) => (
+                      <li key={vdd.id}>
+                        <button type="button" className="w-full text-left px-3 py-2 cursor-pointer"
+                          onClick={() => { setIdVendedor(vdd.id); setListaVendedor(false); setBuscaVendedor(""); }}>
+                          <span className="block text-sm" style={{ color: v("--text") }}>{vdd.nome}</span>
+                        </button>
+                      </li>
+                    ))}
+                    {vendedoresFiltrados.length === 0 && (
+                      <li className="px-3 py-2 text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</li>
+                    )}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
-              {linhas.length === 0 ? (
-                <p className="text-sm py-3" style={{ color: v("--text-muted") }}>{t("venda.emptyCart")}</p>
-              ) : (
-                <div className="space-y-2 mt-1">
-                  {linhas.map((l) => {
-                    const p = produtos.find((x) => x.id === l.idProduto);
-                    const unit = p ? paraPyg(p.precoLista, p.moedaPreco, cotacao) : 0;
+        <div className="pdv-chip">
+          <span className="pdv-chip-label">{t("venda.till")}</span>
+          {caixasAbertos.length ? (
+            <select className="pdv-chip-input" value={idSessao} onChange={(e) => setIdSessao(e.target.value ? Number(e.target.value) : "")}>
+              <option value="">{t("common.select")}</option>
+              {caixasAbertos.map((c) => (
+                <option key={c.id} value={c.sessaoAbertaId ?? ""}>{c.nome}</option>
+              ))}
+            </select>
+          ) : (
+            <span className="pdv-chip-value" style={{ color: v("--text-muted") }}>{t("venda.noTill")}</span>
+          )}
+          {caixaAtual && <span className="pdv-chip-dot" title={t("caixa.session.open")} />}
+        </div>
+      </div>
+
+      <form className="pdv-layout" onSubmit={(e) => e.preventDefault()}>
+        <div className="pdv-catalog">
+          <div className="pdv-search-wrap">
+            <input
+              ref={produtoRef}
+              className="field pdv-search font-mono"
+              value={buscaProduto}
+              placeholder={t("venda.productSearchPlaceholder")}
+              onChange={(e) => setBuscaProduto(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const q = buscaProduto.trim().toLowerCase();
+                  const exato = produtos.find((p) => p.codigo.toLowerCase() === q);
+                  if (exato) lancarProduto(exato.id);
+                  else if (produtosVitrine.itens[0]) lancarProduto(produtosVitrine.itens[0].id);
+                }
+              }}
+            />
+          </div>
+
+          <div className="pdv-filters">
+            {(["todos", "bicicleta", "moto"] as const).map((f) => {
+              const ativo = filtroTipo === f;
+              const label = f === "todos" ? t("venda.filter.all") : t(`produto.tipo.${f}`);
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  className="pdv-filter"
+                  style={{
+                    background: ativo ? v("--text") : v("--card"),
+                    color: ativo ? v("--bg") : v("--text-muted"),
+                    border: ativo ? "1px solid transparent" : border1(),
+                  }}
+                  onClick={() => setFiltroTipo(f)}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {produtosVitrine.itens.length < produtosVitrine.total && (
+            <p className="text-xs" style={{ color: v("--text-muted") }}>
+              {tf(t, "venda.vitrineMore", { n: String(produtosVitrine.itens.length), total: String(produtosVitrine.total) })}
+            </p>
+          )}
+          <div className="pdv-cards">
+            {produtosVitrine.itens.map((p) => {
+              const semEstoque = p.quantidadeDisponivel != null && p.quantidadeDisponivel <= 0;
+              const precoOp = converterMoeda(p.precoLista, p.moedaPreco, moedaOp, cotacao);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="pdv-card"
+                  disabled={semEstoque}
+                  onClick={() => lancarProduto(p.id)}
+                >
+                  <div className="pdv-card-thumb" style={{ background: p.tipo === "moto" ? "var(--gold-bg)" : "var(--card2)" }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ color: v("--gold") }}>
+                      {p.tipo === "moto"
+                        ? <><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M8 17l3-8h5l3 8"/><path d="M6 11h4"/></>
+                        : <><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M6.5 15l5-9 6 9"/><path d="M11.5 6v9"/></>}
+                    </svg>
+                  </div>
+                  <p className="pdv-card-name">{p.nome}</p>
+                  <p className="pdv-card-sku">{p.codigo}</p>
+                  <div className="pdv-card-foot">
+                    <span className="pdv-card-price">{formatMoeda(precoOp, moedaOp)}</span>
+                    <span className="pdv-card-stock">{tf(t, "venda.units", { n: String(p.quantidadeDisponivel ?? 0) })}</span>
+                  </div>
+                  <EquivalentesMoeda valor={precoOp} de={moedaOp} cotacao={cotacao} />
+                </button>
+              );
+            })}
+          </div>
+          {produtosVitrine.itens.length === 0 && (
+            <p className="text-sm py-10 text-center" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</p>
+          )}
+        </div>
+
+        <aside className="pdv-cart" style={{ background: v("--card"), border: border1() }}>
+          <div className="pdv-cart-head">
+            <div>
+              <h2 className="pdv-cart-title">{passo === "pagamento" ? t("venda.pay") : t("venda.items")}</h2>
+              <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>{tf(t, "venda.itemsCount", { n: String(qtdItens) })}</p>
+            </div>
+            {passo === "pagamento" ? (
+              <button type="button" className="text-xs cursor-pointer" style={{ color: v("--gold") }}
+                onClick={() => setPasso("itens")}>
+                {t("venda.backItems")}
+              </button>
+            ) : (
+              <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
+                onClick={limparCarrinho}>
+                {t("venda.clear")}
+              </button>
+            )}
+          </div>
+
+          <div className="pdv-cart-body" ref={carrinhoRef}>
+            {passo === "pagamento" ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {finalizadores.map((f) => {
+                    const ativo = pagamentos.some((p) => p.idFinalizador === f.id);
                     return (
-                      <div key={l.idProduto} className="rounded-md px-3 py-2.5 flex items-center gap-3"
-                        style={{ background: v("--card2"), border: border1() }}>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm truncate" style={{ color: v("--text") }}>{p?.nome}</p>
-                          <p className="text-xs font-mono mt-0.5" style={{ color: v("--text-muted") }}>
-                            {p?.codigo} · {t("venda.unit")} Gs. {formatPyg(unit)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button type="button" className="btn-ghost w-7 h-7 text-sm" onClick={() => alterarQtd(l.idProduto, -1)}>−</button>
-                          <span className="font-mono text-sm w-7 text-center" style={{ color: v("--text") }}>{l.quantidade}</span>
-                          <button type="button" className="btn-ghost w-7 h-7 text-sm" onClick={() => alterarQtd(l.idProduto, 1)}>+</button>
-                        </div>
-                        <p className="font-mono text-sm w-24 text-right shrink-0" style={{ color: v("--gold") }}>
-                          Gs. {formatPyg(unit * l.quantidade)}
-                        </p>
-                        <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: "var(--danger)" }}
-                          title={t("common.delete")}
-                          onClick={() => setLinhas((atual) => atual.filter((x) => x.idProduto !== l.idProduto))}>✕</button>
-                      </div>
+                      <button
+                        key={f.id}
+                        type="button"
+                        className="pdv-pay px-3 py-2 text-sm rounded-md cursor-pointer"
+                        style={{
+                          background: ativo ? "var(--gold-bg)" : v("--card2"),
+                          border: ativo ? `1px solid ${v("--gold-border")}` : border1(),
+                          color: ativo ? v("--gold") : v("--text-sub"),
+                        }}
+                        onClick={() => escolherFinalizador(f.id)}
+                      >
+                        {f.nome}
+                      </button>
                     );
                   })}
                 </div>
-              )}
-            </Section>
-
-            <Section title={t("venda.pay")}>
-              <div className="flex flex-wrap gap-2">
-                {finalizadores.map((f) => {
-                  const ativo = pagamentos.some((p) => p.idFinalizador === f.id);
+                {pagamentos.map((p, idx) => {
+                  const fin = finalizadores.find((f) => f.id === p.idFinalizador);
+                  const pygLinha = paraPyg(parseGs(p.valor), p.moeda, cotacao);
                   return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      className="px-3 py-2 text-sm rounded-md cursor-pointer"
-                      style={{
-                        background: ativo ? "var(--gold-bg)" : v("--card2"),
-                        border: ativo ? `1px solid ${v("--gold-border")}` : border1(),
-                        color: ativo ? v("--gold") : v("--text-sub"),
-                      }}
-                      onClick={() => escolherFinalizador(f.id)}
-                    >
-                      {f.nome}
-                    </button>
+                    <div key={`${p.idFinalizador}-${p.moeda}-${idx}`} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs" style={{ color: v("--text-muted") }}>{t("venda.amount")} · {fin?.nome ?? ""}</p>
+                        {pagamentos.length > 1 && (
+                          <button type="button" className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
+                            onClick={() => setPagamentos((atual) => atual.filter((_, i) => i !== idx))}>
+                            {t("common.delete")}
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-1">
+                        {MOEDAS.map((m) => {
+                          const ativo = p.moeda === m;
+                          const bloqueada = m !== "pyg" && !cotacao;
+                          return (
+                            <button
+                              key={m}
+                              type="button"
+                              disabled={bloqueada}
+                              className="pdv-pay px-2 py-1.5 text-xs rounded-md cursor-pointer"
+                              style={{
+                                background: ativo ? "var(--gold-bg)" : v("--card2"),
+                                border: ativo ? `1px solid ${v("--gold-border")}` : border1(),
+                                color: ativo ? v("--gold") : v("--text-sub"),
+                                opacity: bloqueada ? 0.45 : 1,
+                              }}
+                              onClick={() => mudarMoeda(idx, m)}
+                            >
+                              {m === "pyg" ? t("venda.currency.pyg") : m === "brl" ? t("venda.currency.brl") : t("venda.currency.usd")}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <input
+                        className="field font-mono"
+                        inputMode="decimal"
+                        value={p.valor}
+                        onChange={(e) => setPagamentos((atual) =>
+                          atual.map((x, i) => i === idx ? { ...x, valor: e.target.value } : x))}
+                      />
+                      {p.moeda !== "pyg" && pygLinha > 0 && (
+                        <p className="text-xs font-mono" style={{ color: v("--text-muted") }}>
+                          {tf(t, "venda.equivalent", { n: formatPyg(pygLinha) })}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+                <Field label={t("caixa.note")}>
+                  <input className="field" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+                </Field>
+              </div>
+            ) : linhas.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-sm font-medium" style={{ color: v("--text-sub") }}>{t("venda.emptyCart")}</p>
+                <p className="text-xs mt-1" style={{ color: v("--text-muted") }}>{t("venda.emptyHint")}</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {linhas.map((l) => {
+                  const p = produtos.find((x) => x.id === l.idProduto);
+                  const unit = p ? paraPyg(p.precoLista, p.moedaPreco, cotacao) : 0;
+                  const unitOp = converterMoeda(unit, "pyg", moedaOp, cotacao);
+                  const linhaOp = converterMoeda(unit * l.quantidade, "pyg", moedaOp, cotacao);
+                  return (
+                    <div key={l.idProduto} className="pdv-cart-item">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex justify-between gap-2">
+                          <p className="text-[13px] font-medium truncate" style={{ color: v("--text") }}>{p?.nome}</p>
+                          <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: "var(--danger)" }}
+                            title={t("common.delete")}
+                            onClick={() => setLinhas((atual) => atual.filter((x) => x.idProduto !== l.idProduto))}>
+                            ×
+                          </button>
+                        </div>
+                        <p className="text-xs font-mono mt-0.5" style={{ color: v("--text-muted") }}>
+                          {p?.codigo} · {formatMoeda(unitOp, moedaOp)}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-1">
+                            <button type="button" className="pdv-qty" onClick={() => alterarQtd(l.idProduto, -1)}>−</button>
+                            <span className="font-mono text-sm w-7 text-center" style={{ color: v("--text") }}>{l.quantidade}</span>
+                            <button type="button" className="pdv-qty" onClick={() => alterarQtd(l.idProduto, 1)}>+</button>
+                          </div>
+                          <span className="text-sm font-mono" style={{ color: v("--gold") }}>{formatMoeda(linhaOp, moedaOp)}</span>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
-              {pagamentos.map((p) => {
-                const fin = finalizadores.find((f) => f.id === p.idFinalizador);
-                return (
-                  <Field key={p.idFinalizador} label={`${t("venda.amount")} · ${fin?.nome ?? ""}`} className="mt-2">
-                    <input
-                      className="field font-mono"
-                      inputMode="decimal"
-                      value={p.valor}
-                      onChange={(e) => setPagamentos((atual) =>
-                        atual.map((x) => x.idFinalizador === p.idFinalizador ? { ...x, valor: e.target.value } : x))}
-                    />
-                  </Field>
-                );
-              })}
-            </Section>
-
-            <Field label={t("caixa.note")}>
-              <input className="field" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-            </Field>
+            )}
           </div>
 
-          <aside className="rounded-lg p-5 space-y-4 h-fit lg:sticky lg:top-4" style={{ background: v("--card"), border: border1() }}>
-            <Field label={t("venda.till")} required hint={caixasAbertos.length ? t("venda.tillHint") : t("venda.noTill")}>
-              <select className="field" value={idSessao} onChange={(e) => setIdSessao(e.target.value ? Number(e.target.value) : "")}>
-                <option value="">{t("common.select")}</option>
-                {caixasAbertos.map((c) => (
-                  <option key={c.id} value={c.sessaoAbertaId ?? ""}>{c.nome}</option>
-                ))}
-              </select>
-            </Field>
-            <div className="space-y-2 text-sm" style={{ borderTop: border1(), paddingTop: "0.75rem" }}>
-              <div className="flex justify-between gap-3">
-                <span style={{ color: v("--text-muted") }}>{t("venda.subtotal")}</span>
-                <span className="font-mono" style={{ color: v("--text") }}>Gs. {formatPyg(totalPyg)}</span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span style={{ color: v("--text-muted") }}>{t("venda.paid")}</span>
-                <span className="font-mono" style={{ color: v("--text") }}>Gs. {formatPyg(pago)}</span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span style={{ color: v("--text-muted") }}>{t("venda.remaining")}</span>
-                <span className="font-mono" style={{ color: falta === 0 ? "var(--success)" : v("--gold") }}>
-                  Gs. {formatPyg(Math.max(0, falta))}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3 pt-2" style={{ borderTop: border1() }}>
-                <span className="font-medium" style={{ color: v("--text") }}>{t("venda.total")}</span>
-                <span className="font-mono font-semibold" style={{ color: v("--gold") }}>Gs. {formatPyg(totalPyg)}</span>
+          <div className="pdv-cart-checkout">
+            <div className="space-y-1.5 text-sm">
+              {passo === "pagamento" && (
+                <>
+                  <div className="flex justify-between gap-3">
+                    <span style={{ color: v("--text-muted") }}>{t("venda.paid")}</span>
+                    <span className="font-mono" style={{ color: v("--text") }}>Gs. {formatPyg(pago)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span style={{ color: v("--text-muted") }}>{t("venda.remaining")}</span>
+                    <span className="font-mono" style={{ color: falta === 0 ? "var(--success)" : v("--gold") }}>
+                      Gs. {formatPyg(Math.max(0, falta))}
+                    </span>
+                  </div>
+                </>
+              )}
+              <div className={passo === "pagamento" ? "pt-2" : ""} style={passo === "pagamento" ? { borderTop: border1() } : undefined}>
+                <p className="text-[11px] font-medium tracking-widest uppercase mb-1" style={{ color: v("--text-muted") }}>{t("venda.total")}</p>
+                <p className="pdv-total font-mono">{formatMoeda(converterMoeda(totalPyg, "pyg", moedaOp, cotacao), moedaOp)}</p>
+                <EquivalentesMoeda valor={converterMoeda(totalPyg, "pyg", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
               </div>
             </div>
-            <div className="flex flex-col gap-2 pt-1">
-              <button type="submit" disabled={salvando} className="btn-gold px-5 py-2.5 text-sm w-full">
+            {passo === "pagamento" ? (
+              <button key="finish" type="button" disabled={salvando || !podeFinalizar} className="btn-gold px-5 py-3 text-sm w-full mt-3"
+                onClick={() => void salvar()}>
                 {salvando ? t("common.saving") : t("venda.finish")}
               </button>
-              <button type="button" className="btn-ghost px-4 py-2 text-sm w-full" onClick={onClose}>{t("common.cancel")}</button>
-            </div>
-          </aside>
+            ) : (
+              <button key="gopay" type="button" disabled={!podePagar} className="btn-gold px-5 py-3 text-sm w-full mt-3"
+                onClick={irParaPagamento}>
+                {t("venda.goPay")}
+              </button>
+            )}
+          </div>
+        </aside>
       </form>
     </div>
   );

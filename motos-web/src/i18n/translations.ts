@@ -36,6 +36,7 @@ export type TranslationKey =
   | "user.logout"
   | "user.profile"
   | "common.save"
+  | "common.saveAndNew"
   | "common.cancel"
   | "common.edit"
   | "common.delete"
@@ -89,6 +90,11 @@ export type TranslationKey =
   | "papel.section.contact"
   | "papel.section.address"
   | "papel.section.document"
+  | "form.tab.data"
+  | "form.tab.address"
+  | "form.tab.document"
+  | "produto.tab.cadastro"
+  | "produto.tab.ficha"
   | "papel.name"
   | "papel.namePlaceholder"
   | "papel.personType"
@@ -377,6 +383,9 @@ export type TranslationKey =
   | "empresa.listClientsBranchOnly"
   | "empresa.listSuppliersBranchOnly"
   | "empresa.listProductsBranchOnly"
+  | "empresa.moedaOperacao"
+  | "empresa.moedaOperacao.hint"
+  | "empresa.section.parametersMoeda"
   | "produto.new"
   | "produto.edit"
   | "produto.codigo"
@@ -393,6 +402,8 @@ export type TranslationKey =
   | "produto.section.moto"
   | "produto.section.bicicleta"
   | "produto.noStock"
+  | "produto.stockAfterSave"
+  | "produto.stockHint"
   | "produto.chassi"
   | "produto.cor"
   | "produto.potencia"
@@ -466,6 +477,7 @@ export type TranslationKey =
   | "nav.caixas"
   | "nav.caixa"
   | "nav.vendas"
+  | "nav.historico"
   | "finalizador.new"
   | "finalizador.edit"
   | "finalizador.type"
@@ -516,9 +528,18 @@ export type TranslationKey =
   | "venda.pay"
   | "venda.finalizer"
   | "venda.amount"
+  | "venda.currency.pyg"
+  | "venda.currency.usd"
+  | "venda.currency.brl"
+  | "venda.equivalent"
   | "venda.addPay"
   | "venda.finish"
+  | "venda.goPay"
+  | "venda.backItems"
   | "venda.seller"
+  | "venda.changeSeller"
+  | "venda.sellerSearchPlaceholder"
+  | "venda.error.seller"
   | "venda.error.product"
   | "venda.error.qty"
   | "venda.error.client"
@@ -535,6 +556,12 @@ export type TranslationKey =
   | "venda.remaining"
   | "venda.noTill"
   | "venda.unit"
+  | "venda.itemsCount"
+  | "venda.clear"
+  | "venda.emptyHint"
+  | "venda.filter.all"
+  | "venda.units"
+  | "venda.vitrineMore"
   | "usuario.caixas"
   | "usuario.caixaPadrao"
   | "api.FINALIZADOR_NOME_DUPLICADO"
@@ -567,6 +594,9 @@ export type TranslationKey =
   | "api.VENDA_NEGOCIACAO_OBRIGATORIA"
   | "api.VENDA_VALOR_INVALIDO"
   | "api.VENDA_NEGOCIACAO_DIVERGENTE"
+  | "api.VENDEDOR_INATIVO"
+  | "api.VENDEDOR_FILIAL"
+  | "api.VENDEDOR_INVALIDO"
   | "api.ESTOQUE_INSUFICIENTE"
   | "api.ESTOQUE_FILIAL"
   | "api.ESTOQUE_PRODUTO_AUSENTE"
@@ -605,6 +635,7 @@ const pt: Record<TranslationKey, string> = {
   "nav.caixas": "Caixas",
   "nav.caixa": "Caixa do dia",
   "nav.vendas": "Vendas",
+  "nav.historico": "Histórico",
   "nav.usuarios": "Usuários",
   "nav.paises": "Países",
   "nav.divisoes": "UFs / Departamentos",
@@ -622,6 +653,7 @@ const pt: Record<TranslationKey, string> = {
   "user.logout": "Sair",
   "user.profile": "Perfil",
   "common.save": "Salvar",
+  "common.saveAndNew": "Salvar e novo",
   "common.cancel": "Cancelar",
   "common.edit": "Editar",
   "common.delete": "Excluir",
@@ -675,6 +707,11 @@ const pt: Record<TranslationKey, string> = {
   "papel.section.contact": "Contato",
   "papel.section.address": "Endereço",
   "papel.section.document": "Documento",
+  "form.tab.data": "Dados",
+  "form.tab.address": "Endereços",
+  "form.tab.document": "Documento",
+  "produto.tab.cadastro": "Cadastro",
+  "produto.tab.ficha": "Ficha técnica",
   "papel.name": "Nome / razão social",
   "papel.namePlaceholder": "Nome completo",
   "papel.personType": "Tipo de pessoa",
@@ -923,6 +960,9 @@ const pt: Record<TranslationKey, string> = {
   "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Informe ao menos uma forma de pagamento",
   "api.VENDA_VALOR_INVALIDO": "O valor do pagamento deve ser maior que zero",
   "api.VENDA_NEGOCIACAO_DIVERGENTE": "A soma das formas de pagamento deve igualar o total",
+  "api.VENDEDOR_INATIVO": "O vendedor não está ativo",
+  "api.VENDEDOR_FILIAL": "O vendedor não tem acesso a esta filial",
+  "api.VENDEDOR_INVALIDO": "Este usuário não pode ser vendedor da venda",
   "api.ESTOQUE_INSUFICIENTE": "Saldo insuficiente para vender",
   "api.ESTOQUE_FILIAL": "O estoque não pertence a esta filial",
   "api.ESTOQUE_PRODUTO_AUSENTE": "Produto sem saldo neste estoque",
@@ -997,6 +1037,9 @@ const pt: Record<TranslationKey, string> = {
   "empresa.listClientsBranchOnly": "Listar só clientes desta filial",
   "empresa.listSuppliersBranchOnly": "Listar só fornecedores desta filial",
   "empresa.listProductsBranchOnly": "Listar só produtos desta filial",
+  "empresa.moedaOperacao": "Moeda de operação",
+  "empresa.moedaOperacao.hint": "Preço de lista e custo são nesta moeda. O PDV mostra o equivalente em Gs., US$ e R$. O recebimento continua nas três.",
+  "empresa.section.parametersMoeda": "Moeda",
   "produto.new": "Novo produto",
   "produto.edit": "Editar produto",
   "produto.codigo": "Código (SKU)",
@@ -1013,6 +1056,8 @@ const pt: Record<TranslationKey, string> = {
   "produto.section.moto": "Ficha da moto",
   "produto.section.bicicleta": "Ficha da bicicleta",
   "produto.noStock": "Sem saldo nesta filial",
+  "produto.stockAfterSave": "Ao salvar, o produto entra com quantidade zero nos depósitos da filial. Ajuste em Operação → Estoques.",
+  "produto.stockHint": "Quantidades se ajustam em Operação → Estoques.",
   "produto.chassi": "Chassi",
   "produto.cor": "Cor",
   "produto.potencia": "Potência (W)",
@@ -1038,9 +1083,9 @@ const pt: Record<TranslationKey, string> = {
   "produto.currency.pyg": "Guarani (PYG)",
   "produto.currency.brl": "Real (BRL)",
   "produto.listPrice": "Preço de lista",
-  "produto.listPriceHint": "Preço de gôndola com IVA incluído, na moeda escolhida.",
+  "produto.listPriceHint": "Preço de gôndola com IVA incluído, na moeda de operação da filial.",
   "produto.cost": "Custo",
-  "produto.costHint": "Custo na mesma moeda do preço de lista.",
+  "produto.costHint": "Custo na moeda de operação da filial.",
   "produto.confirmLinkBranch": "O produto {codigo} já existe em {filiais}. Vincular a esta filial?",
   "produto.anoFabricacao": "Ano de fabricação",
   "produto.anoModelo": "Ano modelo",
@@ -1131,10 +1176,19 @@ const pt: Record<TranslationKey, string> = {
   "venda.total": "Total",
   "venda.pay": "Pagamento",
   "venda.finalizer": "Forma",
-  "venda.amount": "Valor (Gs.)",
+  "venda.amount": "Valor",
+  "venda.currency.pyg": "Gs.",
+  "venda.currency.usd": "US$",
+  "venda.currency.brl": "R$",
+  "venda.equivalent": "Equivale a Gs. {n}",
   "venda.addPay": "+ outra forma",
   "venda.finish": "Finalizar venda",
+  "venda.goPay": "Ir para pagamento",
+  "venda.backItems": "Voltar aos itens",
   "venda.seller": "Vendedor",
+  "venda.changeSeller": "Trocar",
+  "venda.sellerSearchPlaceholder": "Nome do usuário",
+  "venda.error.seller": "Selecione o vendedor",
   "venda.error.product": "Selecione um produto",
   "venda.error.qty": "Informe uma quantidade válida",
   "venda.error.client": "Selecione o cliente",
@@ -1145,18 +1199,24 @@ const pt: Record<TranslationKey, string> = {
   "venda.changeClient": "Trocar",
   "venda.productSearch": "Produto / SKU",
   "venda.productSearchPlaceholder": "Código, SKU ou nome — Enter lança",
-  "venda.emptyCart": "Nenhum item. Busque e pressione Enter.",
+  "venda.emptyCart": "Sua venda está vazia",
+  "venda.emptyHint": "Clique em um produto ou busque pelo código.",
+  "venda.clear": "Limpar venda",
+  "venda.filter.all": "Todos",
+  "venda.units": "{n} un.",
+  "venda.vitrineMore": "Mostrando {n} de {total}. Busque pelo código ou nome.",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pago",
   "venda.remaining": "Falta",
   "venda.noTill": "Nenhum caixa aberto nesta filial",
   "venda.unit": "Unit.",
+  "venda.itemsCount": "{n} itens",
   "usuario.caixas": "Caixas",
   "usuario.caixaPadrao": "Caixa padrão",
   "empresa.branchParameters": "Parâmetros da filial",
   "empresa.section.parametersListagem": "Listagem",
   "empresa.seed.title": "Dados de teste",
-  "empresa.seed.hint": "Cria clientes, produtos com estoque, um caixa extra, um finalizador e três vendas na filial principal. Dá para ligar e desligar quando quiser. Não apaga o Caixa 1 nem Dinheiro, Cartão e Depósito.",
+  "empresa.seed.hint": "Preenche a filial principal para teste: marcas, modelos, 13 produtos com estoque, 8 clientes, 3 fornecedores, caixa extra, depósito extra e 3 vendas. Usuários demo.operador e demo.vendedor (senha demo12345) para testar o PDV. Dá para ligar e desligar. Não apaga o Caixa 1 nem Dinheiro, Cartão e Depósito.",
   "empresa.seed.statusOn": "Dados de teste ativos",
   "empresa.seed.statusOff": "Dados de teste desligados",
   "empresa.seed.apply": "Ligar dados de teste",
@@ -1188,6 +1248,7 @@ const es: Record<TranslationKey, string> = {
   "nav.caixas": "Cajas",
   "nav.caixa": "Caja del día",
   "nav.vendas": "Ventas",
+  "nav.historico": "Historial",
   "nav.usuarios": "Usuarios",
   "nav.paises": "Países",
   "nav.divisoes": "UF / Departamentos",
@@ -1205,6 +1266,7 @@ const es: Record<TranslationKey, string> = {
   "user.logout": "Salir",
   "user.profile": "Perfil",
   "common.save": "Guardar",
+  "common.saveAndNew": "Guardar y nuevo",
   "common.cancel": "Cancelar",
   "common.edit": "Editar",
   "common.delete": "Eliminar",
@@ -1258,6 +1320,11 @@ const es: Record<TranslationKey, string> = {
   "papel.section.contact": "Contacto",
   "papel.section.address": "Dirección",
   "papel.section.document": "Documento",
+  "form.tab.data": "Datos",
+  "form.tab.address": "Direcciones",
+  "form.tab.document": "Documento",
+  "produto.tab.cadastro": "Registro",
+  "produto.tab.ficha": "Ficha técnica",
   "papel.name": "Nombre / razón social",
   "papel.namePlaceholder": "Nombre completo",
   "papel.personType": "Tipo de persona",
@@ -1506,6 +1573,9 @@ const es: Record<TranslationKey, string> = {
   "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Indique al menos una forma de pago",
   "api.VENDA_VALOR_INVALIDO": "El valor del pago debe ser mayor que cero",
   "api.VENDA_NEGOCIACAO_DIVERGENTE": "La suma de las formas de pago debe igualar el total",
+  "api.VENDEDOR_INATIVO": "El vendedor no está activo",
+  "api.VENDEDOR_FILIAL": "El vendedor no tiene acceso a esta sucursal",
+  "api.VENDEDOR_INVALIDO": "Este usuario no puede ser vendedor de la venta",
   "api.ESTOQUE_INSUFICIENTE": "Saldo insuficiente para vender",
   "api.ESTOQUE_FILIAL": "El depósito no pertenece a esta sucursal",
   "api.ESTOQUE_PRODUTO_AUSENTE": "Producto sin saldo en este depósito",
@@ -1582,7 +1652,7 @@ const es: Record<TranslationKey, string> = {
   "empresa.branchParameters": "Parámetros de la sucursal",
   "empresa.section.parametersListagem": "Listado",
   "empresa.seed.title": "Datos de prueba",
-  "empresa.seed.hint": "Crea clientes, productos con stock, una caja extra, un finalizador y tres ventas en la sucursal principal. Se puede activar y desactivar cuando quieras. No borra la Caja 1 ni Dinero, Tarjeta y Depósito.",
+  "empresa.seed.hint": "Llena la sucursal principal para prueba: marcas, modelos, 13 productos con stock, 8 clientes, 3 proveedores, caja extra, depósito extra y 3 ventas. Usuarios demo.operador y demo.vendedor (clave demo12345) para probar el PDV. Se puede activar y desactivar. No borra la Caja 1 ni Dinero, Tarjeta y Depósito.",
   "empresa.seed.statusOn": "Datos de prueba activos",
   "empresa.seed.statusOff": "Datos de prueba desactivados",
   "empresa.seed.apply": "Activar datos de prueba",
@@ -1590,6 +1660,9 @@ const es: Record<TranslationKey, string> = {
   "empresa.seed.confirmRemove": "¿Quitar clientes, productos, cajas y ventas de prueba? Lo que cargaste fuera del seed se mantiene.",
   "empresa.seed.error": "No se pudieron actualizar los datos de prueba",
   "empresa.listProductsBranchOnly": "Listar solo productos de esta sucursal",
+  "empresa.moedaOperacao": "Moneda de operación",
+  "empresa.moedaOperacao.hint": "Precio de lista y costo van en esta moneda. El PDV muestra el equivalente en Gs., US$ y R$. El cobro sigue en las tres.",
+  "empresa.section.parametersMoeda": "Moneda",
   "produto.new": "Nuevo producto",
   "produto.edit": "Editar producto",
   "produto.codigo": "Código (SKU)",
@@ -1606,6 +1679,8 @@ const es: Record<TranslationKey, string> = {
   "produto.section.moto": "Ficha de la moto",
   "produto.section.bicicleta": "Ficha de la bicicleta",
   "produto.noStock": "Sin saldo en esta sucursal",
+  "produto.stockAfterSave": "Al guardar, el producto entra con cantidad cero en los depósitos de la sucursal. Ajuste en Operación → Depósitos.",
+  "produto.stockHint": "Las cantidades se ajustan en Operación → Depósitos.",
   "produto.chassi": "Chasis",
   "produto.cor": "Color",
   "produto.potencia": "Potencia (W)",
@@ -1631,9 +1706,9 @@ const es: Record<TranslationKey, string> = {
   "produto.currency.pyg": "Guaraní (PYG)",
   "produto.currency.brl": "Real (BRL)",
   "produto.listPrice": "Precio de lista",
-  "produto.listPriceHint": "Precio de góndola con IVA incluido, en la moneda elegida.",
+  "produto.listPriceHint": "Precio de góndola con IVA incluido, en la moneda de operación de la sucursal.",
   "produto.cost": "Costo",
-  "produto.costHint": "Costo en la misma moneda del precio de lista.",
+  "produto.costHint": "Costo en la moneda de operación de la sucursal.",
   "produto.confirmLinkBranch": "El producto {codigo} ya existe en {filiais}. ¿Vincular a esta sucursal?",
   "produto.anoFabricacao": "Año de fabricación",
   "produto.anoModelo": "Año modelo",
@@ -1724,10 +1799,19 @@ const es: Record<TranslationKey, string> = {
   "venda.total": "Total",
   "venda.pay": "Pago",
   "venda.finalizer": "Forma",
-  "venda.amount": "Valor (Gs.)",
+  "venda.amount": "Valor",
+  "venda.currency.pyg": "Gs.",
+  "venda.currency.usd": "US$",
+  "venda.currency.brl": "R$",
+  "venda.equivalent": "Equivale a Gs. {n}",
   "venda.addPay": "+ otra forma",
   "venda.finish": "Finalizar venta",
+  "venda.goPay": "Ir al pago",
+  "venda.backItems": "Volver a los ítems",
   "venda.seller": "Vendedor",
+  "venda.changeSeller": "Cambiar",
+  "venda.sellerSearchPlaceholder": "Nombre del usuario",
+  "venda.error.seller": "Seleccione el vendedor",
   "venda.error.product": "Seleccione un producto",
   "venda.error.qty": "Indique una cantidad válida",
   "venda.error.client": "Seleccione el cliente",
@@ -1738,12 +1822,18 @@ const es: Record<TranslationKey, string> = {
   "venda.changeClient": "Cambiar",
   "venda.productSearch": "Producto / SKU",
   "venda.productSearchPlaceholder": "Código, SKU o nombre — Enter lanza",
-  "venda.emptyCart": "Ningún ítem. Busque y pulse Enter.",
+  "venda.emptyCart": "La venta está vacía",
+  "venda.emptyHint": "Haga clic en un producto o busque por código.",
+  "venda.clear": "Limpiar venta",
+  "venda.filter.all": "Todos",
+  "venda.units": "{n} un.",
+  "venda.vitrineMore": "Mostrando {n} de {total}. Busque por código o nombre.",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pagado",
   "venda.remaining": "Falta",
   "venda.noTill": "Ninguna caja abierta en esta sucursal",
   "venda.unit": "Unit.",
+  "venda.itemsCount": "{n} ítems",
   "usuario.caixas": "Cajas",
   "usuario.caixaPadrao": "Caja predeterminada",
 };

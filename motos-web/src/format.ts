@@ -1,4 +1,4 @@
-import type { Cidade, Pessoa, PessoaEndereco } from "@/api";
+import type { Cidade, Cotacao, Moeda, Pessoa, PessoaEndereco } from "@/api";
 
 const LOCALE = "pt-BR";
 
@@ -148,6 +148,42 @@ export const PAGE_SIZE = 10;
 
 export function formatPyg(valor: number): string {
   return Math.round(valor).toLocaleString("es-PY");
+}
+
+export function formatMoeda(valor: number, moeda: string): string {
+  if (moeda === "usd" || moeda === "brl") {
+    const n = valor.toLocaleString("es-PY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return moeda === "brl" ? `R$ ${n}` : `US$ ${n}`;
+  }
+  return `Gs. ${formatPyg(valor)}`;
+}
+
+export const MOEDAS: Moeda[] = ["pyg", "usd", "brl"];
+
+export function moedaOperacaoDe(valor: string | null | undefined): Moeda {
+  return valor === "pyg" || valor === "brl" || valor === "usd" ? valor : "usd";
+}
+
+export function paraPyg(preco: number, moeda: string, cotacao: Cotacao | null): number {
+  if (moeda === "pyg") return Math.round(preco);
+  if (!cotacao) return 0;
+  if (moeda === "usd") return Math.round(preco * cotacao.usdPyg);
+  if (moeda === "brl") return Math.round(preco * cotacao.brlPyg);
+  return Math.round(preco);
+}
+
+export function dePyg(pyg: number, moeda: Moeda, cotacao: Cotacao | null): number {
+  if (!cotacao || moeda === "pyg") return pyg;
+  if (moeda === "usd") return pyg / cotacao.usdPyg;
+  return pyg / cotacao.brlPyg;
+}
+
+export function converterMoeda(valor: number, de: Moeda, para: Moeda, cotacao: Cotacao | null): number {
+  if (!Number.isFinite(valor)) return 0;
+  if (de === para) return valor;
+  const pyg = paraPyg(valor, de, cotacao);
+  if (para === "pyg") return pyg;
+  return dePyg(pyg, para, cotacao);
 }
 
 export function slicePage<T>(itens: T[], page: number) {

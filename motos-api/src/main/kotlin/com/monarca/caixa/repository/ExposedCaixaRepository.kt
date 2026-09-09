@@ -13,6 +13,7 @@ import com.monarca.caixa.domain.TipoMovimentacaoCaixa
 import com.monarca.caixa.domain.ValorFinalizador
 import com.monarca.common.enums.Status
 import com.monarca.empresa.repository.FiliaisTable
+import com.monarca.produto.domain.Moeda
 import com.monarca.usuario.repository.UsuarioFiliaisTable
 import com.monarca.usuario.repository.UsuariosTable
 import com.monarca.venda.repository.VendaNegociacoesTable
@@ -415,8 +416,10 @@ class ExposedCaixaRepository(
                     status = Status.valueOf(row[CaixaMovimentacoesTable.status].uppercase()),
                     finalizadores = linhas.map {
                         ValorFinalizador(
-                            it[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value,
-                            it[CaixaMovimentacaoFinalizadoresTable.valor],
+                            idFinalizador = it[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value,
+                            valor = it[CaixaMovimentacaoFinalizadoresTable.valor],
+                            moeda = Moeda.valueOf(it[CaixaMovimentacaoFinalizadoresTable.moeda].uppercase()),
+                            valorPyg = it[CaixaMovimentacaoFinalizadoresTable.valorPyg],
                         )
                     },
                 ),
@@ -482,7 +485,9 @@ class ExposedCaixaRepository(
             CaixaMovimentacaoFinalizadoresTable.insert {
                 it[idCaixaMovimentacao] = id
                 it[idFinalizador] = linha.idFinalizador
+                it[moeda] = linha.moeda.name.lowercase()
                 it[valor] = linha.valor
+                it[valorPyg] = linha.valorPyg
             }
         }
         return id
@@ -503,16 +508,27 @@ class ExposedCaixaRepository(
         val linhas = CaixaMovimentacaoFinalizadoresTable.selectAll()
             .where { CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao inList ids }
             .toList()
-        val mapa = mutableMapOf<Long, Double>()
+        val mapa = mutableMapOf<Pair<Long, Moeda>, Pair<Double, Double>>()
         for (linha in linhas) {
             val idMov = linha[CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao].value
             val tipo = tipoPorId[idMov] ?: continue
             if (tipo == TipoMovimentacaoCaixa.FECHAMENTO.name.lowercase()) continue
             val sinal = if (tipo == TipoMovimentacaoCaixa.TRANSFERENCIA_SAIDA.name.lowercase()) -1.0 else 1.0
             val idFin = linha[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value
-            mapa[idFin] = (mapa[idFin] ?: 0.0) + sinal * linha[CaixaMovimentacaoFinalizadoresTable.valor]
+            val moeda = Moeda.valueOf(linha[CaixaMovimentacaoFinalizadoresTable.moeda].uppercase())
+            val chave = idFin to moeda
+            val atual = mapa[chave] ?: (0.0 to 0.0)
+            mapa[chave] = (atual.first + sinal * linha[CaixaMovimentacaoFinalizadoresTable.valor]) to
+                (atual.second + sinal * linha[CaixaMovimentacaoFinalizadoresTable.valorPyg])
         }
-        return mapa.map { ValorFinalizador(it.key, it.value) }
+        return mapa.map { (chave, totais) ->
+            ValorFinalizador(
+                idFinalizador = chave.first,
+                valor = totais.first,
+                moeda = chave.second,
+                valorPyg = totais.second,
+            )
+        }
     }
 
     private fun ResultRow.toFinalizador() = Finalizador(

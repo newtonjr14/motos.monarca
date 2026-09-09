@@ -1,6 +1,6 @@
 package com.monarca.venda.dto
 
-import com.monarca.common.enums.Status
+import com.monarca.produto.domain.Moeda
 import com.monarca.venda.domain.StatusVenda
 import kotlinx.serialization.Serializable
 
@@ -15,6 +15,7 @@ data class VendaItemRequest(
 data class VendaNegociacaoRequest(
     val idFinalizador: Long,
     val valor: Double,
+    val moeda: Moeda = Moeda.PYG,
 )
 
 @Serializable
@@ -26,6 +27,12 @@ data class VendaRequest(
     val itens: List<VendaItemRequest>,
     val negociacao: List<VendaNegociacaoRequest>,
     val observacao: String? = null,
+)
+
+@Serializable
+data class VendedorOpcaoResponse(
+    val id: Long,
+    val nome: String,
 )
 
 @Serializable
@@ -49,7 +56,9 @@ data class VendaNegociacaoResponse(
     val id: Long,
     val idFinalizador: Long,
     val finalizadorNome: String,
+    val moeda: Moeda,
     val valor: Double,
+    val valorPyg: Double,
 )
 
 @Serializable

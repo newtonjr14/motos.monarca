@@ -11,6 +11,7 @@ import com.monarca.localidade.service.invalido
 import com.monarca.pessoa.service.PapelService
 import com.monarca.produto.domain.Moeda
 import com.monarca.produto.repository.ProdutoRepository
+import com.monarca.usuario.SystemUser
 import com.monarca.usuario.repository.UsuarioRepository
 import com.monarca.venda.domain.StatusVenda
 import com.monarca.venda.dto.VendaItemResponse
@@ -18,6 +19,7 @@ import com.monarca.venda.dto.VendaNegociacaoRequest
 import com.monarca.venda.dto.VendaNegociacaoResponse
 import com.monarca.venda.dto.VendaRequest
 import com.monarca.venda.dto.VendaResponse
+import com.monarca.venda.dto.VendedorOpcaoResponse
 import com.monarca.venda.repository.VendaCompleta
 import com.monarca.venda.repository.VendaItemPersistencia
 import com.monarca.venda.repository.VendaNegociacaoPersistencia
@@ -38,6 +40,11 @@ class VendaService(
     suspend fun listar(idFilial: Long?, idUsuario: Long): List<VendaResponse> {
         val filial = resolverFilialComAcesso(idUsuario, idFilial)
         return repository.listar(filial).map { it.toResponse() }
+    }
+
+    suspend fun listarVendedores(idFilial: Long?, idUsuario: Long): List<VendedorOpcaoResponse> {
+        val filial = resolverFilialComAcesso(idUsuario, idFilial)
+        return usuarioRepository.listarAtivosDaFilial(filial).map { VendedorOpcaoResponse(it.id, it.nome) }
     }
 
     suspend fun buscar(id: Long, idUsuario: Long): VendaResponse {
@@ -68,11 +75,12 @@ class VendaService(
         if (totalPyg <= 0) {
             throw invalido("VENDA_TOTAL_INVALIDO", "O total da venda deve ser maior que zero")
         }
-        val negociacao = montarNegociacao(request.negociacao, totalPyg)
+        val negociacao = montarNegociacao(request.negociacao, totalPyg, cotacao)
+        val idVendedor = resolverVendedor(request.idVendedor, idUsuario, idFilial)
         val id = repository.inserir(
             idFilial = idFilial,
             idCliente = request.idCliente,
-            idVendedor = idUsuario,
+            idVendedor = idVendedor,
             idCaixaSessao = sessao.sessao.id,
             idCotacao = cotacao.id,
             totalPyg = totalPyg,
@@ -82,6 +90,22 @@ class VendaService(
             idUsuario = idUsuario,
         )
         return buscar(id, idUsuario)
+    }
+
+    private suspend fun resolverVendedor(pedido: Long?, idOperador: Long, idFilial: Long): Long {
+        val id = pedido ?: idOperador
+        val vendedor = usuarioRepository.buscar(id)
+            ?: throw RecursoNaoEncontrado("Vendedor $id não encontrado")
+        if (SystemUser.isSystem(vendedor.login) && id != idOperador) {
+            throw invalido("VENDEDOR_INVALIDO", "Este usuário não pode ser vendedor da venda")
+        }
+        if (vendedor.status != Status.ATIVO) {
+            throw invalido("VENDEDOR_INATIVO", "O vendedor não está ativo")
+        }
+        if (!usuarioRepository.temAcessoFilial(id, idFilial)) {
+            throw invalido("VENDEDOR_FILIAL", "O vendedor não tem acesso a esta filial")
+        }
+        return id
     }
 
     private suspend fun montarItens(
@@ -141,28 +165,36 @@ class VendaService(
     private suspend fun montarNegociacao(
         linhas: List<VendaNegociacaoRequest>,
         totalPyg: Double,
+        cotacao: CotacaoResponse,
     ): List<VendaNegociacaoPersistencia> {
         if (linhas.isEmpty()) {
             throw invalido("VENDA_NEGOCIACAO_OBRIGATORIA", "Informe ao menos uma forma de pagamento")
         }
-        val agrupado = linkedMapOf<Long, Double>()
+        val agrupado = linkedMapOf<Pair<Long, Moeda>, Double>()
         for (linha in linhas) {
             if (linha.valor <= 0) {
                 throw invalido("VENDA_VALOR_INVALIDO", "O valor do pagamento deve ser maior que zero")
             }
             caixaService.buscarFinalizador(linha.idFinalizador)
-            agrupado[linha.idFinalizador] = (agrupado[linha.idFinalizador] ?: 0.0) + linha.valor
+            val chave = linha.idFinalizador to linha.moeda
+            agrupado[chave] = (agrupado[chave] ?: 0.0) + linha.valor
         }
-        val soma = agrupado.values.sum()
+        val montado = agrupado.map { (chave, valor) ->
+            val (idFinalizador, moeda) = chave
+            Triple(idFinalizador, moeda, valor to paraPyg(valor, moeda, cotacao))
+        }
+        val soma = montado.sumOf { it.third.second }
         if (abs(soma - totalPyg) > 1.0) {
             throw invalido("VENDA_NEGOCIACAO_DIVERGENTE", "A soma das formas de pagamento deve igualar o total")
         }
         val nomes = caixaService.listarFinalizadores().associate { it.id to it.nome }
-        return agrupado.map { (idFinalizador, valor) ->
+        return montado.map { (idFinalizador, moeda, valores) ->
             VendaNegociacaoPersistencia(
                 idFinalizador = idFinalizador,
                 finalizadorNome = nomes[idFinalizador] ?: "",
-                valor = valor,
+                moeda = moeda.name.lowercase(),
+                valor = valores.first,
+                valorPyg = valores.second,
             )
         }
     }
@@ -223,7 +255,9 @@ class VendaService(
                 id = it.id,
                 idFinalizador = it.idFinalizador,
                 finalizadorNome = it.finalizadorNome,
+                moeda = Moeda.valueOf(it.moeda.uppercase()),
                 valor = it.valor,
+                valorPyg = it.valorPyg,
             )
         },
     )

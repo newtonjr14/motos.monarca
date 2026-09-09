@@ -37,5 +37,7 @@ object VendaItensTable : LongIdTable("venda_item") {
 object VendaNegociacoesTable : LongIdTable("venda_negociacao") {
     val idVenda = reference("id_venda", VendasTable)
     val idFinalizador = reference("id_finalizador", FinalizadoresTable)
+    val moeda = varchar("moeda", 3).default("pyg")
     val valor = double("valor")
+    val valorPyg = double("valor_pyg")
 }

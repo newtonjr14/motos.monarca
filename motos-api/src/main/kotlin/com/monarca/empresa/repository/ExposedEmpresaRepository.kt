@@ -138,6 +138,7 @@ class ExposedEmpresaRepository(
             it[estabelecimentoNumero] = filial.estabelecimentoNumero
             it[pontoExpedicao] = filial.pontoExpedicao
             it[perfilFiscal] = filial.perfilFiscal.name.lowercase()
+            it[moedaOperacao] = filial.moedaOperacao.name.lowercase()
             it[principal] = filial.principal
             it[listarApenasClientesFilial] = filial.listarApenasClientesFilial
             it[listarApenasFornecedoresFilial] = filial.listarApenasFornecedoresFilial
@@ -169,6 +170,7 @@ class ExposedEmpresaRepository(
             it[estabelecimentoNumero] = filial.estabelecimentoNumero
             it[pontoExpedicao] = filial.pontoExpedicao
             it[perfilFiscal] = filial.perfilFiscal.name.lowercase()
+            it[moedaOperacao] = filial.moedaOperacao.name.lowercase()
             it[principal] = filial.principal
             it[listarApenasClientesFilial] = filial.listarApenasClientesFilial
             it[listarApenasFornecedoresFilial] = filial.listarApenasFornecedoresFilial
@@ -265,6 +267,7 @@ class ExposedEmpresaRepository(
         estabelecimentoNumero = this[FiliaisTable.estabelecimentoNumero],
         pontoExpedicao = this[FiliaisTable.pontoExpedicao],
         perfilFiscal = PerfilFiscal.valueOf(this[FiliaisTable.perfilFiscal].uppercase()),
+        moedaOperacao = com.monarca.produto.domain.Moeda.valueOf(this[FiliaisTable.moedaOperacao].uppercase()),
         principal = this[FiliaisTable.principal],
         listarApenasClientesFilial = this[FiliaisTable.listarApenasClientesFilial],
         listarApenasFornecedoresFilial = this[FiliaisTable.listarApenasFornecedoresFilial],

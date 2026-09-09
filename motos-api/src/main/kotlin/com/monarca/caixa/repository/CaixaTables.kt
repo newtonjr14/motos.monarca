@@ -54,5 +54,7 @@ object CaixaMovimentacoesTable : LongIdTable("caixa_movimentacao") {
 object CaixaMovimentacaoFinalizadoresTable : LongIdTable("caixa_movimentacao_finalizador") {
     val idCaixaMovimentacao = reference("id_caixa_movimentacao", CaixaMovimentacoesTable)
     val idFinalizador = reference("id_finalizador", FinalizadoresTable)
+    val moeda = varchar("moeda", 3).default("pyg")
     val valor = double("valor")
+    val valorPyg = double("valor_pyg")
 }

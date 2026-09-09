@@ -48,7 +48,9 @@ class ProdutoEstoqueTest {
             assertEquals(2026, produto["moto"]!!.jsonObject["anoFabricacao"]!!.jsonPrimitive.int)
             assertEquals(2026, produto["moto"]!!.jsonObject["anoModelo"]!!.jsonPrimitive.int)
             assertEquals(10, produto["aliquotaIva"]!!.jsonPrimitive.int)
-            assertEquals("usd", produto["moedaPreco"]!!.jsonPrimitive.content)
+            val moedaOp = Json.parseToJsonElement(client.get("/filiais/principal") { auth(token) }.bodyAsText())
+                .jsonObject["moedaOperacao"]!!.jsonPrimitive.content
+            assertEquals(moedaOp, produto["moedaPreco"]!!.jsonPrimitive.content)
             assertEquals(0.0, produto["precoLista"]!!.jsonPrimitive.content.toDouble())
 
             val updated = client.put("/produtos/$id") {
@@ -301,7 +303,9 @@ class ProdutoEstoqueTest {
             assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
             val body = Json.parseToJsonElement(created.bodyAsText()).jsonObject
             assertEquals(5, body["aliquotaIva"]!!.jsonPrimitive.int)
-            assertEquals("pyg", body["moedaPreco"]!!.jsonPrimitive.content)
+            val moedaOp = Json.parseToJsonElement(client.get("/filiais/principal") { auth(token) }.bodyAsText())
+                .jsonObject["moedaOperacao"]!!.jsonPrimitive.content
+            assertEquals(moedaOp, body["moedaPreco"]!!.jsonPrimitive.content)
             assertEquals(1_500_000.0, body["precoLista"]!!.jsonPrimitive.content.toDouble())
             assertEquals(900_000.0, body["custo"]!!.jsonPrimitive.content.toDouble())
         }

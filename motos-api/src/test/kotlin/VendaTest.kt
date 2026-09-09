@@ -48,8 +48,15 @@ class VendaTest {
                 Json.parseToJsonElement(semCotacao.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
             )
 
-            val caixas = Json.parseToJsonElement(client.get("/caixas") { auth(token) }.bodyAsText()).jsonArray
-            val idFilial = caixas.first().jsonObject["idFilial"]!!.jsonPrimitive.long
+            val empresas = Json.parseToJsonElement(client.get("/empresas") { auth(token) }.bodyAsText()).jsonArray
+            val idEmpresa = empresas.first().jsonObject["id"]!!.jsonPrimitive.long
+            val filiais = Json.parseToJsonElement(client.get("/filiais?idEmpresa=$idEmpresa") { auth(token) }.bodyAsText()).jsonArray
+            val caixaFilial = filiais.firstNotNullOf { f ->
+                val id = f.jsonObject["id"]!!.jsonPrimitive.long
+                val lista = Json.parseToJsonElement(client.get("/caixas?idFilial=$id") { auth(token) }.bodyAsText()).jsonArray
+                if (lista.isEmpty()) null else Triple(id, lista, f.jsonObject)
+            }
+            val idFilial = caixaFilial.first
             val nCaixa = System.nanoTime()
             val caixaNovo = client.post("/caixas") {
                 auth(token)
@@ -72,6 +79,16 @@ class VendaTest {
                 setBody("""{"data":"$hoje","usdPyg":7300,"brlPyg":1400}""")
             }
             assertEquals(HttpStatusCode.Created, cotacao.status, cotacao.bodyAsText())
+
+            val filialJson = caixaFilial.third
+            val putFilial = client.put("/filiais/$idFilial") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"idEmpresa":${filialJson["idEmpresa"]!!.jsonPrimitive.long},"nome":${filialJson["nome"]},"moedaOperacao":"pyg","principal":${filialJson["principal"]}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.OK, putFilial.status, putFilial.bodyAsText())
 
             val n = System.nanoTime()
             val (idMarca, idModelo) = criarModelo(token, "bicicleta", "Venda $n")
@@ -106,7 +123,7 @@ class VendaTest {
                 auth(token)
                 contentType(ContentType.Application.Json)
                 setBody(
-                    """{"pessoa":{"nomeRazaoSocial":"Cliente $cpf","tipoPessoa":"fisica","documentos":[{"idPais":$brasilId,"idTipoDocumento":$cpfId,"numero":"$cpf"}]}}""",
+                    """{"idFilialCadastro":$idFilial,"pessoa":{"nomeRazaoSocial":"Cliente $cpf","tipoPessoa":"fisica","documentos":[{"idPais":$brasilId,"idTipoDocumento":$cpfId,"numero":"$cpf"}]}}""",
                 )
             }
             assertEquals(HttpStatusCode.Created, cliente.status, cliente.bodyAsText())
@@ -158,6 +175,71 @@ class VendaTest {
 
             val lista = Json.parseToJsonElement(client.get("/vendas?idFilial=$idFilial") { auth(token) }.bodyAsText()).jsonArray
             assertTrue(lista.any { it.jsonObject["id"]!!.jsonPrimitive.long == body["id"]!!.jsonPrimitive.long })
+
+            val me = Json.parseToJsonElement(client.get("/auth/me") { auth(token) }.bodyAsText()).jsonObject
+            val idSystem = me["id"]!!.jsonPrimitive.long
+            assertEquals(idSystem, body["idVendedor"]!!.jsonPrimitive.long)
+
+            val vendedores = Json.parseToJsonElement(
+                client.get("/vendas/vendedores?idFilial=$idFilial") { auth(token) }.bodyAsText(),
+            ).jsonArray
+            assertTrue(vendedores.none { it.jsonObject["id"]!!.jsonPrimitive.long == idSystem })
+
+            val nVend = System.nanoTime()
+            val outro = client.post("/usuarios") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"nome":"Vendedor PDV $nVend","login":"vend.$nVend","email":"vend.$nVend@exemplo.com","senha":"segredo12","perfil":"vendedor","idsFiliais":[$idFilial]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, outro.status, outro.bodyAsText())
+            val outroBody = Json.parseToJsonElement(outro.bodyAsText()).jsonObject
+            val idOutro = outroBody["id"]!!.jsonPrimitive.long
+            val nomeOutro = outroBody["nome"]!!.jsonPrimitive.content
+
+            val listaApos = Json.parseToJsonElement(
+                client.get("/vendas/vendedores?idFilial=$idFilial") { auth(token) }.bodyAsText(),
+            ).jsonArray
+            assertTrue(listaApos.any { it.jsonObject["id"]!!.jsonPrimitive.long == idOutro })
+
+            val vendaOutro = client.post("/vendas") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"idFilial":$idFilial,"idCliente":$idCliente,"idVendedor":$idOutro,"idCaixaSessao":$idSessao,"itens":[{"idProduto":$idProduto,"idEstoque":$idEstoque,"quantidade":1}],"negociacao":[{"idFinalizador":$idDinheiro,"valor":10000}]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, vendaOutro.status, vendaOutro.bodyAsText())
+            val bodyOutro = Json.parseToJsonElement(vendaOutro.bodyAsText()).jsonObject
+            assertEquals(idOutro, bodyOutro["idVendedor"]!!.jsonPrimitive.long)
+            assertEquals(nomeOutro, bodyOutro["vendedorNome"]!!.jsonPrimitive.content)
+
+            val vendaUsd = client.post("/vendas") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"idFilial":$idFilial,"idCliente":$idCliente,"idCaixaSessao":$idSessao,"itens":[{"idProduto":$idProduto,"idEstoque":$idEstoque,"quantidade":1}],"negociacao":[{"idFinalizador":$idDinheiro,"moeda":"usd","valor":1},{"idFinalizador":$idDinheiro,"moeda":"pyg","valor":2700}]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, vendaUsd.status, vendaUsd.bodyAsText())
+            val bodyUsd = Json.parseToJsonElement(vendaUsd.bodyAsText()).jsonObject
+            assertEquals(10000.0, bodyUsd["totalPyg"]!!.jsonPrimitive.double)
+            val negUsd = bodyUsd["negociacao"]!!.jsonArray
+            assertEquals(2, negUsd.size)
+            val linhaUsd = negUsd.first { it.jsonObject["moeda"]!!.jsonPrimitive.content == "usd" }.jsonObject
+            assertEquals(1.0, linhaUsd["valor"]!!.jsonPrimitive.double)
+            assertEquals(7300.0, linhaUsd["valorPyg"]!!.jsonPrimitive.double)
+            val linhaPyg = negUsd.first { it.jsonObject["moeda"]!!.jsonPrimitive.content == "pyg" }.jsonObject
+            assertEquals(2700.0, linhaPyg["valorPyg"]!!.jsonPrimitive.double)
+
+            val sessaoApos = Json.parseToJsonElement(client.get("/caixa-sessoes/$idSessao") { auth(token) }.bodyAsText()).jsonObject
+            val saldosApos = sessaoApos["saldos"]!!.jsonArray
+            assertTrue(saldosApos.any {
+                it.jsonObject["idFinalizador"]!!.jsonPrimitive.long == idDinheiro &&
+                    it.jsonObject["moeda"]!!.jsonPrimitive.content == "usd" &&
+                    it.jsonObject["valor"]!!.jsonPrimitive.double == 1.0
+            })
         }
     }
 

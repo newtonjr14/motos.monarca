@@ -32,12 +32,17 @@ class DemoSeedTest {
                 val aplicado = client.post("/seed/demo") { auth(token) }
                 assertEquals(HttpStatusCode.OK, aplicado.status, aplicado.bodyAsText())
                 val status = Json.parseToJsonElement(aplicado.bodyAsText()).jsonObject
+                assertTrue(status["habilitado"]!!.jsonPrimitive.boolean)
                 assertTrue(status["aplicado"]!!.jsonPrimitive.boolean)
-                assertEquals(3, status["clientes"]!!.jsonPrimitive.int)
-                assertEquals(3, status["produtos"]!!.jsonPrimitive.int)
+                assertEquals(8, status["clientes"]!!.jsonPrimitive.int)
+                assertEquals(3, status["fornecedores"]!!.jsonPrimitive.int)
+                assertEquals(13, status["produtos"]!!.jsonPrimitive.int)
                 assertEquals(3, status["vendas"]!!.jsonPrimitive.int)
                 assertEquals(1, status["caixas"]!!.jsonPrimitive.int)
                 assertEquals(1, status["finalizadores"]!!.jsonPrimitive.int)
+                assertEquals(2, status["usuarios"]!!.jsonPrimitive.int)
+                assertEquals(4, status["marcas"]!!.jsonPrimitive.int)
+                assertEquals(1, status["estoques"]!!.jsonPrimitive.int)
 
                 val idempotente = client.post("/seed/demo") { auth(token) }
                 assertEquals(HttpStatusCode.OK, idempotente.status, idempotente.bodyAsText())
@@ -45,10 +50,22 @@ class DemoSeedTest {
 
                 val produtos = Json.parseToJsonElement(client.get("/produtos") { auth(token) }.bodyAsText()).jsonArray
                 assertTrue(produtos.any { it.jsonObject["codigo"]!!.jsonPrimitive.content == "DEMO-B01" })
+                assertTrue(produtos.any { it.jsonObject["codigo"]!!.jsonPrimitive.content == "DEMO-B08" })
                 assertTrue(produtos.any { it.jsonObject["codigo"]!!.jsonPrimitive.content == "DEMO-M01" })
+                assertTrue(produtos.any { it.jsonObject["codigo"]!!.jsonPrimitive.content == "DEMO-M05" })
 
                 val clientes = Json.parseToJsonElement(client.get("/clientes") { auth(token) }.bodyAsText()).jsonArray
                 assertTrue(clientes.any { it.jsonObject["pessoa"]!!.jsonObject["nomeRazaoSocial"]!!.jsonPrimitive.content.contains("Ana Pereira", ignoreCase = true) })
+                assertTrue(clientes.size >= 8)
+
+                val fornecedores = Json.parseToJsonElement(client.get("/fornecedores") { auth(token) }.bodyAsText()).jsonArray
+                assertTrue(fornecedores.any { it.jsonObject["pessoa"]!!.jsonObject["nomeRazaoSocial"]!!.jsonPrimitive.content.contains("Peças Leste", ignoreCase = true) })
+
+                val marcas = Json.parseToJsonElement(client.get("/marcas") { auth(token) }.bodyAsText()).jsonArray
+                assertTrue(marcas.any { it.jsonObject["nome"]!!.jsonPrimitive.content.contains("Caloi", ignoreCase = true) })
+
+                val usuarios = Json.parseToJsonElement(client.get("/usuarios") { auth(token) }.bodyAsText()).jsonArray
+                assertTrue(usuarios.any { it.jsonObject["login"]!!.jsonPrimitive.content == "demo.vendedor" })
 
                 val vendas = Json.parseToJsonElement(client.get("/vendas") { auth(token) }.bodyAsText()).jsonArray
                 assertTrue(vendas.count { it.jsonObject["observacao"]?.jsonPrimitive?.content == "[DEMO]" } >= 3)
@@ -74,6 +91,17 @@ class DemoSeedTest {
             } finally {
                 client.delete("/seed/demo") { auth(token) }
             }
+        }
+    }
+
+    @Test
+    fun `seed demo recusa ligar quando seed_demo e false`() = testApplication {
+        configure(seedDemo = false)
+        withAuth { token ->
+            val status = Json.parseToJsonElement(client.get("/seed/demo") { auth(token) }.bodyAsText()).jsonObject
+            assertFalse(status["habilitado"]!!.jsonPrimitive.boolean)
+            assertEquals(HttpStatusCode.NotFound, client.post("/seed/demo") { auth(token) }.status)
+            assertEquals(HttpStatusCode.NotFound, client.delete("/seed/demo") { auth(token) }.status)
         }
     }
 }
