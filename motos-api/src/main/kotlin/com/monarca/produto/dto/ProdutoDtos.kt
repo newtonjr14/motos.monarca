@@ -42,7 +42,7 @@ data class ProdutoBicicletaRequest(
 
 @Serializable
 data class ProdutoRequest(
-    val codigo: String,
+    val codigo: String = "",
     val nome: String? = null,
     val idMarca: Long,
     val idModelo: Long,
@@ -57,6 +57,12 @@ data class ProdutoRequest(
     val status: Status = Status.ATIVO,
     val moto: ProdutoMotoRequest? = null,
     val bicicleta: ProdutoBicicletaRequest? = null,
+    val quantidadeInicial: Int = 0,
+)
+
+@Serializable
+data class ProdutoStatusRequest(
+    val status: Status,
 )
 
 @Serializable
@@ -108,6 +114,7 @@ data class ProdutoEstoqueSaldoResponse(
     val quantidade: Int,
     val quantidadeReservada: Int,
     val quantidadeDisponivel: Int,
+    val padrao: Boolean = false,
 )
 
 @Serializable

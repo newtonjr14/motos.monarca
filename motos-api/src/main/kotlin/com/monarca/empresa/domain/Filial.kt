@@ -24,6 +24,7 @@ data class Filial(
     val pontoExpedicao: String?,
     val perfilFiscal: PerfilFiscal,
     val moedaOperacao: Moeda,
+    val idEstoquePadrao: Long? = null,
     val principal: Boolean,
     val listarApenasClientesFilial: Boolean,
     val listarApenasFornecedoresFilial: Boolean,

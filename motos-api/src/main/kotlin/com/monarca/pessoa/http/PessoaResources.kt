@@ -31,6 +31,17 @@ class Clientes(
     @Serializable
     @Resource("{id}")
     class Id(val parent: Clientes = Clientes(), val id: Long)
+
+    @Serializable
+    @Resource("documento")
+    class Documento(
+        val parent: Clientes = Clientes(),
+        val idPais: Long,
+        val idTipoDocumento: Long,
+        val numero: String,
+        val tipoPessoa: TipoPessoa,
+        val ignorarPessoaId: Long? = null,
+    )
 }
 
 @Serializable
@@ -41,4 +52,15 @@ class Fornecedores(
     @Serializable
     @Resource("{id}")
     class Id(val parent: Fornecedores = Fornecedores(), val id: Long)
+
+    @Serializable
+    @Resource("documento")
+    class Documento(
+        val parent: Fornecedores = Fornecedores(),
+        val idPais: Long,
+        val idTipoDocumento: Long,
+        val numero: String,
+        val tipoPessoa: TipoPessoa,
+        val ignorarPessoaId: Long? = null,
+    )
 }

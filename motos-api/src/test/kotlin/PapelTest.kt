@@ -93,6 +93,37 @@ class PapelTest {
         }
     }
 
+    @Test
+    fun `consulta documento avisa cadastro existente sem gravar`() = testApplication {
+        configure()
+        withAuth { token ->
+            val brasilId = client.paisId(token, "BR")
+            val cpfId = client.tipoId(token, brasilId, "CPF")
+            val cpf = cpfValidoAleatorio()
+            val livre = client.get("/clientes/documento?idPais=$brasilId&idTipoDocumento=$cpfId&numero=$cpf&tipoPessoa=fisica") {
+                auth(token)
+            }
+            assertEquals(HttpStatusCode.NoContent, livre.status)
+
+            val criado = client.post("/clientes") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(papelBody("Ana $cpf", brasilId, cpfId, cpf))
+            }
+            assertEquals(HttpStatusCode.Created, criado.status, criado.bodyAsText())
+            val idPessoa = Json.parseToJsonElement(criado.bodyAsText()).jsonObject["idPessoa"]!!.jsonPrimitive.long
+
+            val existe = client.get("/clientes/documento?idPais=$brasilId&idTipoDocumento=$cpfId&numero=$cpf&tipoPessoa=fisica") {
+                auth(token)
+            }
+            assertEquals(HttpStatusCode.Conflict, existe.status, existe.bodyAsText())
+            val conflito = Json.parseToJsonElement(existe.bodyAsText()).jsonObject
+            assertEquals("DOCUMENTO_UNICO", conflito["codigo"]!!.jsonPrimitive.content)
+            assertEquals(idPessoa, conflito["pessoa"]!!.jsonObject["id"]!!.jsonPrimitive.long)
+            assertEquals(1, Json.parseToJsonElement(client.get("/clientes") { auth(token) }.bodyAsText()).jsonArray.size)
+        }
+    }
+
     private fun papelBody(nome: String, idPais: Long, idTipo: Long, numero: String) =
         """
         {

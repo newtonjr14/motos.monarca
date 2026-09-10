@@ -175,21 +175,116 @@ select.field:disabled {
   border: 0;
 }
 
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.status-filter {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--card);
+}
+.status-filter-btn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--border);
+  padding: 0.45rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1.25;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.status-filter-btn:last-child {
+  border-right: 0;
+}
+.status-filter-btn:hover {
+  color: var(--text-sub);
+  background: var(--card2);
+}
+.status-filter-btn.is-on {
+  background: var(--gold-bg);
+  color: var(--gold);
+  font-weight: 600;
+}
+.status-filter-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+  z-index: 1;
+}
+.drive-td-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.drive-table-produtos th:nth-child(5),
+.drive-table-produtos th:nth-child(6) {
+  text-align: right;
+}
+.produto-nome-linha {
+  display: block;
+  line-height: 1.35;
+}
+.produto-nome-marca {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.produto-nome-modelo {
+  color: var(--text);
+  font-weight: 600;
+}
+
 /* Listas estilo Google Drive */
 .drive-table {
   width: 100%;
   border-collapse: collapse;
 }
 .drive-th {
-  padding: 0.65rem 1.25rem;
+  padding: 0.5rem 1rem;
   text-align: left;
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
 }
-.drive-td {
-  padding: 0.9rem 1.25rem;
+.drive-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.drive-th-sort:hover {
+  color: var(--text-sub);
+}
+.drive-th-sort.is-on {
+  color: var(--text);
+  font-weight: 600;
+}
+.drive-th-caret {
+  font-size: 0.65rem;
+  line-height: 1;
+  color: var(--gold);
+}
+.field.is-suggested {
+  color: var(--text-muted);
+}
+.drive-td,
+.drive-table td {
+  padding: 0.625rem 1rem;
   font-size: 0.8125rem;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
@@ -207,12 +302,95 @@ select.field:disabled {
   background: var(--gold-bg);
   box-shadow: inset 3px 0 0 var(--gold);
 }
-.drive-table tbody tr:last-child .drive-td {
+.drive-table tbody tr:last-child td {
   border-bottom: none;
 }
 
 .drive-table-papel {
   table-layout: fixed;
+}
+.drive-table-papel th:nth-child(1),
+.drive-table-papel td:nth-child(1) {
+  width: 5.5rem;
+  padding-left: 1rem;
+  padding-right: 0.75rem;
+}
+.drive-table-papel th:nth-child(5),
+.drive-table-papel td:nth-child(5) {
+  width: 5.75rem;
+  padding-left: 0.5rem;
+  padding-right: 0.15rem;
+  white-space: nowrap;
+  text-align: right;
+}
+.drive-table-papel th:nth-child(6),
+.drive-table-papel td:nth-child(6) {
+  width: 2.25rem;
+  padding-left: 0;
+  padding-right: 0.4rem;
+}
+.drive-td-status {
+  text-align: right;
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.status-badge.is-on {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success);
+}
+.status-badge.is-off {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: var(--text-muted);
+}
+.status-badge-toggle {
+  cursor: pointer;
+  font: inherit;
+  margin: 0;
+}
+.status-badge-toggle:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+.status-badge-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.status-switch {
+  width: 1.15rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.38;
+  position: relative;
+  flex-shrink: 0;
+}
+.status-switch::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #fff;
+}
+.status-switch.is-on {
+  opacity: 1;
+}
+.status-switch.is-on::after {
+  left: auto;
+  right: 1px;
 }
 .drive-td-nowrap {
   white-space: nowrap;
@@ -234,6 +412,10 @@ select.field:disabled {
   padding-right: 0.25rem;
   text-align: center;
   vertical-align: middle;
+}
+.drive-table td.drive-td-actions {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
 }
 .btn-row-menu {
   display: inline-flex;

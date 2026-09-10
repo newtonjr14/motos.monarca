@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Field } from "@/components/crud/Field";
-import { CatalogHeader, StatusBadge, TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
+import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -14,6 +14,7 @@ import {
   excluirEstoque,
   listarEstoqueProdutos,
   listarEstoques,
+  listarFiliais,
   listarProdutos,
   type Estoque,
   type EstoqueProduto,
@@ -29,12 +30,14 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
   const idFilial = useFilialId();
   const [itens, setItens] = useState<Estoque[]>([]);
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
   const [editando, setEditando] = useState<Estoque | null>(null);
   const [nome, setNome] = useState("");
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
+  const [idEstoquePadrao, setIdEstoquePadrao] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const [aberto, setAberto] = useState<Estoque | null>(null);
@@ -60,14 +63,32 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
   async function carregar() {
     try {
       setErro(null);
-      setItens(await listarEstoques(idFilial));
+      const [estoques, filiais] = await Promise.all([listarEstoques(idFilial), listarFiliais()]);
+      setItens(estoques);
+      setIdEstoquePadrao(filiais.find((f) => f.id === idFilial)?.idEstoquePadrao ?? null);
     } catch (e) {
       setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }
   useEffect(() => { void carregar(); }, [idFilial]);
-  useEffect(() => { setPage(1); }, [search]);
-  useEffect(() => { setPageSaldo(1); }, [buscaSaldo]);
+  const filtered = itens.filter((e) =>
+    passaFiltroStatus(e.status, filtroStatus) && e.nome.toLowerCase().includes(search.toLowerCase()));
+  const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => k === "nome" ? e.nome : e.id);
+  const filteredSaldos = saldos.filter((s) =>
+    `${s.produtoCodigo} ${s.produtoNome}`.toLowerCase().includes(buscaSaldo.toLowerCase()));
+  const { items: saldosOrdenados, sortKey: sortKeySaldo, sortDir: sortDirSaldo, onSort: onSortSaldo } = useListSort(
+    filteredSaldos,
+    (s, k) => {
+      if (k === "codigo") return s.produtoCodigo;
+      if (k === "nome") return s.produtoNome;
+      if (k === "tipo") return s.produtoTipo;
+      if (k === "quantidade") return s.quantidade;
+      if (k === "quantidadeDisponivel") return s.quantidadeDisponivel;
+      return s.id;
+    },
+  );
+  useEffect(() => { setPage(1); }, [search, filtroStatus, sortKey, sortDir]);
+  useEffect(() => { setPageSaldo(1); }, [buscaSaldo, sortKeySaldo, sortDirSaldo]);
 
   async function carregarSaldos(estoque: Estoque) {
     const [lista, prods] = await Promise.all([
@@ -257,10 +278,7 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
   }
 
   if (aberto) {
-    const filteredSaldos = saldos.filter((s) =>
-      `${s.produtoCodigo} ${s.produtoNome}`.toLowerCase().includes(buscaSaldo.toLowerCase()),
-    );
-    const pagedSaldos = slicePage(filteredSaldos, pageSaldo);
+    const pagedSaldos = slicePage(saldosOrdenados, pageSaldo);
     return (
       <div className="space-y-5">
         <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
@@ -280,19 +298,32 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
         <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: border1() }}>
           <table className="drive-table w-full">
             <thead>
-              <TableHeadRow cols={["col.code", "common.name", "produto.tipo", "estoque.qty", "estoque.reserved", "estoque.available", ""]} />
+              <TableHeadRow
+                sortKey={sortKeySaldo}
+                sortDir={sortDirSaldo}
+                onSort={onSortSaldo}
+                cols={[
+                  { label: "col.code", sort: "codigo" },
+                  { label: "common.name", sort: "nome" },
+                  { label: "produto.tipo", sort: "tipo" },
+                  { label: "estoque.qty", sort: "quantidade" },
+                  { label: "estoque.reserved" },
+                  { label: "estoque.available", sort: "quantidadeDisponivel" },
+                  "",
+                ]}
+              />
             </thead>
             <tbody>
               {pagedSaldos.slice.map((s) => (
                 <tr key={s.id} className="drive-row-clickable" style={{ borderBottom: border1() }}
                   onClick={() => abrirItem(s)}>
                   <Td mono gold>{s.produtoCodigo}</Td>
-                  <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{s.produtoNome}</td>
+                  <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{s.produtoNome}</td>
                   <Td sub>{s.produtoTipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")}</Td>
                   <Td mono>{s.quantidade}</Td>
                   <Td mono sub>{s.quantidadeReservada}</Td>
                   <Td mono>{s.quantidadeDisponivel}</Td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="drive-td text-right">
                     <button type="button" className="text-xs cursor-pointer" style={{ color: v("--gold") }}
                       onClick={(e) => { e.stopPropagation(); abrirItem(s); }}>{t("common.edit")}</button>
                   </td>
@@ -307,29 +338,48 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
     );
   }
 
-  const filtered = itens.filter((e) => e.nome.toLowerCase().includes(search.toLowerCase()));
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(ordenados, page);
 
   return (
     <div className="space-y-5">
       <CatalogHeader titulo={t("nav.estoques")} count={itens.length} novoLabel={t("estoque.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
-        className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: border1(), color: v("--text") }} />
+      <ListToolbar>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+          className="px-3 py-2 text-sm rounded-md outline-none w-64"
+          style={{ background: v("--card"), border: border1(), color: v("--text") }} />
+        <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
+      </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: border1() }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "common.name", "common.status", ""]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "common.name", sort: "nome" },
+                { label: "common.status" },
+                "",
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((e) => (
               <tr key={e.id} className="drive-row-clickable" style={{ borderBottom: border1() }}
                 onClick={() => void abrirItens(e)}>
                 <Td mono gold>{e.id}</Td>
-                <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{e.nome}</td>
-                <td className="px-4 py-3"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
-                <td className="px-4 py-3 text-right">
+                <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>
+                  {e.nome}
+                  {idEstoquePadrao === e.id && (
+                    <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: v("--gold") }}>
+                      {t("estoque.padraoBadge")}
+                    </span>
+                  )}
+                </td>
+                <td className="drive-td"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
+                <td className="drive-td text-right">
                   <button type="button" className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }}
                     onClick={(ev) => { ev.stopPropagation(); void abrirItens(e); }}>{t("estoque.items")}</button>
                   <button type="button" className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }}

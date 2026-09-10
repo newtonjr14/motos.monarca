@@ -92,6 +92,20 @@ class PessoaService(
         repository.buscarPessoa(id)?.toResponse()
             ?: throw RecursoNaoEncontrado("Pessoa $id não encontrada")
 
+    suspend fun consultarDocumento(
+        idPais: Long,
+        idTipoDocumento: Long,
+        numero: String,
+        tipoPessoa: TipoPessoa,
+        ignorarPessoaId: Long? = null,
+    ) {
+        val doc = normalizarDocumento(
+            DocumentoRequest(idPais = idPais, idTipoDocumento = idTipoDocumento, numero = numero),
+            tipoPessoa,
+        )
+        verificarConflitos(listOf(doc), ignorarPessoaId, confirmarNovaPessoa = false)
+    }
+
     suspend fun criar(request: PessoaRequest): PessoaResponse {
         val normalizada = normalizar(request)
         verificarConflitos(normalizada.documentos, ignorarPessoaId = null, request.confirmarNovaPessoa)

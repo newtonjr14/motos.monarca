@@ -12,5 +12,9 @@ class Produtos(
 ) {
     @Serializable
     @Resource("{id}")
-    class Id(val parent: Produtos = Produtos(), val id: Long, val idFilial: Long? = null)
+    class Id(val parent: Produtos = Produtos(), val id: Long, val idFilial: Long? = null) {
+        @Serializable
+        @Resource("status")
+        class StatusPatch(val parent: Id)
+    }
 }

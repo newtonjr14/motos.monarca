@@ -125,6 +125,19 @@ suspend fun Application.configurePessoa() {
                     call.respond(papel.listarClientes(resource.idFilial, call.usuarioAutenticado().id))
                 }
             }
+            get<Clientes.Documento> { resource ->
+                call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
+                    call.podeConsultarPessoa()
+                    service.consultarDocumento(
+                        idPais = resource.idPais,
+                        idTipoDocumento = resource.idTipoDocumento,
+                        numero = resource.numero,
+                        tipoPessoa = resource.tipoPessoa,
+                        ignorarPessoaId = resource.ignorarPessoaId,
+                    )
+                    call.respond(HttpStatusCode.NoContent)
+                }
+            }
             get<Clientes.Id> { resource ->
                 call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
                     call.podeConsultarPessoa()
@@ -164,6 +177,19 @@ suspend fun Application.configurePessoa() {
                 call.handlePessoa(service, papel, TipoPapel.FORNECEDOR) {
                     call.podeConsultarPessoa()
                     call.respond(papel.listarFornecedores(resource.idFilial, call.usuarioAutenticado().id))
+                }
+            }
+            get<Fornecedores.Documento> { resource ->
+                call.handlePessoa(service, papel, TipoPapel.FORNECEDOR) {
+                    call.podeConsultarPessoa()
+                    service.consultarDocumento(
+                        idPais = resource.idPais,
+                        idTipoDocumento = resource.idTipoDocumento,
+                        numero = resource.numero,
+                        tipoPessoa = resource.tipoPessoa,
+                        ignorarPessoaId = resource.ignorarPessoaId,
+                    )
+                    call.respond(HttpStatusCode.NoContent)
                 }
             }
             get<Fornecedores.Id> { resource ->

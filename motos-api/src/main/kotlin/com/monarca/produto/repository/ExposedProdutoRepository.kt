@@ -125,9 +125,14 @@ class ExposedProdutoRepository(
         moto: ProdutoMoto?,
         bicicleta: ProdutoBicicleta?,
         idFilial: Long,
+        quantidadeInicial: Int,
     ): Long = suspendTransaction(database) {
+        val codigoInformado = produto.codigo.trim().uppercase()
+        val placeholder = codigoInformado.ifEmpty {
+            "TMP-${java.util.UUID.randomUUID().toString().replace("-", "").take(12)}"
+        }
         val inserted = ProdutosTable.insert {
-            it[codigo] = produto.codigo
+            it[codigo] = placeholder
             it[nome] = produto.nome
             it[idMarca] = produto.idMarca
             it[idModelo] = produto.idModelo
@@ -141,16 +146,43 @@ class ExposedProdutoRepository(
             it[status] = produto.status.name.lowercase()
         }
         val id = inserted[ProdutosTable.id].value
+        val codigoFinal = if (codigoInformado.isEmpty()) codigoLivreAPartir(id) else codigoInformado
+        if (codigoFinal != placeholder) {
+            ProdutosTable.update({ ProdutosTable.id eq id }) {
+                it[codigo] = codigoFinal
+            }
+        }
         gravarEspecifico(id, produto.tipo, moto, bicicleta)
         vincularFilialInterno(id, idFilial, auditar = true)
-        val itens = com.monarca.estoque.repository.EstoqueProdutoSeed.garantirProdutoNaFilial(id, idFilial)
+        val itens = com.monarca.estoque.repository.EstoqueProdutoSeed.garantirProdutoNaFilial(
+            id,
+            idFilial,
+            quantidadeInicial,
+        )
         check(itens.isNotEmpty()) { "Não foi possível criar o saldo zerado nos estoques da filial" }
         com.monarca.estoque.repository.EstoqueProdutoSeed.auditarInsert(
             "produto",
             id,
-            """{"codigo":"${produto.codigo}","nome":"${produto.nome}","idMarca":${produto.idMarca},"idModelo":${produto.idModelo},"tipo":"${produto.tipo.name.lowercase()}","status":"${produto.status.name.lowercase()}"}""",
+            """{"codigo":"$codigoFinal","nome":"${produto.nome}","idMarca":${produto.idMarca},"idModelo":${produto.idModelo},"tipo":"${produto.tipo.name.lowercase()}","status":"${produto.status.name.lowercase()}"}""",
         )
         id
+    }
+
+    private suspend fun codigoLivreAPartir(id: Long): String {
+        var candidato = id
+        while (
+            ProdutosTable.selectAll()
+                .where {
+                    (ProdutosTable.codigo eq candidato.toString()) and
+                        (ProdutosTable.id neq id) and
+                        (ProdutosTable.status neq Status.DELETADO.name.lowercase())
+                }
+                .toList()
+                .isNotEmpty()
+        ) {
+            candidato += 1
+        }
+        return candidato.toString()
     }
 
     override suspend fun atualizar(
@@ -176,6 +208,14 @@ class ExposedProdutoRepository(
         } > 0
         if (ok) gravarEspecifico(id, produto.tipo, moto, bicicleta)
         ok
+    }
+
+    override suspend fun atualizarStatus(id: Long, status: Status): Boolean = suspendTransaction(database) {
+        ProdutosTable.update({
+            (ProdutosTable.id eq id) and (ProdutosTable.status neq Status.DELETADO.name.lowercase())
+        }) {
+            it[ProdutosTable.status] = status.name.lowercase()
+        } > 0
     }
 
     override suspend fun excluir(id: Long, idFilial: Long?): Boolean = suspendTransaction(database) {
@@ -220,6 +260,7 @@ class ExposedProdutoRepository(
                 (ProdutosTable.id eq id) and (ProdutosTable.status neq Status.DELETADO.name.lowercase())
             }) {
                 it[status] = Status.DELETADO.name.lowercase()
+                it[codigo] = "#$id"
             } > 0
         }
     }
@@ -261,9 +302,11 @@ class ExposedProdutoRepository(
         suspendTransaction(database) {
             EstoqueProdutosTable
                 .innerJoin(EstoquesTable)
+                .innerJoin(FiliaisTable)
                 .selectAll()
                 .where {
                     (EstoquesTable.idFilial eq idFilial) and
+                        (FiliaisTable.idEstoquePadrao eq EstoquesTable.id) and
                         (EstoqueProdutosTable.status neq Status.DELETADO.name.lowercase()) and
                         (EstoquesTable.status neq Status.DELETADO.name.lowercase())
                 }
@@ -281,6 +324,7 @@ class ExposedProdutoRepository(
         suspendTransaction(database) {
             EstoqueProdutosTable
                 .innerJoin(EstoquesTable)
+                .innerJoin(FiliaisTable)
                 .selectAll()
                 .where {
                     (EstoqueProdutosTable.idProduto eq idProduto) and
@@ -291,11 +335,13 @@ class ExposedProdutoRepository(
                 .orderBy(EstoquesTable.nome to SortOrder.ASC)
                 .toList()
                 .map {
+                    val idEstoque = it[EstoquesTable.id].value
                     ProdutoEstoqueSaldo(
-                        idEstoque = it[EstoquesTable.id].value,
+                        idEstoque = idEstoque,
                         estoqueNome = it[EstoquesTable.nome],
                         quantidade = it[EstoqueProdutosTable.quantidade],
                         quantidadeReservada = it[EstoqueProdutosTable.quantidadeReservada],
+                        padrao = it[FiliaisTable.idEstoquePadrao] == idEstoque,
                     )
                 }
         }

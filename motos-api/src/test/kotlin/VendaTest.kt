@@ -48,15 +48,8 @@ class VendaTest {
                 Json.parseToJsonElement(semCotacao.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
             )
 
-            val empresas = Json.parseToJsonElement(client.get("/empresas") { auth(token) }.bodyAsText()).jsonArray
-            val idEmpresa = empresas.first().jsonObject["id"]!!.jsonPrimitive.long
-            val filiais = Json.parseToJsonElement(client.get("/filiais?idEmpresa=$idEmpresa") { auth(token) }.bodyAsText()).jsonArray
-            val caixaFilial = filiais.firstNotNullOf { f ->
-                val id = f.jsonObject["id"]!!.jsonPrimitive.long
-                val lista = Json.parseToJsonElement(client.get("/caixas?idFilial=$id") { auth(token) }.bodyAsText()).jsonArray
-                if (lista.isEmpty()) null else Triple(id, lista, f.jsonObject)
-            }
-            val idFilial = caixaFilial.first
+            val filialJson = Json.parseToJsonElement(client.get("/filiais/principal") { auth(token) }.bodyAsText()).jsonObject
+            val idFilial = filialJson["id"]!!.jsonPrimitive.long
             val nCaixa = System.nanoTime()
             val caixaNovo = client.post("/caixas") {
                 auth(token)
@@ -80,7 +73,6 @@ class VendaTest {
             }
             assertEquals(HttpStatusCode.Created, cotacao.status, cotacao.bodyAsText())
 
-            val filialJson = caixaFilial.third
             val putFilial = client.put("/filiais/$idFilial") {
                 auth(token)
                 contentType(ContentType.Application.Json)
@@ -89,6 +81,7 @@ class VendaTest {
                 )
             }
             assertEquals(HttpStatusCode.OK, putFilial.status, putFilial.bodyAsText())
+            val idEstoque = Json.parseToJsonElement(putFilial.bodyAsText()).jsonObject["idEstoquePadrao"]!!.jsonPrimitive.long
 
             val n = System.nanoTime()
             val (idMarca, idModelo) = criarModelo(token, "bicicleta", "Venda $n")
@@ -102,8 +95,10 @@ class VendaTest {
             assertEquals(HttpStatusCode.Created, produto.status, produto.bodyAsText())
             val idProduto = Json.parseToJsonElement(produto.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
 
-            val estoques = Json.parseToJsonElement(client.get("/estoques") { auth(token) }.bodyAsText()).jsonArray
-            val idEstoque = estoques.first().jsonObject["id"]!!.jsonPrimitive.long
+            val estoques = Json.parseToJsonElement(
+                client.get("/estoques?idFilial=$idFilial") { auth(token) }.bodyAsText(),
+            ).jsonArray
+            assertTrue(estoques.any { it.jsonObject["id"]!!.jsonPrimitive.long == idEstoque })
             val itensEstoque = Json.parseToJsonElement(
                 client.get("/estoque-produtos?idEstoque=$idEstoque") { auth(token) }.bodyAsText(),
             ).jsonArray

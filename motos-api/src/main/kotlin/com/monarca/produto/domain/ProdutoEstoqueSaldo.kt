@@ -5,6 +5,7 @@ data class ProdutoEstoqueSaldo(
     val estoqueNome: String,
     val quantidade: Int,
     val quantidadeReservada: Int,
+    val padrao: Boolean = false,
 ) {
     val quantidadeDisponivel: Int get() = quantidade - quantidadeReservada
 }

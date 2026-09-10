@@ -279,7 +279,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
               <tr key={e.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
                 <Td>{e.nome}{e.padrao ? ` · ${t("caixa.default")}` : ""}</Td>
                 <Td>{e.sessaoAbertaId ? t("caixa.session.open") : t("caixa.session.closed")}</Td>
-                <td className="px-4 py-3 text-right space-x-3">
+                <td className="drive-td text-right space-x-3">
                   {!e.sessaoAbertaId && (
                     <button className="text-xs cursor-pointer" style={{ color: v("--gold") }} onClick={() => void iniciar(e, "abrir")}>{t("caixa.open")}</button>
                   )}

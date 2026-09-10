@@ -36,6 +36,7 @@ class EmpresaTest {
             assertEquals(true, principal["principal"]!!.jsonPrimitive.content.toBoolean())
             assertEquals("py_iva", principal["perfilFiscal"]!!.jsonPrimitive.content)
             assertTrue(principal["moedaOperacao"]!!.jsonPrimitive.content in setOf("usd", "pyg", "brl"))
+            assertTrue(principal["idEstoquePadrao"]!!.jsonPrimitive.long > 0)
             assertEquals(empresa["id"]!!.jsonPrimitive.long, principal["idEmpresa"]!!.jsonPrimitive.long)
         }
     }
@@ -58,6 +59,8 @@ class EmpresaTest {
             val id = filial["id"]!!.jsonPrimitive.long
             assertEquals("Sucursal $n", filial["nome"]!!.jsonPrimitive.content)
             assertEquals("py_iva", filial["perfilFiscal"]!!.jsonPrimitive.content)
+            val idEstoquePadrao = filial["idEstoquePadrao"]!!.jsonPrimitive.long
+            assertTrue(idEstoquePadrao > 0)
 
             val updated = client.put("/filiais/$id") {
                 auth(token)
@@ -68,6 +71,7 @@ class EmpresaTest {
             val editada = Json.parseToJsonElement(updated.bodyAsText()).jsonObject
             assertEquals("Sucursal Editada $n", editada["nome"]!!.jsonPrimitive.content)
             assertEquals(true, editada["principal"]!!.jsonPrimitive.content.toBoolean())
+            assertEquals(idEstoquePadrao, editada["idEstoquePadrao"]!!.jsonPrimitive.long)
 
             val principal = Json.parseToJsonElement(
                 client.get("/filiais/principal") { auth(token) }.bodyAsText(),
@@ -80,7 +84,42 @@ class EmpresaTest {
                 setBody("""{"idEmpresa":$empresaId,"nome":"Sucursal Editada $n","moedaOperacao":"pyg","principal":true}""")
             }
             assertEquals(HttpStatusCode.OK, moeda.status)
-            assertEquals("pyg", Json.parseToJsonElement(moeda.bodyAsText()).jsonObject["moedaOperacao"]!!.jsonPrimitive.content)
+            val moedaBody = Json.parseToJsonElement(moeda.bodyAsText()).jsonObject
+            assertEquals("pyg", moedaBody["moedaOperacao"]!!.jsonPrimitive.content)
+            assertEquals(idEstoquePadrao, moedaBody["idEstoquePadrao"]!!.jsonPrimitive.long)
+
+            val outroEstoque = client.post("/estoques") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idFilial":$id,"nome":"Patio $n"}""")
+            }
+            assertEquals(HttpStatusCode.Created, outroEstoque.status, outroEstoque.bodyAsText())
+            val idPatio = Json.parseToJsonElement(outroEstoque.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+            val padrao = client.put("/filiais/$id") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idEmpresa":$empresaId,"nome":"Sucursal Editada $n","moedaOperacao":"pyg","principal":true,"idEstoquePadrao":$idPatio}""")
+            }
+            assertEquals(HttpStatusCode.OK, padrao.status, padrao.bodyAsText())
+            assertEquals(idPatio, Json.parseToJsonElement(padrao.bodyAsText()).jsonObject["idEstoquePadrao"]!!.jsonPrimitive.long)
+
+            val outraFilial = client.post("/filiais") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idEmpresa":$empresaId,"nome":"Outra $n","principal":false}""")
+            }
+            assertEquals(HttpStatusCode.Created, outraFilial.status)
+            val idEstoqueOutra = Json.parseToJsonElement(outraFilial.bodyAsText()).jsonObject["idEstoquePadrao"]!!.jsonPrimitive.long
+            val errado = client.put("/filiais/$id") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idEmpresa":$empresaId,"nome":"Sucursal Editada $n","moedaOperacao":"pyg","principal":true,"idEstoquePadrao":$idEstoqueOutra}""")
+            }
+            assertEquals(HttpStatusCode.BadRequest, errado.status)
+            assertEquals(
+                "ESTOQUE_PADRAO_FILIAL",
+                Json.parseToJsonElement(errado.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
+            )
         }
     }
 }

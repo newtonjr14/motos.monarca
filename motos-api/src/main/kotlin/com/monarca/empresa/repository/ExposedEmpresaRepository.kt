@@ -139,6 +139,7 @@ class ExposedEmpresaRepository(
             it[pontoExpedicao] = filial.pontoExpedicao
             it[perfilFiscal] = filial.perfilFiscal.name.lowercase()
             it[moedaOperacao] = filial.moedaOperacao.name.lowercase()
+            it[idEstoquePadrao] = filial.idEstoquePadrao
             it[principal] = filial.principal
             it[listarApenasClientesFilial] = filial.listarApenasClientesFilial
             it[listarApenasFornecedoresFilial] = filial.listarApenasFornecedoresFilial
@@ -171,6 +172,7 @@ class ExposedEmpresaRepository(
             it[pontoExpedicao] = filial.pontoExpedicao
             it[perfilFiscal] = filial.perfilFiscal.name.lowercase()
             it[moedaOperacao] = filial.moedaOperacao.name.lowercase()
+            it[idEstoquePadrao] = filial.idEstoquePadrao
             it[principal] = filial.principal
             it[listarApenasClientesFilial] = filial.listarApenasClientesFilial
             it[listarApenasFornecedoresFilial] = filial.listarApenasFornecedoresFilial
@@ -195,6 +197,16 @@ class ExposedEmpresaRepository(
                 (FiliaisTable.idEmpresa eq idEmpresa) and exceto and filialAtiva()
             }) {
                 it[principal] = false
+            }
+        }
+    }
+
+    override suspend fun definirEstoquePadrao(idFilial: Long, idEstoque: Long?) {
+        suspendTransaction(database) {
+            FiliaisTable.update({
+                (FiliaisTable.id eq idFilial) and filialAtiva()
+            }) {
+                it[idEstoquePadrao] = idEstoque
             }
         }
     }
@@ -268,6 +280,7 @@ class ExposedEmpresaRepository(
         pontoExpedicao = this[FiliaisTable.pontoExpedicao],
         perfilFiscal = PerfilFiscal.valueOf(this[FiliaisTable.perfilFiscal].uppercase()),
         moedaOperacao = com.monarca.produto.domain.Moeda.valueOf(this[FiliaisTable.moedaOperacao].uppercase()),
+        idEstoquePadrao = this[FiliaisTable.idEstoquePadrao],
         principal = this[FiliaisTable.principal],
         listarApenasClientesFilial = this[FiliaisTable.listarApenasClientesFilial],
         listarApenasFornecedoresFilial = this[FiliaisTable.listarApenasFornecedoresFilial],

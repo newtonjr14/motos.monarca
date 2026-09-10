@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/crud/Field";
-import { CatalogHeader, StatusBadge, TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
+import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -24,6 +24,7 @@ export default function ModelosPage({ navReset }: { navReset: number }) {
   const [itens, setItens] = useState<Modelo[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
@@ -51,7 +52,16 @@ export default function ModelosPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, []);
-  useEffect(() => { setPage(1); }, [search]);
+  const filtered = itens.filter((e) =>
+    passaFiltroStatus(e.status, filtroStatus) &&
+    `${e.nome} ${e.marcaNome} ${e.tipo}`.toLowerCase().includes(search.toLowerCase()));
+  const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => {
+    if (k === "marca") return e.marcaNome;
+    if (k === "nome") return e.nome;
+    if (k === "tipo") return e.tipo;
+    return e.id;
+  });
+  useEffect(() => { setPage(1); }, [search, filtroStatus, sortKey, sortDir]);
 
   function abrir(item?: Modelo) {
     setEditando(item ?? null);
@@ -132,31 +142,44 @@ export default function ModelosPage({ navReset }: { navReset: number }) {
     );
   }
 
-  const filtered = itens.filter((e) =>
-    `${e.nome} ${e.marcaNome} ${e.tipo}`.toLowerCase().includes(search.toLowerCase()));
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(ordenados, page);
 
   return (
     <div className="space-y-5">
       <CatalogHeader titulo={t("nav.modelos")} count={itens.length} novoLabel={t("modelo.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
-        className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+      <ListToolbar>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+          className="px-3 py-2 text-sm rounded-md outline-none w-64"
+          style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+        <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
+      </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "produto.marca", "common.name", "produto.tipo", "common.status", ""]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "produto.marca", sort: "marca" },
+                { label: "common.name", sort: "nome" },
+                { label: "produto.tipo", sort: "tipo" },
+                { label: "common.status" },
+                "",
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((e) => (
               <tr key={e.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
                 <Td mono gold>{e.id}</Td>
                 <Td sub>{e.marcaNome}</Td>
-                <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{e.nome}</td>
+                <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{e.nome}</td>
                 <Td sub>{e.tipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")}</Td>
-                <td className="px-4 py-3"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
-                <td className="px-4 py-3 text-right">
+                <td className="drive-td"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
+                <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(e)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async () => {

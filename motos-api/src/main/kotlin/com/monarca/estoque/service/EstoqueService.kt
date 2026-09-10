@@ -43,6 +43,7 @@ class EstoqueService(
             throw invalido("ESTOQUE_NOME_DUPLICADO", "Já existe um estoque com o nome ${estoque.nome} nesta filial", "nome" to estoque.nome)
         }
         val id = repository.inserir(estoque)
+        empresaService.garantirEstoquePadrao(idFilial, id)
         return buscar(id, idUsuario)
     }
 
@@ -53,6 +54,10 @@ class EstoqueService(
         val estoque = validarEstoque(request, id, idFilial)
         if (repository.existeNome(idFilial, estoque.nome, ignorarId = id)) {
             throw invalido("ESTOQUE_NOME_DUPLICADO", "Já existe um estoque com o nome ${estoque.nome} nesta filial", "nome" to estoque.nome)
+        }
+        val filial = empresaService.buscarFilial(idFilial)
+        if (filial.idEstoquePadrao == id && estoque.status != Status.ATIVO) {
+            throw invalido("ESTOQUE_PADRAO_INATIVO", "O estoque padrão da venda precisa estar ativo")
         }
         repository.atualizar(id, estoque)
         return buscar(id, idUsuario)
@@ -67,6 +72,7 @@ class EstoqueService(
         if (!repository.excluir(id)) {
             throw RecursoNaoEncontrado("Estoque $id não encontrado")
         }
+        empresaService.reporEstoquePadrao(atual.estoque.idFilial, id)
     }
 
     suspend fun listarItens(idEstoque: Long?, idFilial: Long?, idUsuario: Long): List<EstoqueProdutoResponse> {

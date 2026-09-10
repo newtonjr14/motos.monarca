@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -66,6 +67,37 @@ class ProdutoEstoqueTest {
 
             val lista = Json.parseToJsonElement(client.get("/produtos") { auth(token) }.bodyAsText()).jsonArray
             assertTrue(lista.any { it.jsonObject["id"]!!.jsonPrimitive.long == id })
+
+            assertEquals(HttpStatusCode.NoContent, client.delete("/produtos/$id") { auth(token) }.status)
+        }
+    }
+
+    @Test
+    fun `produto nome customizado persiste e vazio e rejeitado`() = testApplication {
+        configure()
+        withAuth { token ->
+            val n = System.nanoTime()
+            val (idMarca, idModelo) = criarModelo(token, "moto", "Urban $n")
+            val created = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"NM-$n","nome":"Caloi Andes Preta","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+            val id = Json.parseToJsonElement(created.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+            assertEquals("Caloi Andes Preta", Json.parseToJsonElement(created.bodyAsText()).jsonObject["nome"]!!.jsonPrimitive.content)
+
+            val vazio = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"NV-$n","nome":"","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, vazio.status)
+            assertEquals("PRODUTO_NOME_OBRIGATORIO", Json.parseToJsonElement(vazio.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
 
             assertEquals(HttpStatusCode.NoContent, client.delete("/produtos/$id") { auth(token) }.status)
         }
@@ -158,7 +190,8 @@ class ProdutoEstoqueTest {
 
             val estoques = Json.parseToJsonElement(client.get("/estoques") { auth(token) }.bodyAsText()).jsonArray
             assertTrue(estoques.isNotEmpty())
-            val idEstoque = estoques.first().jsonObject["id"]!!.jsonPrimitive.long
+            val idEstoque = Json.parseToJsonElement(client.get("/filiais/principal") { auth(token) }.bodyAsText())
+                .jsonObject["idEstoquePadrao"]!!.jsonPrimitive.long
 
             val zerados = Json.parseToJsonElement(
                 client.get("/estoque-produtos?idEstoque=$idEstoque") { auth(token) }.bodyAsText(),
@@ -231,6 +264,108 @@ class ProdutoEstoqueTest {
             val seed = itens.first { it.jsonObject["idProduto"]!!.jsonPrimitive.long == idProduto }.jsonObject
             assertEquals(0, seed["quantidade"]!!.jsonPrimitive.int)
             assertEquals(0, seed["quantidadeReservada"]!!.jsonPrimitive.int)
+        }
+    }
+
+    @Test
+    fun `venda e lista usam so o estoque padrao da filial`() = testApplication {
+        configure()
+        withAuth { token ->
+            val n = System.nanoTime()
+            val (idMarca, idModelo) = criarModelo(token, "bicicleta", "Padrao $n")
+            val produto = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"codigo":"PD-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"bicicleta"}""")
+            }
+            assertEquals(HttpStatusCode.Created, produto.status, produto.bodyAsText())
+            val idProduto = Json.parseToJsonElement(produto.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+            val filialJson = Json.parseToJsonElement(client.get("/filiais/principal") { auth(token) }.bodyAsText()).jsonObject
+            val idFilial = filialJson["id"]!!.jsonPrimitive.long
+            val idPadrao = filialJson["idEstoquePadrao"]!!.jsonPrimitive.long
+            val padraoNome = Json.parseToJsonElement(client.get("/estoques/$idPadrao") { auth(token) }.bodyAsText())
+                .jsonObject["nome"]!!.jsonPrimitive.content
+
+            val patio = client.post("/estoques") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idFilial":$idFilial,"nome":"Patio $n"}""")
+            }
+            assertEquals(HttpStatusCode.Created, patio.status, patio.bodyAsText())
+            val idPatio = Json.parseToJsonElement(patio.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+            assertEquals(
+                idPadrao,
+                Json.parseToJsonElement(client.get("/filiais/$idFilial") { auth(token) }.bodyAsText())
+                    .jsonObject["idEstoquePadrao"]!!.jsonPrimitive.long,
+            )
+
+            val itemPadrao = Json.parseToJsonElement(
+                client.get("/estoque-produtos?idEstoque=$idPadrao") { auth(token) }.bodyAsText(),
+            ).jsonArray.first { it.jsonObject["idProduto"]!!.jsonPrimitive.long == idProduto }.jsonObject
+            val itemPatio = Json.parseToJsonElement(
+                client.get("/estoque-produtos?idEstoque=$idPatio") { auth(token) }.bodyAsText(),
+            ).jsonArray.first { it.jsonObject["idProduto"]!!.jsonPrimitive.long == idProduto }.jsonObject
+            assertEquals(
+                HttpStatusCode.OK,
+                client.put("/estoque-produtos/${itemPadrao["id"]!!.jsonPrimitive.long}") {
+                    auth(token)
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"idEstoque":$idPadrao,"idProduto":$idProduto,"quantidade":3,"quantidadeReservada":0}""")
+                }.status,
+            )
+            assertEquals(
+                HttpStatusCode.OK,
+                client.put("/estoque-produtos/${itemPatio["id"]!!.jsonPrimitive.long}") {
+                    auth(token)
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"idEstoque":$idPatio,"idProduto":$idProduto,"quantidade":40,"quantidadeReservada":0}""")
+                }.status,
+            )
+
+            val lista = Json.parseToJsonElement(client.get("/produtos") { auth(token) }.bodyAsText()).jsonArray
+            val naLista = lista.first { it.jsonObject["id"]!!.jsonPrimitive.long == idProduto }.jsonObject
+            assertEquals(3, naLista["quantidadeDisponivel"]!!.jsonPrimitive.int)
+
+            val inativar = client.put("/estoques/$idPadrao") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idFilial":$idFilial,"nome":"$padraoNome","status":"inativo"}""")
+            }
+            assertEquals(HttpStatusCode.BadRequest, inativar.status)
+            assertEquals(
+                "ESTOQUE_PADRAO_INATIVO",
+                Json.parseToJsonElement(inativar.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
+            )
+
+            val promover = client.put("/filiais/$idFilial") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"idEmpresa":${filialJson["idEmpresa"]!!.jsonPrimitive.long},"nome":${filialJson["nome"]},"principal":${filialJson["principal"]},"idEstoquePadrao":$idPatio}""",
+                )
+            }
+            assertEquals(HttpStatusCode.OK, promover.status, promover.bodyAsText())
+            assertEquals(idPatio, Json.parseToJsonElement(promover.bodyAsText()).jsonObject["idEstoquePadrao"]!!.jsonPrimitive.long)
+
+            val listaPatio = Json.parseToJsonElement(client.get("/produtos") { auth(token) }.bodyAsText()).jsonArray
+            val naListaPatio = listaPatio.first { it.jsonObject["id"]!!.jsonPrimitive.long == idProduto }.jsonObject
+            assertEquals(40, naListaPatio["quantidadeDisponivel"]!!.jsonPrimitive.int)
+
+            val ficha = Json.parseToJsonElement(
+                client.get("/produtos/$idProduto?idFilial=$idFilial") { auth(token) }.bodyAsText(),
+            ).jsonObject
+            val depositos = ficha["estoques"]!!.jsonArray
+            assertEquals(true, depositos.first { it.jsonObject["idEstoque"]!!.jsonPrimitive.long == idPatio }.jsonObject["padrao"]!!.jsonPrimitive.boolean)
+            assertEquals(false, depositos.first { it.jsonObject["idEstoque"]!!.jsonPrimitive.long == idPadrao }.jsonObject["padrao"]!!.jsonPrimitive.boolean)
+
+            val restaurar = client.put("/filiais/$idFilial") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"idEmpresa":${filialJson["idEmpresa"]!!.jsonPrimitive.long},"nome":${filialJson["nome"]},"principal":${filialJson["principal"]},"idEstoquePadrao":$idPadrao}""",
+                )
+            }
+            assertEquals(HttpStatusCode.OK, restaurar.status, restaurar.bodyAsText())
         }
     }
 
@@ -308,6 +443,73 @@ class ProdutoEstoqueTest {
             assertEquals(moedaOp, body["moedaPreco"]!!.jsonPrimitive.content)
             assertEquals(1_500_000.0, body["precoLista"]!!.jsonPrimitive.content.toDouble())
             assertEquals(900_000.0, body["custo"]!!.jsonPrimitive.content.toDouble())
+        }
+    }
+
+    @Test
+    fun `produto novo quantidade inicial no padrao e codigo vazio vira id`() = testApplication {
+        configure()
+        withAuth { token ->
+            val n = System.nanoTime()
+            val (idMarca, idModelo) = criarModelo(token, "bicicleta", "Ini $n")
+            val created = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"bicicleta","quantidadeInicial":7}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+            val body = Json.parseToJsonElement(created.bodyAsText()).jsonObject
+            val id = body["id"]!!.jsonPrimitive.long
+            assertEquals(id.toString(), body["codigo"]!!.jsonPrimitive.content)
+            assertEquals(7, body["quantidadeDisponivel"]!!.jsonPrimitive.int)
+
+            val idPadrao = Json.parseToJsonElement(client.get("/filiais/principal") { auth(token) }.bodyAsText())
+                .jsonObject["idEstoquePadrao"]!!.jsonPrimitive.long
+            val noPadrao = Json.parseToJsonElement(
+                client.get("/estoque-produtos?idEstoque=$idPadrao") { auth(token) }.bodyAsText(),
+            ).jsonArray.first { it.jsonObject["idProduto"]!!.jsonPrimitive.long == id }.jsonObject
+            assertEquals(7, noPadrao["quantidade"]!!.jsonPrimitive.int)
+        }
+    }
+
+    @Test
+    fun `produto rejeita sku duplicado e altera so o status`() = testApplication {
+        configure()
+        withAuth { token ->
+            val n = System.nanoTime()
+            val (idMarca, idModelo) = criarModelo(token, "moto", "Sku $n")
+            val primeiro = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"SKU-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, primeiro.status, primeiro.bodyAsText())
+            val id = Json.parseToJsonElement(primeiro.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+
+            val duplicado = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"SKU-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, duplicado.status, duplicado.bodyAsText())
+            assertEquals(
+                "PRODUTO_CODIGO_DUPLICADO",
+                Json.parseToJsonElement(duplicado.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
+            )
+
+            val inativo = client.put("/produtos/$id/status") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"status":"inativo"}""")
+            }
+            assertEquals(HttpStatusCode.OK, inativo.status, inativo.bodyAsText())
+            assertEquals("inativo", Json.parseToJsonElement(inativo.bodyAsText()).jsonObject["status"]!!.jsonPrimitive.content)
         }
     }
 }

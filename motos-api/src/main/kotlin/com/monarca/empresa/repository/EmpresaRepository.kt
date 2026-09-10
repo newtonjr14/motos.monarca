@@ -20,5 +20,6 @@ interface EmpresaRepository {
     suspend fun atualizarFilial(id: Long, filial: Filial): Boolean
     suspend fun excluirFilial(id: Long): Boolean
     suspend fun limparPrincipal(idEmpresa: Long, excetoId: Long? = null): Unit
+    suspend fun definirEstoquePadrao(idFilial: Long, idEstoque: Long?)
     suspend fun filialEmUso(id: Long): Boolean
 }

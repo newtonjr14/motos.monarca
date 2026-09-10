@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import CidadeSearchSelect from "@/components/CidadeSearchSelect";
 import DdiSearchSelect from "@/components/DdiSearchSelect";
 import FilialParametrosModal, { FilialParametrosIconButton } from "@/components/FilialParametrosModal";
+import { ListToolbar, StatusFilter, TableHeadRow, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -109,6 +110,13 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
   const [principal, setPrincipal] = useState(false);
   const [statusFilial, setStatusFilial] = useState<"ativo" | "inativo">("ativo");
   const [parametrosFilial, setParametrosFilial] = useState<Filial | null>(null);
+  const [filtroStatusFilial, setFiltroStatusFilial] = useState<FiltroStatus>("todos");
+  const filiaisFiltradas = filiais.filter((f) => passaFiltroStatus(f.status, filtroStatusFilial));
+  const { items: filiaisOrdenadas, sortKey, sortDir, onSort } = useListSort(filiaisFiltradas, (f, k) => {
+    if (k === "nome") return f.nome;
+    if (k === "cidade") return `${f.cidadeNome ?? ""} ${f.divisaoSigla ?? ""}`;
+    return f.id;
+  });
   const [seed, setSeed] = useState<SeedDemoStatus | null>(null);
   const [seedErro, setSeedErro] = useState<string | null>(null);
   const [seedSalvando, setSeedSalvando] = useState(false);
@@ -258,6 +266,7 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
         pontoExpedicao: pontoExpedicao.trim() || null,
         perfilFiscal,
         moedaOperacao: editandoFilial?.moedaOperacao ?? "usd",
+        idEstoquePadrao: editandoFilial?.idEstoquePadrao ?? null,
         principal,
         listarApenasClientesFilial: editandoFilial?.listarApenasClientesFilial ?? true,
         listarApenasFornecedoresFilial: editandoFilial?.listarApenasFornecedoresFilial ?? true,
@@ -472,44 +481,52 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
       ) : null}
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-sm font-medium" style={{ color: v("--text-sub") }}>{t("empresa.section.branches")}</h2>
-          <button type="button" className="btn-gold px-4 py-2 text-sm" onClick={() => abrirFilial()}>{t("empresa.branchNew")}</button>
+          <ListToolbar>
+            <StatusFilter value={filtroStatusFilial} onChange={setFiltroStatusFilial} />
+            <button type="button" className="btn-gold px-4 py-2 text-sm" onClick={() => abrirFilial()}>{t("empresa.branchNew")}</button>
+          </ListToolbar>
         </div>
         <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
           <table className="drive-table w-full">
             <thead>
-              <tr style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("common.name")}</th>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("papel.city")}</th>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("empresa.perfilFiscal")}</th>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("empresa.principal")}</th>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: v("--text-muted") }}>{t("common.status")}</th>
-                <th className="drive-td-actions px-2 py-2" aria-label={t("empresa.branchParameters")} />
-                <th className="px-4 py-2" />
-              </tr>
+              <TableHeadRow
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={onSort}
+                cols={[
+                  { label: "common.name", sort: "nome" },
+                  { label: "papel.city", sort: "cidade" },
+                  { label: "empresa.perfilFiscal" },
+                  { label: "empresa.principal" },
+                  { label: "common.status" },
+                  "",
+                  "",
+                ]}
+              />
             </thead>
             <tbody>
-              {filiais.length === 0 ? (
+              {filiaisFiltradas.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-6 text-sm text-center" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</td></tr>
-              ) : filiais.map((f) => (
+              ) : filiaisOrdenadas.map((f) => (
                 <tr key={f.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                  <td className="px-4 py-2.5 text-sm" style={{ color: v("--text") }}>{f.nome}</td>
-                  <td className="px-4 py-2.5 text-sm" style={{ color: v("--text-sub") }}>
+                  <td className="drive-td text-sm" style={{ color: v("--text") }}>{f.nome}</td>
+                  <td className="drive-td text-sm" style={{ color: v("--text-sub") }}>
                     {f.cidadeNome ? `${f.cidadeNome}${f.divisaoSigla ? ` (${f.divisaoSigla})` : ""}` : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-sm" style={{ color: v("--text-sub") }}>
+                  <td className="drive-td text-sm" style={{ color: v("--text-sub") }}>
                     {f.perfilFiscal === "py_iva" ? t("empresa.perfilFiscal.py_iva") : f.perfilFiscal}
                   </td>
-                  <td className="px-4 py-2.5 text-sm">{f.principal ? t("common.yes") : t("common.no")}</td>
-                  <td className="px-4 py-2.5"><StatusBadge status={f.status === "inativo" ? "inativo" : "ativo"} /></td>
-                  <td className="drive-td-actions px-2 py-2.5">
+                  <td className="drive-td text-sm">{f.principal ? t("common.yes") : t("common.no")}</td>
+                  <td className="drive-td"><StatusBadge status={f.status === "inativo" ? "inativo" : "ativo"} /></td>
+                  <td className="drive-td drive-td-actions">
                     <FilialParametrosIconButton
                       label={t("empresa.branchParameters")}
                       onClick={() => setParametrosFilial(f)}
                     />
                   </td>
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                  <td className="drive-td text-right whitespace-nowrap">
                     <button type="button" className="btn-ghost px-2 py-1 text-xs mr-1" onClick={() => abrirFilial(f)}>{t("common.edit")}</button>
                     {!f.principal && (
                       <button type="button" className="btn-ghost px-2 py-1 text-xs" style={{ color: "#ef4444" }} onClick={() => void excluirFilialItem(f.id)}>{t("common.delete")}</button>

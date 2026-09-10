@@ -89,20 +89,40 @@ class EmpresaService(
         usuarioRepository.buscarPorLogin(SystemUser.LOGIN)?.let { system ->
             usuarioRepository.vincularFilial(system.id, id)
         }
-        estoqueRepository.inserir(Estoque(id = 0, idFilial = id, nome = "Estoque Geral", status = Status.ATIVO))
+        val idEstoque = estoqueRepository.inserir(Estoque(id = 0, idFilial = id, nome = "Estoque Geral", status = Status.ATIVO))
+        repository.definirEstoquePadrao(id, idEstoque)
         return buscarFilial(id)
     }
 
     suspend fun atualizarFilial(id: Long, request: FilialRequest): FilialResponse {
-        repository.buscarFilial(id) ?: throw RecursoNaoEncontrado("Filial $id não encontrada")
+        val atual = repository.buscarFilial(id) ?: throw RecursoNaoEncontrado("Filial $id não encontrada")
         val filial = validarFilial(request, id)
         repository.buscarEmpresa(filial.idEmpresa)
             ?: throw RecursoNaoEncontrado("Empresa ${filial.idEmpresa} não encontrada")
         if (filial.principal) {
             repository.limparPrincipal(filial.idEmpresa, excetoId = id)
         }
-        repository.atualizarFilial(id, filial)
+        val idEstoquePadrao = if (request.idEstoquePadrao != null) {
+            validarEstoquePadrao(id, request.idEstoquePadrao)
+        } else {
+            atual.filial.idEstoquePadrao
+        }
+        repository.atualizarFilial(id, filial.copy(idEstoquePadrao = idEstoquePadrao))
         return buscarFilial(id)
+    }
+
+    suspend fun garantirEstoquePadrao(idFilial: Long, idEstoque: Long) {
+        val atual = repository.buscarFilial(idFilial) ?: return
+        if (atual.filial.idEstoquePadrao == null) {
+            repository.definirEstoquePadrao(idFilial, idEstoque)
+        }
+    }
+
+    suspend fun reporEstoquePadrao(idFilial: Long, idExcluido: Long) {
+        val atual = repository.buscarFilial(idFilial) ?: return
+        if (atual.filial.idEstoquePadrao != idExcluido) return
+        val proximo = estoqueRepository.listar(idFilial).firstOrNull { it.estoque.id != idExcluido }
+        repository.definirEstoquePadrao(idFilial, proximo?.estoque?.id)
     }
 
     suspend fun excluirFilial(id: Long) {
@@ -127,6 +147,18 @@ class EmpresaService(
             return idFilialCadastro
         }
         return buscarFilialPrincipal().id
+    }
+
+    private suspend fun validarEstoquePadrao(idFilial: Long, idEstoque: Long): Long {
+        val estoque = estoqueRepository.buscar(idEstoque)
+            ?: throw RecursoNaoEncontrado("Estoque $idEstoque não encontrado")
+        if (estoque.estoque.idFilial != idFilial) {
+            throw invalido("ESTOQUE_PADRAO_FILIAL", "O estoque padrão deve pertencer a esta filial")
+        }
+        if (estoque.estoque.status != Status.ATIVO) {
+            throw invalido("ESTOQUE_PADRAO_INATIVO", "O estoque padrão da venda precisa estar ativo")
+        }
+        return idEstoque
     }
 
     private fun validarEmpresa(request: EmpresaRequest, id: Long): Empresa {
@@ -173,6 +205,7 @@ class EmpresaService(
             pontoExpedicao = request.pontoExpedicao?.trim()?.takeIf { it.isNotEmpty() },
             perfilFiscal = request.perfilFiscal,
             moedaOperacao = request.moedaOperacao,
+            idEstoquePadrao = request.idEstoquePadrao,
             principal = request.principal,
             listarApenasClientesFilial = request.listarApenasClientesFilial,
             listarApenasFornecedoresFilial = request.listarApenasFornecedoresFilial,
@@ -232,6 +265,7 @@ class EmpresaService(
         pontoExpedicao = filial.pontoExpedicao,
         perfilFiscal = filial.perfilFiscal,
         moedaOperacao = filial.moedaOperacao,
+        idEstoquePadrao = filial.idEstoquePadrao,
         principal = filial.principal,
         listarApenasClientesFilial = filial.listarApenasClientesFilial,
         listarApenasFornecedoresFilial = filial.listarApenasFornecedoresFilial,

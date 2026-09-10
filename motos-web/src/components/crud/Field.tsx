@@ -50,6 +50,7 @@ export function Field({
   required,
   error,
   hint,
+  aside,
   className,
   children,
 }: {
@@ -57,6 +58,7 @@ export function Field({
   required?: boolean;
   error?: string;
   hint?: string;
+  aside?: string;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -64,6 +66,9 @@ export function Field({
     <label className={`block ${className ?? ""}`}>
       <span className="text-[13px] font-medium" style={{ color: v("--text-sub") }}>
         {label}{required && <span style={{ color: v("--gold") }}> *</span>}
+        {aside ? (
+          <span className="ml-1.5 font-normal text-[11px]" style={{ color: v("--text-muted") }}>{aside}</span>
+        ) : null}
       </span>
       <div className="mt-1.5">{children}</div>
       {error

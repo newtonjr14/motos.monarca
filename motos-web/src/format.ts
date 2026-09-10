@@ -204,9 +204,9 @@ export function cidadePorId(cidades: Cidade[], id: number | null): Cidade | unde
 export function formatarCidade(cidades: Cidade[], id: number | null, curto = false): string {
   const c = cidadePorId(cidades, id);
   if (!c) return "—";
-  const divisao = c.divisaoSigla ?? c.divisaoNome;
-  if (curto) return `${c.nome} · ${divisao} · ${c.paisSigla}`;
-  return `${c.nome} · ${divisao} · ${c.paisNome}`;
+  const divisao = c.divisaoSigla ? c.divisaoSigla.toUpperCase() : c.divisaoNome;
+  if (curto) return [c.nome, divisao, c.paisNome].filter(Boolean).join(" - ");
+  return `${c.nome} · ${c.divisaoSigla ?? c.divisaoNome} · ${c.paisNome}`;
 }
 
 export function enderecoPrincipal(p: Pessoa): PessoaEndereco | undefined {

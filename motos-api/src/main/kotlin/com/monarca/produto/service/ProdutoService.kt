@@ -67,17 +67,20 @@ class ProdutoService(
     suspend fun criar(request: ProdutoRequest, idUsuario: Long): ProdutoResponse {
         val idFilial = resolverFilialComAcesso(idUsuario, request.idFilialCadastro)
         val filialAlvo = empresaService.buscarFilial(idFilial)
+        if (request.quantidadeInicial < 0) {
+            throw invalido("VALOR_NEGATIVO", "Quantidade inicial não pode ser negativa")
+        }
         val produto = validarProduto(request, id = 0, moedaPreco = filialAlvo.moedaOperacao)
         val moto = if (produto.tipo == TipoProduto.MOTO) validarMoto(request.moto, 0, 0) else null
         val bicicleta = if (produto.tipo == TipoProduto.BICICLETA) validarBicicleta(request.bicicleta, 0, 0) else null
         moto?.chassi?.let { exigirChassiLivre(it, null) }
         bicicleta?.numeroSerieQuadro?.let { exigirSerieLivre(it, null) }
 
-        val existente = repository.buscarPorCodigo(produto.codigo)
+        val existente = if (produto.codigo.isEmpty()) null else repository.buscarPorCodigo(produto.codigo)
         val id = when {
-            existente == null -> repository.inserir(produto, moto, bicicleta, idFilial)
+            existente == null -> inserirComCodigoUnico(produto, moto, bicicleta, idFilial, request.quantidadeInicial)
             existente.produto.status == Status.DELETADO -> {
-                repository.atualizar(existente.produto.id, produto.copy(id = existente.produto.id), moto, bicicleta)
+                atualizarComCodigoUnico(existente.produto.id, produto.copy(id = existente.produto.id), moto, bicicleta)
                 vincular(existente, idFilial, request, filialAlvo.nome)
                 existente.produto.id
             }
@@ -99,13 +102,21 @@ class ProdutoService(
         val moedaOperacao = empresaService.buscarFilial(idFilialMoeda).moedaOperacao
         val produto = validarProduto(request, id, moedaPreco = moedaOperacao)
         if (repository.existeCodigo(produto.codigo, ignorarId = id)) {
-            throw invalido("PRODUTO_CODIGO_DUPLICADO", "Já existe um produto com o código ${produto.codigo}", "codigo" to produto.codigo)
+            throw codigoDuplicado(produto.codigo)
         }
         val moto = if (produto.tipo == TipoProduto.MOTO) validarMoto(request.moto, 0, id) else null
         val bicicleta = if (produto.tipo == TipoProduto.BICICLETA) validarBicicleta(request.bicicleta, 0, id) else null
         moto?.chassi?.let { exigirChassiLivre(it, id) }
         bicicleta?.numeroSerieQuadro?.let { exigirSerieLivre(it, id) }
-        repository.atualizar(id, produto, moto, bicicleta)
+        atualizarComCodigoUnico(id, produto, moto, bicicleta)
+        return buscar(id)
+    }
+
+    suspend fun atualizarStatus(id: Long, status: Status): ProdutoResponse {
+        repository.buscar(id) ?: throw RecursoNaoEncontrado("Produto $id não encontrado")
+        if (!repository.atualizarStatus(id, validarStatus(status))) {
+            throw RecursoNaoEncontrado("Produto $id não encontrado")
+        }
         return buscar(id)
     }
 
@@ -160,7 +171,11 @@ class ProdutoService(
 
     private suspend fun validarProduto(request: ProdutoRequest, id: Long, moedaPreco: Moeda): Produto {
         val codigo = request.codigo.trim().uppercase()
-        if (codigo.length < 2) throw invalido("PRODUTO_CODIGO_OBRIGATORIO", "Código do produto é obrigatório")
+        if (codigo.isEmpty()) {
+            if (id != 0L) throw invalido("PRODUTO_CODIGO_OBRIGATORIO", "Código do produto é obrigatório")
+        } else if (codigo.length > 40) {
+            throw invalido("PRODUTO_CODIGO_TAMANHO", "O código do produto deve ter no máximo 40 caracteres")
+        }
         val modelo = marcaRepository.buscarModelo(request.idModelo)
             ?: throw RecursoNaoEncontrado("Modelo ${request.idModelo} não encontrado")
         if (modelo.modelo.idMarca != request.idMarca) {
@@ -171,7 +186,18 @@ class ProdutoService(
         }
         val marca = marcaRepository.buscar(request.idMarca)
             ?: throw RecursoNaoEncontrado("Marca ${request.idMarca} não encontrada")
-        val nome = "${marca.nome} ${modelo.modelo.nome}"
+        val composto = "${marca.nome} ${modelo.modelo.nome}"
+        val informado = request.nome?.trim().orEmpty()
+        val nome = when {
+            informado.isNotEmpty() -> {
+                if (informado.length > 180) {
+                    throw invalido("PRODUTO_NOME_TAMANHO", "O nome do produto deve ter no máximo 180 caracteres")
+                }
+                Texto.titleCase(informado)
+            }
+            request.nome != null -> throw invalido("PRODUTO_NOME_OBRIGATORIO", "O nome do produto é obrigatório")
+            else -> composto
+        }
         val status = validarStatus(request.status)
         return Produto(
             id = id,
@@ -289,6 +315,43 @@ class ProdutoService(
         return status
     }
 
+    private suspend fun inserirComCodigoUnico(
+        produto: Produto,
+        moto: ProdutoMoto?,
+        bicicleta: ProdutoBicicleta?,
+        idFilial: Long,
+        quantidadeInicial: Int,
+    ): Long = try {
+        repository.inserir(produto, moto, bicicleta, idFilial, quantidadeInicial)
+    } catch (e: Exception) {
+        if (e.isViolacaoUnicaCodigo()) throw codigoDuplicado(produto.codigo) else throw e
+    }
+
+    private suspend fun atualizarComCodigoUnico(
+        id: Long,
+        produto: Produto,
+        moto: ProdutoMoto?,
+        bicicleta: ProdutoBicicleta?,
+    ) {
+        try {
+            repository.atualizar(id, produto, moto, bicicleta)
+        } catch (e: Exception) {
+            if (e.isViolacaoUnicaCodigo()) throw codigoDuplicado(produto.codigo) else throw e
+        }
+    }
+
+    private fun codigoDuplicado(codigo: String) =
+        invalido("PRODUTO_CODIGO_DUPLICADO", "Já existe um produto com o código $codigo", "codigo" to codigo)
+
+    private fun Throwable.isViolacaoUnicaCodigo(): Boolean {
+        var atual: Throwable? = this
+        while (atual != null) {
+            if (atual.message.orEmpty().contains("produto_codigo", ignoreCase = true)) return true
+            atual = atual.cause
+        }
+        return false
+    }
+
     private suspend fun resolverFilialComAcesso(idUsuario: Long, idFilial: Long?): Long {
         val resolvida = empresaService.resolverFilialCadastro(idFilial)
         exigirAcessoFilial(idUsuario, resolvida)
@@ -341,6 +404,7 @@ class ProdutoService(
         quantidade = quantidade,
         quantidadeReservada = quantidadeReservada,
         quantidadeDisponivel = quantidadeDisponivel,
+        padrao = padrao,
     )
 
     private fun ProdutoMoto.toResponse() = ProdutoMotoResponse(

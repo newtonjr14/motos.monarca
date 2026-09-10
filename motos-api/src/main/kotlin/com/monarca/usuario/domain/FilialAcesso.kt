@@ -5,4 +5,5 @@ data class FilialAcesso(
     val nome: String,
     val principal: Boolean,
     val moedaOperacao: String = "usd",
+    val idEstoquePadrao: Long? = null,
 )

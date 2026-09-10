@@ -3,11 +3,13 @@ package com.monarca.estoque.repository
 import com.monarca.audit.domain.AuditAction
 import com.monarca.audit.repository.gravarAuditLog
 import com.monarca.common.enums.Status
+import com.monarca.empresa.repository.FiliaisTable
 import com.monarca.produto.repository.ProdutoFilialTable
 import com.monarca.produto.repository.ProdutosTable
 import kotlinx.coroutines.flow.toList
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.selectAll
@@ -19,13 +21,21 @@ import org.jetbrains.exposed.v1.r2dbc.update
  */
 internal object EstoqueProdutoSeed {
 
-    suspend fun garantirProdutoNaFilial(idProduto: Long, idFilial: Long): List<Long> {
+    suspend fun garantirProdutoNaFilial(
+        idProduto: Long,
+        idFilial: Long,
+        quantidadeInicial: Int = 0,
+    ): List<Long> {
+        check(quantidadeInicial >= 0) { "Quantidade inicial não pode ser negativa" }
         val estoques = idsEstoquesAtivos(idFilial).ifEmpty {
             listOf(criarEstoqueGeral(idFilial))
         }
         check(estoques.isNotEmpty()) { "A filial $idFilial não possui estoque ativo" }
         val ids = estoques.map { idEstoque -> upsertItemZerado(idEstoque, idProduto) }
         check(ids.size == estoques.size) { "Falha ao criar saldo zerado em todos os estoques da filial" }
+        if (quantidadeInicial > 0) {
+            aplicarQuantidadeInicial(idProduto, idFilial, estoques, quantidadeInicial)
+        }
         return ids
     }
 
@@ -40,6 +50,38 @@ internal object EstoqueProdutoSeed {
             recordId = recordId.toString(),
             action = AuditAction.INSERT,
             newValues = newValues,
+        )
+    }
+
+    private suspend fun aplicarQuantidadeInicial(
+        idProduto: Long,
+        idFilial: Long,
+        estoques: List<Long>,
+        quantidadeInicial: Int,
+    ) {
+        val idPadrao = FiliaisTable.selectAll()
+            .where { FiliaisTable.id eq idFilial }
+            .toList()
+            .singleOrNull()
+            ?.get(FiliaisTable.idEstoquePadrao)
+        val alvo = idPadrao?.takeIf { it in estoques } ?: estoques.first()
+        val item = EstoqueProdutosTable.selectAll()
+            .where {
+                (EstoqueProdutosTable.idEstoque eq alvo) and
+                    (EstoqueProdutosTable.idProduto eq idProduto) and
+                    (EstoqueProdutosTable.status neq Status.DELETADO.name.lowercase())
+            }
+            .toList()
+            .single()
+        val idItem = item[EstoqueProdutosTable.id].value
+        EstoqueProdutosTable.update({ EstoqueProdutosTable.id eq idItem }) {
+            it[quantidade] = quantidadeInicial
+        }
+        gravarAuditLog(
+            tableName = "estoque_produto",
+            recordId = idItem.toString(),
+            action = AuditAction.UPDATE,
+            newValues = """{"idEstoque":$alvo,"idProduto":$idProduto,"quantidade":$quantidadeInicial,"quantidadeReservada":0,"status":"ativo"}""",
         )
     }
 
@@ -71,6 +113,11 @@ internal object EstoqueProdutoSeed {
             it[status] = Status.ATIVO.name.lowercase()
         }
         val id = inserted[EstoquesTable.id].value
+        FiliaisTable.update({
+            (FiliaisTable.id eq idFilial) and FiliaisTable.idEstoquePadrao.isNull()
+        }) {
+            it[idEstoquePadrao] = id
+        }
         auditarInsert("estoque", id, """{"idFilial":$idFilial,"nome":"Estoque Geral","status":"ativo"}""")
         return id
     }

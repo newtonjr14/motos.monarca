@@ -62,6 +62,10 @@ export type TranslationKey =
   | "common.status"
   | "common.active"
   | "common.inactive"
+  | "filter.status.label"
+  | "filter.status.all"
+  | "filter.status.active"
+  | "filter.status.inactive"
   | "common.profile"
   | "common.new"
   | "common.registered"
@@ -125,6 +129,7 @@ export type TranslationKey =
   | "papel.noDocType"
   | "papel.manageDocTypes"
   | "papel.useExisting"
+  | "papel.openExisting"
   | "papel.registeredBranches"
   | "papel.confirmLinkBranch"
   | "papel.conflict.linkBranch"
@@ -189,6 +194,7 @@ export type TranslationKey =
   | "col.document"
   | "col.phone"
   | "col.city"
+  | "col.country"
   | "col.person"
   | "col.code"
   | "col.unique"
@@ -297,6 +303,9 @@ export type TranslationKey =
   | "api.PRODUTO_CODIGO_DUPLICADO"
   | "api.PRODUTO_EM_ESTOQUE"
   | "api.PRODUTO_CODIGO_OBRIGATORIO"
+  | "api.PRODUTO_CODIGO_TAMANHO"
+  | "api.PRODUTO_NOME_OBRIGATORIO"
+  | "api.PRODUTO_NOME_TAMANHO"
   | "api.MODELO_MARCA_DIVERGENTE"
   | "api.MODELO_TIPO_DIVERGENTE"
   | "api.MOTO_DADOS_OBRIGATORIOS"
@@ -308,6 +317,10 @@ export type TranslationKey =
   | "api.ESTOQUE_COM_PRODUTOS"
   | "api.ESTOQUE_PRODUTO_DUPLICADO"
   | "api.ESTOQUE_NOME_OBRIGATORIO"
+  | "api.ESTOQUE_PADRAO_OBRIGATORIO"
+  | "api.ESTOQUE_PADRAO_INATIVO"
+  | "api.ESTOQUE_PADRAO_FILIAL"
+  | "api.ESTOQUE_NAO_PADRAO"
   | "api.COTACAO_DIA_AUSENTE"
   | "api.COTACAO_DIA_DUPLICADA"
   | "api.COTACAO_DATA_INVALIDA"
@@ -384,12 +397,12 @@ export type TranslationKey =
   | "empresa.listSuppliersBranchOnly"
   | "empresa.listProductsBranchOnly"
   | "empresa.moedaOperacao"
-  | "empresa.moedaOperacao.hint"
+  | "empresa.estoquePadrao"
   | "empresa.section.parametersMoeda"
   | "produto.new"
   | "produto.edit"
   | "produto.codigo"
-  | "produto.codigoHint"
+  | "produto.codigoSuggested"
   | "produto.tipo"
   | "produto.tipo.moto"
   | "produto.tipo.bicicleta"
@@ -402,7 +415,7 @@ export type TranslationKey =
   | "produto.section.moto"
   | "produto.section.bicicleta"
   | "produto.noStock"
-  | "produto.stockAfterSave"
+  | "produto.qtyInicial"
   | "produto.stockHint"
   | "produto.chassi"
   | "produto.cor"
@@ -420,23 +433,22 @@ export type TranslationKey =
   | "produto.marchas"
   | "produto.freio"
   | "produto.error.required"
+  | "produto.error.nameRequired"
   | "produto.error.yearsRequired"
   | "produto.error.price"
+  | "produto.error.qty"
   | "produto.iva"
-  | "produto.ivaHint"
   | "produto.currency"
   | "produto.currency.usd"
   | "produto.currency.pyg"
   | "produto.currency.brl"
   | "produto.listPrice"
-  | "produto.listPriceHint"
   | "produto.cost"
-  | "produto.costHint"
   | "produto.confirmLinkBranch"
   | "produto.anoFabricacao"
   | "produto.anoModelo"
   | "produto.serieQuadro"
-  | "produto.nomeHint"
+  | "produto.nomeRestore"
   | "marca.new"
   | "marca.edit"
   | "marca.error.nameRequired"
@@ -454,11 +466,13 @@ export type TranslationKey =
   | "estoque.reserved"
   | "estoque.reservedHint"
   | "estoque.available"
+  | "estoque.unit"
   | "estoque.backList"
   | "estoque.backItems"
   | "estoque.error.nameRequired"
   | "estoque.error.productRequired"
   | "estoque.error.qtyInvalid"
+  | "estoque.padraoBadge"
   | "cotacao.new"
   | "cotacao.edit"
   | "cotacao.date"
@@ -679,6 +693,10 @@ const pt: Record<TranslationKey, string> = {
   "common.status": "Status",
   "common.active": "Ativo",
   "common.inactive": "Inativo",
+  "filter.status.label": "Filtrar por status",
+  "filter.status.all": "Todos",
+  "filter.status.active": "Ativos",
+  "filter.status.inactive": "Inativos",
   "common.profile": "Perfil",
   "common.new": "Novo",
   "common.registered": "cadastrados",
@@ -741,7 +759,8 @@ const pt: Record<TranslationKey, string> = {
   "papel.docNumber": "Número",
   "papel.noDocType": "Nenhum tipo — cadastre em Tipos de documento",
   "papel.manageDocTypes": "Gerenciar tipos de documento",
-  "papel.useExisting": "Usar como",
+  "papel.useExisting": "Usar cadastro existente",
+  "papel.openExisting": "Abrir cadastro",
   "papel.registeredBranches": "Filiais com cadastro",
   "papel.confirmLinkBranch": "Confirmar vínculo nesta filial",
   "papel.conflict.linkBranch": "{nome} já está cadastrado em {filiais}. Vincular também em {filialAlvo}?",
@@ -806,6 +825,7 @@ const pt: Record<TranslationKey, string> = {
   "col.document": "Documento",
   "col.phone": "Telefone",
   "col.city": "Cidade",
+  "col.country": "País",
   "col.person": "Pessoa",
   "col.code": "Código",
   "col.unique": "Único",
@@ -914,6 +934,9 @@ const pt: Record<TranslationKey, string> = {
   "api.PRODUTO_CODIGO_DUPLICADO": "Já existe um produto com o código {codigo}",
   "api.PRODUTO_EM_ESTOQUE": "Não é possível excluir um produto lançado em estoque",
   "api.PRODUTO_CODIGO_OBRIGATORIO": "O código do produto é obrigatório",
+  "api.PRODUTO_CODIGO_TAMANHO": "O código do produto deve ter no máximo 40 caracteres",
+  "api.PRODUTO_NOME_OBRIGATORIO": "O nome do produto é obrigatório",
+  "api.PRODUTO_NOME_TAMANHO": "O nome do produto deve ter no máximo 180 caracteres",
   "api.MODELO_MARCA_DIVERGENTE": "O modelo não pertence à marca selecionada",
   "api.MODELO_TIPO_DIVERGENTE": "O modelo não corresponde ao tipo selecionado",
   "api.MOTO_DADOS_OBRIGATORIOS": "Informe os dados da moto",
@@ -925,6 +948,10 @@ const pt: Record<TranslationKey, string> = {
   "api.ESTOQUE_COM_PRODUTOS": "Não é possível excluir um estoque que possui produtos",
   "api.ESTOQUE_PRODUTO_DUPLICADO": "Este produto já está neste estoque",
   "api.ESTOQUE_NOME_OBRIGATORIO": "O nome do estoque é obrigatório",
+  "api.ESTOQUE_PADRAO_OBRIGATORIO": "Marque outro estoque como padrão da venda",
+  "api.ESTOQUE_PADRAO_INATIVO": "O estoque padrão da venda precisa estar ativo",
+  "api.ESTOQUE_PADRAO_FILIAL": "O estoque padrão deve pertencer a esta filial",
+  "api.ESTOQUE_NAO_PADRAO": "A venda usa só o estoque padrão da filial",
   "api.COTACAO_DIA_AUSENTE": "Informe a cotação do dia para vender, receber, pagar ou emitir factura",
   "api.COTACAO_DIA_DUPLICADA": "Já existe cotação para {data}",
   "api.COTACAO_DATA_INVALIDA": "Data inválida. Use AAAA-MM-DD",
@@ -1038,12 +1065,12 @@ const pt: Record<TranslationKey, string> = {
   "empresa.listSuppliersBranchOnly": "Listar só fornecedores desta filial",
   "empresa.listProductsBranchOnly": "Listar só produtos desta filial",
   "empresa.moedaOperacao": "Moeda de operação",
-  "empresa.moedaOperacao.hint": "Preço de lista e custo são nesta moeda. O PDV mostra o equivalente em Gs., US$ e R$. O recebimento continua nas três.",
+  "empresa.estoquePadrao": "Estoque padrão da venda",
   "empresa.section.parametersMoeda": "Moeda",
   "produto.new": "Novo produto",
   "produto.edit": "Editar produto",
   "produto.codigo": "Código (SKU)",
-  "produto.codigoHint": "Código interno editável. O ID do sistema é gerado à parte.",
+  "produto.codigoSuggested": "sugerido",
   "produto.tipo": "Tipo",
   "produto.tipo.moto": "Moto elétrica",
   "produto.tipo.bicicleta": "Bicicleta elétrica",
@@ -1056,7 +1083,7 @@ const pt: Record<TranslationKey, string> = {
   "produto.section.moto": "Ficha da moto",
   "produto.section.bicicleta": "Ficha da bicicleta",
   "produto.noStock": "Sem saldo nesta filial",
-  "produto.stockAfterSave": "Ao salvar, o produto entra com quantidade zero nos depósitos da filial. Ajuste em Operação → Estoques.",
+  "produto.qtyInicial": "Quantidade inicial",
   "produto.stockHint": "Quantidades se ajustam em Operação → Estoques.",
   "produto.chassi": "Chassi",
   "produto.cor": "Cor",
@@ -1074,23 +1101,22 @@ const pt: Record<TranslationKey, string> = {
   "produto.marchas": "Marchas",
   "produto.freio": "Freio",
   "produto.error.required": "Informe código, marca e modelo",
+  "produto.error.nameRequired": "Informe o nome do produto",
   "produto.error.yearsRequired": "Informe ano de fabricação e ano modelo válidos",
   "produto.error.price": "Informe preço de lista e custo válidos (zero ou mais)",
+  "produto.error.qty": "Informe uma quantidade inicial válida (zero ou mais)",
   "produto.iva": "IVA",
-  "produto.ivaHint": "Preço de gôndola com IVA incluído. 0, 5 ou 10%.",
   "produto.currency": "Moeda",
   "produto.currency.usd": "Dólar (USD)",
   "produto.currency.pyg": "Guarani (PYG)",
   "produto.currency.brl": "Real (BRL)",
   "produto.listPrice": "Preço de lista",
-  "produto.listPriceHint": "Preço de gôndola com IVA incluído, na moeda de operação da filial.",
   "produto.cost": "Custo",
-  "produto.costHint": "Custo na moeda de operação da filial.",
   "produto.confirmLinkBranch": "O produto {codigo} já existe em {filiais}. Vincular a esta filial?",
   "produto.anoFabricacao": "Ano de fabricação",
   "produto.anoModelo": "Ano modelo",
   "produto.serieQuadro": "Nº de série do quadro",
-  "produto.nomeHint": "Montado automaticamente com marca e modelo",
+  "produto.nomeRestore": "Usar marca e modelo",
   "marca.new": "Nova marca",
   "marca.edit": "Editar marca",
   "marca.error.nameRequired": "Informe o nome da marca",
@@ -1108,11 +1134,13 @@ const pt: Record<TranslationKey, string> = {
   "estoque.reserved": "Reservada",
   "estoque.reservedHint": "Para venda em aberto. Disponível = quantidade − reservada.",
   "estoque.available": "Disponível",
+  "estoque.unit": "un.",
   "estoque.backList": "Voltar para estoques",
   "estoque.backItems": "Voltar para os itens",
   "estoque.error.nameRequired": "Informe o nome do estoque",
   "estoque.error.productRequired": "Selecione o produto",
   "estoque.error.qtyInvalid": "Quantidade e reserva devem ser inteiros ≥ 0, e a reserva não pode ser maior que a quantidade",
+  "estoque.padraoBadge": "Padrão",
   "cotacao.new": "Nova cotação",
   "cotacao.edit": "Editar cotação",
   "cotacao.date": "Data",
@@ -1292,6 +1320,10 @@ const es: Record<TranslationKey, string> = {
   "common.status": "Estado",
   "common.active": "Activo",
   "common.inactive": "Inactivo",
+  "filter.status.label": "Filtrar por estado",
+  "filter.status.all": "Todos",
+  "filter.status.active": "Activos",
+  "filter.status.inactive": "Inactivos",
   "common.profile": "Perfil",
   "common.new": "Nuevo",
   "common.registered": "registrados",
@@ -1354,7 +1386,8 @@ const es: Record<TranslationKey, string> = {
   "papel.docNumber": "Número",
   "papel.noDocType": "Ningún tipo — regístrelo en Tipos de documento",
   "papel.manageDocTypes": "Administrar tipos de documento",
-  "papel.useExisting": "Usar como",
+  "papel.useExisting": "Usar registro existente",
+  "papel.openExisting": "Abrir registro",
   "papel.registeredBranches": "Sucursales con registro",
   "papel.confirmLinkBranch": "Confirmar vínculo en esta sucursal",
   "papel.conflict.linkBranch": "{nome} ya está registrado en {filiais}. ¿Vincular también en {filialAlvo}?",
@@ -1419,6 +1452,7 @@ const es: Record<TranslationKey, string> = {
   "col.document": "Documento",
   "col.phone": "Teléfono",
   "col.city": "Ciudad",
+  "col.country": "País",
   "col.person": "Persona",
   "col.code": "Código",
   "col.unique": "Único",
@@ -1527,6 +1561,9 @@ const es: Record<TranslationKey, string> = {
   "api.PRODUTO_CODIGO_DUPLICADO": "Ya existe un producto con el código {codigo}",
   "api.PRODUTO_EM_ESTOQUE": "No se puede eliminar un producto con movimiento de stock",
   "api.PRODUTO_CODIGO_OBRIGATORIO": "El código del producto es obligatorio",
+  "api.PRODUTO_CODIGO_TAMANHO": "El código del producto debe tener como máximo 40 caracteres",
+  "api.PRODUTO_NOME_OBRIGATORIO": "El nombre del producto es obligatorio",
+  "api.PRODUTO_NOME_TAMANHO": "El nombre del producto debe tener como máximo 180 caracteres",
   "api.MODELO_MARCA_DIVERGENTE": "El modelo no pertenece a la marca seleccionada",
   "api.MODELO_TIPO_DIVERGENTE": "El modelo no corresponde al tipo seleccionado",
   "api.MOTO_DADOS_OBRIGATORIOS": "Indique los datos de la moto",
@@ -1538,6 +1575,10 @@ const es: Record<TranslationKey, string> = {
   "api.ESTOQUE_COM_PRODUTOS": "No se puede eliminar un depósito que tiene productos",
   "api.ESTOQUE_PRODUTO_DUPLICADO": "Este producto ya está en este depósito",
   "api.ESTOQUE_NOME_OBRIGATORIO": "El nombre del depósito es obligatorio",
+  "api.ESTOQUE_PADRAO_OBRIGATORIO": "Marque otro depósito como estándar de la venta",
+  "api.ESTOQUE_PADRAO_INATIVO": "El depósito estándar de la venta debe estar activo",
+  "api.ESTOQUE_PADRAO_FILIAL": "El depósito estándar debe pertenecer a esta sucursal",
+  "api.ESTOQUE_NAO_PADRAO": "La venta usa solo el depósito estándar de la sucursal",
   "api.COTACAO_DIA_AUSENTE": "Indique la cotización del día para vender, cobrar, pagar o emitir factura",
   "api.COTACAO_DIA_DUPLICADA": "Ya existe cotización para {data}",
   "api.COTACAO_DATA_INVALIDA": "Fecha inválida. Use AAAA-MM-DD",
@@ -1661,12 +1702,12 @@ const es: Record<TranslationKey, string> = {
   "empresa.seed.error": "No se pudieron actualizar los datos de prueba",
   "empresa.listProductsBranchOnly": "Listar solo productos de esta sucursal",
   "empresa.moedaOperacao": "Moneda de operación",
-  "empresa.moedaOperacao.hint": "Precio de lista y costo van en esta moneda. El PDV muestra el equivalente en Gs., US$ y R$. El cobro sigue en las tres.",
+  "empresa.estoquePadrao": "Depósito estándar de la venta",
   "empresa.section.parametersMoeda": "Moneda",
   "produto.new": "Nuevo producto",
   "produto.edit": "Editar producto",
   "produto.codigo": "Código (SKU)",
-  "produto.codigoHint": "Código interno editable. El ID del sistema se genera aparte.",
+  "produto.codigoSuggested": "sugerido",
   "produto.tipo": "Tipo",
   "produto.tipo.moto": "Moto eléctrica",
   "produto.tipo.bicicleta": "Bicicleta eléctrica",
@@ -1679,7 +1720,7 @@ const es: Record<TranslationKey, string> = {
   "produto.section.moto": "Ficha de la moto",
   "produto.section.bicicleta": "Ficha de la bicicleta",
   "produto.noStock": "Sin saldo en esta sucursal",
-  "produto.stockAfterSave": "Al guardar, el producto entra con cantidad cero en los depósitos de la sucursal. Ajuste en Operación → Depósitos.",
+  "produto.qtyInicial": "Cantidad inicial",
   "produto.stockHint": "Las cantidades se ajustan en Operación → Depósitos.",
   "produto.chassi": "Chasis",
   "produto.cor": "Color",
@@ -1697,23 +1738,22 @@ const es: Record<TranslationKey, string> = {
   "produto.marchas": "Marchas",
   "produto.freio": "Freno",
   "produto.error.required": "Indique código, marca y modelo",
+  "produto.error.nameRequired": "Indique el nombre del producto",
   "produto.error.yearsRequired": "Indique año de fabricación y año modelo válidos",
   "produto.error.price": "Indique precio de lista y costo válidos (cero o más)",
+  "produto.error.qty": "Indique una cantidad inicial válida (cero o más)",
   "produto.iva": "IVA",
-  "produto.ivaHint": "Precio de góndola con IVA incluido. 0, 5 o 10%.",
   "produto.currency": "Moneda",
   "produto.currency.usd": "Dólar (USD)",
   "produto.currency.pyg": "Guaraní (PYG)",
   "produto.currency.brl": "Real (BRL)",
   "produto.listPrice": "Precio de lista",
-  "produto.listPriceHint": "Precio de góndola con IVA incluido, en la moneda de operación de la sucursal.",
   "produto.cost": "Costo",
-  "produto.costHint": "Costo en la moneda de operación de la sucursal.",
   "produto.confirmLinkBranch": "El producto {codigo} ya existe en {filiais}. ¿Vincular a esta sucursal?",
   "produto.anoFabricacao": "Año de fabricación",
   "produto.anoModelo": "Año modelo",
   "produto.serieQuadro": "Nº de serie del cuadro",
-  "produto.nomeHint": "Armado automáticamente con marca y modelo",
+  "produto.nomeRestore": "Usar marca y modelo",
   "marca.new": "Nueva marca",
   "marca.edit": "Editar marca",
   "marca.error.nameRequired": "Indique el nombre de la marca",
@@ -1731,11 +1771,13 @@ const es: Record<TranslationKey, string> = {
   "estoque.reserved": "Reservada",
   "estoque.reservedHint": "Para venta abierta. Disponible = cantidad − reservada.",
   "estoque.available": "Disponible",
+  "estoque.unit": "un.",
   "estoque.backList": "Volver a depósitos",
   "estoque.backItems": "Volver a los ítems",
   "estoque.error.nameRequired": "Indique el nombre del depósito",
   "estoque.error.productRequired": "Seleccione el producto",
   "estoque.error.qtyInvalid": "Cantidad y reserva deben ser enteros ≥ 0, y la reserva no puede ser mayor que la cantidad",
+  "estoque.padraoBadge": "Estándar",
   "cotacao.new": "Nueva cotización",
   "cotacao.edit": "Editar cotización",
   "cotacao.date": "Fecha",

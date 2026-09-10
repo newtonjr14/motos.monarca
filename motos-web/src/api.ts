@@ -41,6 +41,7 @@ export interface FilialAcesso {
   nome: string;
   principal: boolean;
   moedaOperacao?: Moeda;
+  idEstoquePadrao?: number | null;
 }
 
 export interface PerfilAutenticado {
@@ -174,6 +175,7 @@ export interface Filial {
   pontoExpedicao: string | null;
   perfilFiscal: PerfilFiscal;
   moedaOperacao: Moeda;
+  idEstoquePadrao?: number | null;
   listarApenasClientesFilial: boolean;
   listarApenasFornecedoresFilial: boolean;
   listarApenasProdutosFilial: boolean;
@@ -391,6 +393,25 @@ export const listarPapeis = (
   return api<Papel[]>(`/${recurso}${q}`, undefined, options);
 };
 export const buscarPapel = (recurso: "clientes" | "fornecedores", id: number) => api<Papel>(`/${recurso}/${id}`);
+export const consultarPapelDocumento = (
+  recurso: "clientes" | "fornecedores",
+  params: {
+    idPais: number;
+    idTipoDocumento: number;
+    numero: string;
+    tipoPessoa: TipoPessoa;
+    ignorarPessoaId?: number;
+  },
+) => {
+  const q = new URLSearchParams({
+    idPais: String(params.idPais),
+    idTipoDocumento: String(params.idTipoDocumento),
+    numero: params.numero,
+    tipoPessoa: params.tipoPessoa,
+  });
+  if (params.ignorarPessoaId != null) q.set("ignorarPessoaId", String(params.ignorarPessoaId));
+  return api<void>(`/${recurso}/documento?${q}`);
+};
 export const buscarPessoa = (id: number) => api<Pessoa>(`/pessoas/${id}`);
 export const criarPapel = (recurso: "clientes" | "fornecedores", body: unknown) =>
   api<Papel>(`/${recurso}`, { method: "POST", body: JSON.stringify(body) });
@@ -465,6 +486,7 @@ export interface ProdutoEstoqueSaldo {
   quantidade: number;
   quantidadeReservada: number;
   quantidadeDisponivel: number;
+  padrao?: boolean;
 }
 
 export interface Produto {
@@ -542,6 +564,8 @@ export const criarProduto = (body: unknown) =>
   api<Produto>("/produtos", { method: "POST", body: JSON.stringify(body) });
 export const atualizarProduto = (id: number, body: unknown) =>
   api<Produto>(`/produtos/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const atualizarProdutoStatus = (id: number, status: "ativo" | "inativo") =>
+  api<Produto>(`/produtos/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) });
 export const excluirProduto = (id: number, idFilial?: number) => {
   const q = idFilial != null ? `?idFilial=${idFilial}` : "";
   return api<void>(`/produtos/${id}${q}`, { method: "DELETE" });

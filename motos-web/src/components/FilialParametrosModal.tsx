@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
-import { atualizarFilial, type Filial, type Moeda } from "@/api";
+import { atualizarFilial, listarEstoques, type Estoque, type Filial, type Moeda } from "@/api";
 
 const v = (name: string) => `var(${name})`;
 
@@ -44,7 +44,13 @@ function ParamCheckbox({
   );
 }
 
-function filialBody(filial: Filial, params: { listarClientes: boolean; listarFornecedores: boolean; listarProdutos: boolean; moedaOperacao: Filial["moedaOperacao"] }) {
+function filialBody(filial: Filial, params: {
+  listarClientes: boolean;
+  listarFornecedores: boolean;
+  listarProdutos: boolean;
+  moedaOperacao: Filial["moedaOperacao"];
+  idEstoquePadrao: number | null;
+}) {
   return {
     idEmpresa: filial.idEmpresa,
     nome: filial.nome,
@@ -65,6 +71,7 @@ function filialBody(filial: Filial, params: { listarClientes: boolean; listarFor
     pontoExpedicao: filial.pontoExpedicao,
     perfilFiscal: filial.perfilFiscal,
     moedaOperacao: params.moedaOperacao,
+    idEstoquePadrao: params.idEstoquePadrao,
     principal: filial.principal,
     listarApenasClientesFilial: params.listarClientes,
     listarApenasFornecedoresFilial: params.listarFornecedores,
@@ -101,8 +108,14 @@ export default function FilialParametrosModal({
   const [listarFornecedores, setListarFornecedores] = useState(filial.listarApenasFornecedoresFilial);
   const [listarProdutos, setListarProdutos] = useState(filial.listarApenasProdutosFilial);
   const [moedaOperacao, setMoedaOperacao] = useState<Moeda>(filial.moedaOperacao ?? "usd");
+  const [idEstoquePadrao, setIdEstoquePadrao] = useState<number | "">(filial.idEstoquePadrao ?? "");
+  const [estoques, setEstoques] = useState<Estoque[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    void listarEstoques(filial.id).then(setEstoques).catch(() => setEstoques([]));
+  }, [filial.id]);
 
   async function salvar() {
     setErro(null);
@@ -110,7 +123,13 @@ export default function FilialParametrosModal({
     try {
       const atualizada = await atualizarFilial(
         filial.id,
-        filialBody(filial, { listarClientes, listarFornecedores, listarProdutos, moedaOperacao }),
+        filialBody(filial, {
+          listarClientes,
+          listarFornecedores,
+          listarProdutos,
+          moedaOperacao,
+          idEstoquePadrao: idEstoquePadrao === "" ? null : idEstoquePadrao,
+        }),
       );
       onSaved(atualizada);
       onClose();
@@ -161,7 +180,19 @@ export default function FilialParametrosModal({
                 <option value="pyg">{t("produto.currency.pyg")}</option>
                 <option value="brl">{t("produto.currency.brl")}</option>
               </select>
-              <span className="block text-xs mt-1.5" style={{ color: v("--text-muted") }}>{t("empresa.moedaOperacao.hint")}</span>
+            </label>
+            <label className="block mt-3">
+              <span className="text-sm" style={{ color: v("--text-sub") }}>{t("empresa.estoquePadrao")}</span>
+              <select
+                className="field mt-1.5"
+                value={idEstoquePadrao === "" ? "" : String(idEstoquePadrao)}
+                onChange={(e) => setIdEstoquePadrao(e.target.value === "" ? "" : Number(e.target.value))}
+              >
+                {idEstoquePadrao === "" && <option value="">—</option>}
+                {estoques.filter((e) => e.status === "ativo" || e.id === idEstoquePadrao).map((e) => (
+                  <option key={e.id} value={e.id}>{e.nome}</option>
+                ))}
+              </select>
             </label>
           </section>
 

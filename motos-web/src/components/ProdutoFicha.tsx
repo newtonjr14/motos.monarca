@@ -257,7 +257,14 @@ export default function ProdutoFicha({
                   <tbody>
                     {estoques.map((e) => (
                       <tr key={e.idEstoque} style={{ borderBottom: border1() }}>
-                        <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{e.estoqueNome}</td>
+                        <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>
+                          {e.estoqueNome}
+                          {e.padrao ? (
+                            <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: v("--gold") }}>
+                              {t("estoque.padraoBadge")}
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{e.quantidade}</td>
                         <td className="drive-td font-mono" style={{ color: v("--text-muted") }}>{e.quantidadeReservada}</td>
                         <td className="drive-td font-mono" style={{ color: v("--text") }}>{e.quantidadeDisponivel}</td>

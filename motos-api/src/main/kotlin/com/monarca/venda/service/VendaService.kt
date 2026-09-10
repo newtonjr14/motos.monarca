@@ -133,14 +133,15 @@ class VendaService(
                 throw invalido("VENDA_PRECO_AUSENTE", "Informe o preço de lista do produto ${produto.codigo}")
             }
             val saldos = produtoRepository.listarEstoqueDoProduto(idProduto, idFilial)
+            val padrao = saldos.find { it.padrao }
+                ?: throw invalido("ESTOQUE_INSUFICIENTE", "Sem estoque padrão na filial para ${produto.codigo}")
             val escolhido = if (idEstoquePedido != null) {
-                saldos.find { it.idEstoque == idEstoquePedido }
-                    ?: throw invalido("ESTOQUE_FILIAL", "O estoque não pertence a esta filial")
+                if (idEstoquePedido != padrao.idEstoque) {
+                    throw invalido("ESTOQUE_NAO_PADRAO", "A venda usa só o estoque padrão da filial")
+                }
+                padrao
             } else {
-                saldos.filter { it.quantidadeDisponivel >= quantidade }
-                    .maxByOrNull { it.quantidadeDisponivel }
-                    ?: saldos.maxByOrNull { it.quantidadeDisponivel }
-                    ?: throw invalido("ESTOQUE_INSUFICIENTE", "Sem estoque na filial para ${produto.codigo}")
+                padrao
             }
             if (escolhido.quantidadeDisponivel < quantidade) {
                 throw invalido("ESTOQUE_INSUFICIENTE", "Saldo insuficiente para vender ${produto.codigo}")

@@ -219,6 +219,7 @@ class ExposedUsuarioRepository(
                     nome = it[FiliaisTable.nome],
                     principal = it[FiliaisTable.principal],
                     moedaOperacao = it[FiliaisTable.moedaOperacao],
+                    idEstoquePadrao = it[FiliaisTable.idEstoquePadrao],
                 )
             }
             .toList()

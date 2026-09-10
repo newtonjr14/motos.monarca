@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import EquivalentesMoeda from "@/components/EquivalentesMoeda";
 import { Field, FormTabs, navegarGuiaNoTeclado, Section } from "@/components/crud/Field";
-import { CatalogHeader, StatusBadge, TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
+import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import ProdutoFicha from "@/components/ProdutoFicha";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
@@ -11,12 +11,14 @@ import { useFilial, useFilialId } from "@/auth/FilialContext";
 import {
   ApiError,
   atualizarProduto,
+  atualizarProdutoStatus,
   buscarCotacaoHoje,
   buscarProduto,
   criarProduto,
   excluirProduto,
   listarMarcas,
   listarModelos,
+  listarEstoques,
   listarProdutos,
   type Cotacao,
   type Marca,
@@ -105,6 +107,13 @@ function specsDe(item?: Produto | null): Specs {
   return { ...specsVazio };
 }
 
+function codigoSugerido(produtos: Produto[]): string {
+  const usados = new Set(produtos.map((p) => p.codigo.trim().toUpperCase()));
+  let n = produtos.reduce((max, p) => Math.max(max, p.id), 0) + 1;
+  while (usados.has(String(n))) n += 1;
+  return String(n);
+}
+
 export default function ProdutosPage({ navReset }: { navReset: number }) {
   const { t } = useI18n();
   const idFilial = useFilialId();
@@ -112,13 +121,20 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
   const moedaOp = moedaOperacaoDe(filial?.moedaOperacao);
   const [itens, setItens] = useState<Produto[]>([]);
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<number | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
   const [editando, setEditando] = useState<Produto | null>(null);
+  const [nome, setNome] = useState("");
+  const [nomeManual, setNomeManual] = useState(false);
   const [codigo, setCodigo] = useState("");
+  const [codigoSugeridoAtual, setCodigoSugeridoAtual] = useState("");
+  const [codigoManual, setCodigoManual] = useState(false);
+  const [qtdInicial, setQtdInicial] = useState("0");
+  const [estoquePadraoNome, setEstoquePadraoNome] = useState("");
   const [idMarca, setIdMarca] = useState<number | "">("");
   const [idModelo, setIdModelo] = useState<number | "">("");
   const [marcas, setMarcas] = useState<Marca[]>([]);
@@ -132,6 +148,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
   const [custo, setCusto] = useState("");
   const [cotacao, setCotacao] = useState<Cotacao | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [statusBusyId, setStatusBusyId] = useState<number | null>(null);
   const [guia, setGuia] = useState<"cadastro" | "ficha" | "preco" | "estoque">("cadastro");
 
   const resetLista = useCallback(() => {
@@ -155,7 +172,6 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, [idFilial]);
-  useEffect(() => { setPage(1); }, [search]);
   useEffect(() => {
     if (idMarca === "") {
       setModelos([]);
@@ -164,9 +180,22 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     void listarModelos(Number(idMarca), tipo).then(setModelos).catch(() => setModelos([]));
   }, [idMarca, tipo]);
 
-  function preencher(item?: Produto | null) {
+  function preencher(item?: Produto | null, lista = itens) {
     setEditando(item ?? null);
-    setCodigo(item?.codigo ?? "");
+    const composto = item ? `${item.marca} ${item.modelo}`.trim() : "";
+    setNome(item?.nome ?? "");
+    setNomeManual(Boolean(item?.nome && item.nome.trim() !== composto));
+    if (item) {
+      setCodigo(item.codigo);
+      setCodigoSugeridoAtual("");
+      setCodigoManual(true);
+    } else {
+      const sugerido = codigoSugerido(lista);
+      setCodigoSugeridoAtual(sugerido);
+      setCodigo(sugerido);
+      setCodigoManual(false);
+    }
+    setQtdInicial("0");
     setIdMarca(item?.idMarca ?? "");
     setIdModelo(item?.idModelo ?? "");
     setDescricao(item?.descricao ?? "");
@@ -192,8 +221,20 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
   async function abrir(item?: Produto) {
     if (!item) {
       preencher(null);
+      const idPadrao = filial?.idEstoquePadrao;
+      if (idPadrao) {
+        try {
+          const estoques = await listarEstoques(idFilial);
+          setEstoquePadraoNome(estoques.find((e) => e.id === idPadrao)?.nome ?? "");
+        } catch {
+          setEstoquePadraoNome("");
+        }
+      } else {
+        setEstoquePadraoNome("");
+      }
       return;
     }
+    setEstoquePadraoNome("");
     if (item.moto != null || item.bicicleta != null) {
       preencher(item);
       return;
@@ -242,6 +283,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     } : null;
     return {
       codigo: codigo.trim().toUpperCase(),
+      nome: toTitleCase(nome.trim()),
       idMarca: Number(idMarca),
       idModelo: Number(idModelo),
       descricao: descricao.trim() || null,
@@ -253,6 +295,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       moedaPreco: moedaOp,
       precoLista: num(precoLista) ?? 0,
       custo: num(custo) ?? 0,
+      quantidadeInicial: editando ? 0 : (Number.parseInt(qtdInicial, 10) || 0),
       moto,
       bicicleta,
     };
@@ -260,8 +303,18 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
 
   async function salvar(confirmarVinculoFilial = false, novoDepois = false) {
     setErro(null);
-    if (!codigo.trim() || idMarca === "" || idModelo === "") {
+    if (editando && !codigo.trim()) {
       setErro(t("produto.error.required"));
+      setGuia("cadastro");
+      return;
+    }
+    if (idMarca === "" || idModelo === "") {
+      setErro(t("produto.error.required"));
+      setGuia("cadastro");
+      return;
+    }
+    if (!nome.trim()) {
+      setErro(t("produto.error.nameRequired"));
       setGuia("cadastro");
       return;
     }
@@ -282,16 +335,25 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       setGuia("preco");
       return;
     }
+    if (!editando) {
+      const qtd = qtdInicial.trim() === "" ? 0 : Number.parseInt(qtdInicial, 10);
+      if (!Number.isInteger(qtd) || qtd < 0) {
+        setErro(t("produto.error.qty"));
+        setGuia("estoque");
+        return;
+      }
+    }
     setSalvando(true);
     try {
       if (editando) await atualizarProduto(editando.id, corpo());
       else await criarProduto(corpo(confirmarVinculoFilial));
+      const lista = await listarProdutos(idFilial);
+      setItens(lista);
+      try { setCotacao(await buscarCotacaoHoje()); } catch { setCotacao(null); }
       if (novoDepois && !editando) {
-        preencher(null);
-        await carregar();
+        preencher(null, lista);
       } else {
         setFormAberto(false);
-        await carregar();
       }
     } catch (e) {
       if (!editando && e instanceof ApiError && e.status === 409) {
@@ -316,10 +378,28 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
   const modeloNome = modelos.find((m) => m.id === idModelo)?.nome
     ?? (editando?.idModelo === idModelo ? editando.modelo : "");
   const nomeComposto = [marcaNome, modeloNome].filter(Boolean).join(" ");
+  const nomeDiverge = nome.trim() !== nomeComposto.trim();
+
+  useEffect(() => {
+    if (!nomeManual) setNome(nomeComposto);
+  }, [nomeComposto, nomeManual]);
 
   const filtered = useMemo(() => itens.filter((p) =>
-    `${p.codigo} ${p.nome} ${p.marca} ${p.modelo} ${p.tipo}`.toLowerCase().includes(search.toLowerCase())), [itens, search]);
-  const navIds = useMemo(() => filtered.map((p) => p.id), [filtered]);
+    passaFiltroStatus(p.status, filtroStatus) &&
+    `${p.codigo} ${p.nome} ${p.marca} ${p.modelo} ${p.tipo}`.toLowerCase().includes(search.toLowerCase())), [itens, search, filtroStatus]);
+  const valorSortProduto = useCallback((p: Produto, k: string) => {
+    switch (k) {
+      case "codigo": return p.codigo;
+      case "nome": return p.nome;
+      case "tipo": return p.tipo;
+      case "precoLista": return p.precoLista;
+      case "quantidadeDisponivel": return p.quantidadeDisponivel ?? 0;
+      default: return p.id;
+    }
+  }, []);
+  const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, valorSortProduto);
+  const navIds = useMemo(() => ordenados.map((p) => p.id), [ordenados]);
+  useEffect(() => { setPage(1); }, [search, filtroStatus, sortKey, sortDir]);
   useEffect(() => {
     if (selected != null && !filtered.some((p) => p.id === selected)) {
       setSelected(null);
@@ -352,9 +432,22 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
           <div role="tabpanel" id="form-panel-cadastro" aria-labelledby="form-tab-cadastro" hidden={guia !== "cadastro"} className="space-y-5">
           <Section title={t("produto.section.general")}>
             <div className="form-grid-2">
-              <Field label={t("produto.codigo")} required hint={t("produto.codigoHint")}>
-                <input className="field font-mono uppercase" autoFocus value={codigo}
-                  onChange={(e) => setCodigo(e.target.value.toUpperCase())} />
+              <Field
+                label={t("produto.codigo")}
+                required
+                aside={!editando && !codigoManual ? t("produto.codigoSuggested") : undefined}
+              >
+                <input
+                  className={`field font-mono uppercase${!editando && !codigoManual ? " is-suggested" : ""}`}
+                  autoFocus
+                  value={codigo}
+                  onFocus={(e) => { if (!editando && !codigoManual) e.currentTarget.select(); }}
+                  onChange={(e) => {
+                    const v = e.target.value.toUpperCase();
+                    setCodigo(v);
+                    setCodigoManual(v.trim() !== codigoSugeridoAtual);
+                  }}
+                />
               </Field>
               <Field label={t("produto.tipo")} required>
                 <select className="field" value={tipo} disabled={Boolean(editando)}
@@ -387,8 +480,24 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                   ))}
                 </select>
               </Field>
-              <Field label={t("common.name")} hint={t("produto.nomeHint")}>
-                <input className="field" readOnly value={nomeComposto} />
+              <Field label={t("common.name")} required>
+                <input className="field" maxLength={180} value={nome}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setNome(v);
+                    setNomeManual(v.trim() !== nomeComposto.trim());
+                  }}
+                  onBlur={() => {
+                    const n = toTitleCase(nome);
+                    setNome(n);
+                    setNomeManual(n.trim() !== nomeComposto.trim());
+                  }} />
+                {nomeDiverge && (
+                  <button type="button" className="mt-1 text-xs cursor-pointer" style={{ color: v("--gold") }}
+                    onClick={() => { setNome(nomeComposto); setNomeManual(false); }}>
+                    {t("produto.nomeRestore")}
+                  </button>
+                )}
               </Field>
             </div>
             <Field label={t("produto.descricao")}>
@@ -498,23 +607,23 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
           <div role="tabpanel" id="form-panel-preco" aria-labelledby="form-tab-preco" hidden={guia !== "preco"}>
           <Section title={t("produto.section.price")}>
             <div className="form-grid-2">
-              <Field label={t("produto.iva")} required hint={t("produto.ivaHint")}>
+              <Field label={t("produto.iva")} required>
                 <select className="field" value={aliquotaIva} onChange={(e) => setAliquotaIva(Number(e.target.value) as 0 | 5 | 10)}>
                   <option value={10}>10%</option>
                   <option value={5}>5%</option>
                   <option value={0}>0%</option>
                 </select>
               </Field>
-              <Field label={t("empresa.moedaOperacao")} hint={t("empresa.moedaOperacao.hint")}>
+              <Field label={t("empresa.moedaOperacao")}>
                 <p className="field flex items-center" style={{ background: v("--card2") }}>
                   {moedaOp === "pyg" ? t("produto.currency.pyg") : moedaOp === "brl" ? t("produto.currency.brl") : t("produto.currency.usd")}
                 </p>
               </Field>
-              <Field label={t("produto.listPrice")} required hint={t("produto.listPriceHint")}>
+              <Field label={t("produto.listPrice")} required>
                 <input className="field font-mono" inputMode="decimal" value={precoLista} onChange={(e) => setPrecoLista(e.target.value)} />
                 <EquivalentesMoeda valor={num(precoLista) ?? 0} de={moedaOp} cotacao={cotacao} />
               </Field>
-              <Field label={t("produto.cost")} required hint={t("produto.costHint")}>
+              <Field label={t("produto.cost")} required>
                 <input className="field font-mono" inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} />
                 <EquivalentesMoeda valor={num(custo) ?? 0} de={moedaOp} cotacao={cotacao} />
               </Field>
@@ -524,7 +633,14 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
           <div role="tabpanel" id="form-panel-estoque" aria-labelledby="form-tab-estoque" hidden={guia !== "estoque"} className="space-y-3">
             <Section title={t("produto.section.estoque")}>
               {!editando ? (
-                <p className="text-sm" style={{ color: v("--text-muted") }}>{t("produto.stockAfterSave")}</p>
+                <Field label={t("produto.qtyInicial")} aside={estoquePadraoNome || undefined}>
+                  <input
+                    className="field font-mono"
+                    inputMode="numeric"
+                    value={qtdInicial}
+                    onChange={(e) => setQtdInicial(e.target.value.replace(/\D/g, "").slice(0, 7))}
+                  />
+                </Field>
               ) : (editando.estoques ?? []).length === 0 ? (
                 <p className="text-sm" style={{ color: v("--text-muted") }}>{t("produto.noStock")}</p>
               ) : (
@@ -542,7 +658,14 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                       <tbody>
                         {(editando.estoques ?? []).map((e) => (
                           <tr key={e.idEstoque} style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                            <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{e.estoqueNome}</td>
+                        <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>
+                          {e.estoqueNome}
+                          {e.padrao ? (
+                            <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: v("--gold") }}>
+                              {t("estoque.padraoBadge")}
+                            </span>
+                          ) : null}
+                        </td>
                             <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{e.quantidade}</td>
                             <td className="drive-td font-mono" style={{ color: v("--text-muted") }}>{e.quantidadeReservada}</td>
                             <td className="drive-td font-mono" style={{ color: v("--text") }}>{e.quantidadeDisponivel}</td>
@@ -571,9 +694,9 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     );
   }
 
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(ordenados, page);
   const navIndex = selected != null ? navIds.indexOf(selected) : -1;
-  const selecionado = filtered.find((p) => p.id === selected) ?? null;
+  const selecionado = ordenados.find((p) => p.id === selected) ?? null;
 
   function navegarPara(index: number) {
     const id = navIds[index];
@@ -582,21 +705,55 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     setPage(Math.floor(index / PAGE_SIZE) + 1);
   }
 
+  async function alternarStatusProduto(item: Produto) {
+    if (statusBusyId != null) return;
+    const proximo = item.status === "ativo" ? "inativo" : "ativo";
+    setErro(null);
+    setStatusBusyId(item.id);
+    setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, status: proximo } : x)));
+    try {
+      await atualizarProdutoStatus(item.id, proximo);
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+      await carregar();
+    } finally {
+      setStatusBusyId(null);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <CatalogHeader titulo={t("nav.produtos")} count={itens.length} novoLabel={t("produto.new")} onNovo={() => void abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
-        className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+      <ListToolbar>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+          className="px-3 py-2 text-sm rounded-md outline-none w-64"
+          style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+        <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
+      </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
-        <table className="drive-table w-full">
+        <table className="drive-table drive-table-produtos w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "col.code", "common.name", "produto.marca", "produto.tipo", "produto.listPrice", "estoque.available", "common.status", ""]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "col.code", sort: "codigo" },
+                { label: "common.name", sort: "nome" },
+                { label: "produto.tipo", sort: "tipo" },
+                { label: "produto.listPrice", sort: "precoLista" },
+                { label: "estoque.available", sort: "quantidadeDisponivel" },
+                { label: "common.status" },
+                "",
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((p) => {
               const sel = selected === p.id;
+              const nomeAuto = p.nome.trim() === `${p.marca} ${p.modelo}`.trim();
               return (
                 <tr
                   key={p.id}
@@ -606,13 +763,28 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                 >
                   <Td mono gold>{p.id}</Td>
                   <Td mono>{p.codigo}</Td>
-                  <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{p.nome}</td>
-                  <Td sub>{p.marca}</Td>
+                  {nomeAuto ? (
+                    <td className="drive-td drive-td-name" title={`${p.marca} ${p.modelo}`}>
+                      <span className="produto-nome-linha">
+                        <span className="produto-nome-marca">{p.marca}</span>
+                        {" "}
+                        <span className="produto-nome-modelo">{p.modelo}</span>
+                      </span>
+                    </td>
+                  ) : (
+                    <td className="drive-td drive-td-name text-[0.8125rem] font-medium" style={{ color: v("--text") }} title={p.nome}>{p.nome}</td>
+                  )}
                   <Td sub>{p.tipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")}</Td>
-                  <Td mono>{formatMoeda(converterMoeda(p.precoLista, p.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}</Td>
-                  <Td mono>{p.quantidadeDisponivel ?? 0}</Td>
-                  <td className="px-4 py-3"><StatusBadge status={p.status === "inativo" ? "inativo" : "ativo"} /></td>
-                  <td className="px-4 py-3 text-right">
+                  <Td mono right>{formatMoeda(converterMoeda(p.precoLista, p.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}</Td>
+                  <Td mono right>{p.quantidadeDisponivel ?? 0} {t("estoque.unit")}</Td>
+                  <td className="drive-td drive-td-status" onClick={(e) => e.stopPropagation()}>
+                    <StatusBadge
+                      status={p.status === "inativo" ? "inativo" : "ativo"}
+                      disabled={statusBusyId === p.id}
+                      onToggle={() => void alternarStatusProduto(p)}
+                    />
+                  </td>
+                  <td className="drive-td text-right">
                     <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }}
                       onClick={(e) => { e.stopPropagation(); void abrir(p); }}>{t("common.edit")}</button>
                     <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}

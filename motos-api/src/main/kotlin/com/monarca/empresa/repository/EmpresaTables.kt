@@ -32,6 +32,7 @@ object FiliaisTable : LongIdTable("filial") {
     val pontoExpedicao = varchar("ponto_expedicao", 10).nullable()
     val perfilFiscal = varchar("perfil_fiscal", 30).default("py_iva")
     val moedaOperacao = varchar("moeda_operacao", 3).default("usd")
+    val idEstoquePadrao = long("id_estoque_padrao").nullable()
     val principal = bool("principal").default(false)
     val listarApenasClientesFilial = bool("listar_apenas_clientes_filial").default(true)
     val listarApenasFornecedoresFilial = bool("listar_apenas_fornecedores_filial").default(true)

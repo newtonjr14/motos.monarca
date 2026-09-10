@@ -17,8 +17,15 @@ interface ProdutoRepository {
     suspend fun existeCodigo(codigo: String, ignorarId: Long? = null): Boolean
     suspend fun existeChassi(chassi: String, ignorarIdProduto: Long? = null): Boolean
     suspend fun existeNumeroSerieQuadro(serie: String, ignorarIdProduto: Long? = null): Boolean
-    suspend fun inserir(produto: Produto, moto: ProdutoMoto?, bicicleta: ProdutoBicicleta?, idFilial: Long): Long
+    suspend fun inserir(
+        produto: Produto,
+        moto: ProdutoMoto?,
+        bicicleta: ProdutoBicicleta?,
+        idFilial: Long,
+        quantidadeInicial: Int = 0,
+    ): Long
     suspend fun atualizar(id: Long, produto: Produto, moto: ProdutoMoto?, bicicleta: ProdutoBicicleta?): Boolean
+    suspend fun atualizarStatus(id: Long, status: Status): Boolean
     suspend fun excluir(id: Long, idFilial: Long?): Boolean
     suspend fun produtoEmUso(id: Long): Boolean
     suspend fun vincularFilial(idProduto: Long, idFilial: Long): Boolean

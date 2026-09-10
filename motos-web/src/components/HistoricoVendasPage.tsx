@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
+import { TableHeadRow, TablePagination, Td, useListSort } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -31,7 +31,14 @@ export default function HistoricoVendasPage({ navReset }: { navReset: number }) 
     }
   }
   useEffect(() => { void carregar(); }, [idFilial]);
-  useEffect(() => { setPage(1); }, [search]);
+  const filtered = itens.filter((e) => `${e.id} ${e.clienteNome} ${e.vendedorNome}`.toLowerCase().includes(search.toLowerCase()));
+  const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => {
+    if (k === "cliente") return e.clienteNome;
+    if (k === "total") return e.totalPyg;
+    if (k === "vendedor") return e.vendedorNome;
+    return e.id;
+  });
+  useEffect(() => { setPage(1); }, [search, sortKey, sortDir]);
 
   if (vendo) {
     return (
@@ -68,8 +75,7 @@ export default function HistoricoVendasPage({ navReset }: { navReset: number }) 
     );
   }
 
-  const filtered = itens.filter((e) => `${e.id} ${e.clienteNome} ${e.vendedorNome}`.toLowerCase().includes(search.toLowerCase()));
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(ordenados, page);
   const dataFmt = new Intl.DateTimeFormat(locale === "es" ? "es-PY" : "pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
@@ -87,7 +93,17 @@ export default function HistoricoVendasPage({ navReset }: { navReset: number }) 
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: border1() }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "venda.client", "venda.total", "venda.seller"]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "venda.client", sort: "cliente" },
+                { label: "venda.total", sort: "total" },
+                { label: "venda.seller", sort: "vendedor" },
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((e) => (

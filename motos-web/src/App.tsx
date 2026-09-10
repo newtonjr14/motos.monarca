@@ -21,10 +21,10 @@ import ProdutosPage from "@/components/ProdutosPage";
 import PapelFicha from "@/components/PapelFicha";
 import PessoaPreviewModal from "@/components/PessoaPreviewModal";
 import { FormTabs, navegarGuiaNoTeclado } from "@/components/crud/Field";
+import { ListToolbar, StatusFilter, TableHeadRow, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useSystemHeartbeat } from "@/hooks/useSystemHeartbeat";
 import { useI18n } from "@/i18n";
-import type { TranslationKey } from "@/i18n";
 import { isErroCampoDocumento, mensagemConflitoDocumento, mensagemErroApi } from "@/i18n/apiMessages";
 import { tf } from "@/i18n/format";
 import { pessoaParaAtualizacao } from "@/papelUtils";
@@ -44,6 +44,8 @@ import {
   excluirDivisao,
   excluirPais,
   excluirPapel,
+  buscarPapel,
+  consultarPapelDocumento,
   listarCidades,
   listarDivisoes,
   listarPapeis,
@@ -82,7 +84,6 @@ import {
   formatarCidade,
   formatarDocumentoEntrada,
   formatarDocumentoExibicao,
-  formatarTelefoneExibicao,
   normalizarCep,
   placeholderDocumento,
   toTitleCase,
@@ -117,27 +118,42 @@ function Badge({ children, color }: { children: React.ReactNode; color: "gold" |
   );
 }
 
-function StatusBadge({ status }: { status: "ativo" | "inativo" }) {
+function StatusBadge({
+  status,
+  onToggle,
+  disabled,
+}: {
+  status: "ativo" | "inativo";
+  onToggle?: () => void;
+  disabled?: boolean;
+}) {
   const { t } = useI18n();
-  return (
-    <Badge color={status === "ativo" ? "green" : "slate"}>
-      {status === "ativo" ? t("common.active") : t("common.inactive")}
-    </Badge>
+  const ativo = status === "ativo";
+  const label = ativo ? t("common.active") : t("common.inactive");
+  const className = `status-badge${ativo ? " is-on" : " is-off"}`;
+  const inner = (
+    <>
+      {onToggle && <span className={`status-switch${ativo ? " is-on" : ""}`} aria-hidden />}
+      {label}
+    </>
   );
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="drive-th">{children}</th>;
-}
-
-function TableHeadRow({ cols }: { cols: (TranslationKey | "")[] }) {
-  const { t } = useI18n();
+  if (!onToggle) {
+    return <span className={className}>{inner}</span>;
+  }
   return (
-    <tr>
-      {cols.map((key, i) => (
-        <Th key={key || `col-${i}`}>{key ? t(key) : ""}</Th>
-      ))}
-    </tr>
+    <button
+      type="button"
+      className={`${className} status-badge-toggle`}
+      disabled={disabled}
+      aria-pressed={ativo}
+      title={ativo ? t("ficha.inactivate") : t("ficha.activate")}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+    >
+      {inner}
+    </button>
   );
 }
 
@@ -163,7 +179,7 @@ function TablePagination({ page, total, onPageChange }: { page: number; total: n
   const from = total === 0 ? 0 : (pageSafe - 1) * PAGE_SIZE + 1;
   const to = Math.min(pageSafe * PAGE_SIZE, total);
   return (
-    <div className="px-4 py-3 flex items-center justify-between gap-2" style={{ borderTop: `1px solid ${v("--border")}` }}>
+    <div className="px-4 py-2.5 flex items-center justify-between gap-2" style={{ borderTop: `1px solid ${v("--border")}` }}>
       <p className="text-xs" style={{ color: v("--text-muted") }}>
         {t("common.showing")} {from}–{to} {t("common.of")} {total}
       </p>
@@ -391,7 +407,7 @@ const MENU_WIDTH = 176;
 const MENU_EST_HEIGHT = 196;
 
 function PapelRowMenu({
-  item, recurso, open, onToggle, onClose, onView, onEdit, onChanged,
+  item, recurso, open, onToggle, onClose, onView, onEdit, onChanged, onToggleStatus, statusBusy,
 }: {
   item: Papel;
   recurso: Recurso;
@@ -401,6 +417,8 @@ function PapelRowMenu({
   onView: () => void;
   onEdit: () => void;
   onChanged: () => Promise<void>;
+  onToggleStatus: () => Promise<void>;
+  statusBusy: boolean;
 }) {
   const { t } = useI18n();
   const idFilial = useFilialId();
@@ -437,17 +455,8 @@ function PapelRowMenu({
     const proximo = item.status === "ativo" ? "inativo" : "ativo";
     const msg = proximo === "inativo" ? t("ficha.confirmInactivate") : t("ficha.confirmActivate");
     if (!confirm(msg)) return;
-    setBusy(true);
     onClose();
-    try {
-      await atualizarPapel(recurso, item.id, {
-        status: proximo,
-        pessoa: pessoaParaAtualizacao(item.pessoa),
-      });
-      await onChanged();
-    } finally {
-      setBusy(false);
-    }
+    await onToggleStatus();
   }
 
   async function excluir() {
@@ -468,7 +477,7 @@ function PapelRowMenu({
         ref={btnRef}
         type="button"
         className="btn-row-menu"
-        disabled={busy}
+        disabled={busy || statusBusy}
         aria-label={t("papel.actionsMenu")}
         aria-expanded={open}
         aria-haspopup="menu"
@@ -519,12 +528,14 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
   const idFilial = useFilialId();
   const [itens, setItens] = useState<Papel[]>([]);
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<number | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
   const [editando, setEditando] = useState<Papel | null>(null);
   const [menuId, setMenuId] = useState<number | null>(null);
+  const [statusBusyId, setStatusBusyId] = useState<number | null>(null);
 
   const resetLista = useCallback(() => {
     setFormAberto(false);
@@ -544,21 +555,29 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
   }
 
   const filtered = itens.filter((p) => {
+    if (!passaFiltroStatus(p.status, filtroStatus)) return false;
     const q = search.toLowerCase();
     const doc = docPrincipal(p);
     const cidade = formatarCidade(cidades, enderecoPrincipal(p.pessoa)?.idCidade ?? null, true);
     return `${p.pessoa.nomeRazaoSocial} ${p.pessoa.email ?? ""} ${p.pessoa.telefone ?? ""} ${doc?.numero ?? ""} ${doc?.tipoNome ?? ""} ${cidade}`.toLowerCase().includes(q);
   });
 
+  const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (p, k) => {
+    if (k === "nome") return p.pessoa.nomeRazaoSocial;
+    if (k === "documento") return docPrincipal(p)?.numero ?? "";
+    if (k === "cidade") return formatarCidade(cidades, enderecoPrincipal(p.pessoa)?.idCidade ?? null, true);
+    return p.id;
+  });
+
   useEffect(() => { void carregar(); }, [recurso, idFilial]);
-  useEffect(() => { setPage(1); }, [search, recurso]);
+  useEffect(() => { setPage(1); }, [search, filtroStatus, recurso, sortKey, sortDir]);
   useEffect(() => {
-    if (selected != null && !filtered.some((p) => p.id === selected)) {
+    if (selected != null && !ordenados.some((p) => p.id === selected)) {
       setSelected(null);
     }
-  }, [filtered, selected]);
+  }, [ordenados, selected]);
 
-  const navIds = useMemo(() => filtered.map((p) => p.id), [filtered]);
+  const navIds = useMemo(() => ordenados.map((p) => p.id), [ordenados]);
   const navIndex = selected != null ? navIds.indexOf(selected) : -1;
 
   function navegarPara(index: number) {
@@ -568,18 +587,39 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
     setPage(Math.floor(index / PAGE_SIZE) + 1);
   }
 
-  const paged = slicePage(filtered, page);
-  const selecionado = filtered.find((p) => p.id === selected) ?? null;
+  const paged = slicePage(ordenados, page);
+  const selecionado = ordenados.find((p) => p.id === selected) ?? null;
+
+  async function alternarStatusPapel(item: Papel) {
+    if (statusBusyId != null) return;
+    const proximo = item.status === "ativo" ? "inativo" : "ativo";
+    setErro(null);
+    setStatusBusyId(item.id);
+    setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, status: proximo } : x)));
+    try {
+      await atualizarPapel(recurso, item.id, {
+        status: proximo,
+        pessoa: pessoaParaAtualizacao(item.pessoa),
+      });
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+      await carregar();
+    } finally {
+      setStatusBusyId(null);
+    }
+  }
 
   if (formAberto) {
     return (
       <PapelForm
+        key={editando?.id ?? "novo"}
         recurso={recurso}
         singular={singular}
         cidades={cidades}
         editando={editando}
         onClose={() => setFormAberto(false)}
         onSaved={async () => { setFormAberto(false); await carregar(); }}
+        onAbrirExistente={(papel) => { setEditando(papel); }}
         onNavigate={onNavigate}
       />
     );
@@ -600,34 +640,48 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
 
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
 
-      <div className="relative max-w-xs">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: v("--text-muted") }}><Icon.search /></span>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("papel.searchPlaceholder")}
-          className="pl-8 pr-3 py-2 text-sm rounded-md outline-none w-64"
-          style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
-      </div>
+      <ListToolbar>
+        <div className="relative max-w-xs">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: v("--text-muted") }}><Icon.search /></span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("papel.searchPlaceholder")}
+            className="pl-8 pr-3 py-2 text-sm rounded-md outline-none w-64"
+            style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+        </div>
+        <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
+      </ListToolbar>
 
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
           <table className="drive-table drive-table-papel w-full">
             <colgroup>
-              <col style={{ width: "3rem" }} />
-              <col style={{ width: "16%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "11rem" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "18%" }} />
               <col style={{ width: "5.5rem" }} />
-              <col style={{ width: "2.5rem" }} />
+              <col />
+              <col style={{ width: "11.5rem" }} />
+              <col />
+              <col style={{ width: "5.75rem" }} />
+              <col style={{ width: "2.25rem" }} />
             </colgroup>
             <thead>
-              <TableHeadRow cols={["col.id", "common.name", "col.document", "col.phone", "common.email", "col.city", "common.status", "col.actions"]} />
+              <TableHeadRow
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={onSort}
+                cols={[
+                  { label: "col.code", sort: "id" },
+                  { label: "common.name", sort: "nome" },
+                  { label: "col.document", sort: "documento" },
+                  { label: "col.city", sort: "cidade" },
+                  { label: "common.status" },
+                  { label: "col.actions" },
+                ]}
+              />
             </thead>
             <tbody>
               {paged.slice.map((p) => {
                 const doc = docPrincipal(p);
                 const sel = selected === p.id;
                 const cidade = formatarCidade(cidades, enderecoPrincipal(p.pessoa)?.idCidade ?? null, true);
-                const tel = formatarTelefoneExibicao(p.pessoa.ddi, p.pessoa.telefone);
+                const docNum = doc ? formatarDocumentoExibicao(doc.tipoCodigo, doc.numero) : "—";
+                const docTitle = doc ? `${doc.tipoNome} ${docNum}` : undefined;
                 return (
                   <tr
                     key={p.id}
@@ -635,13 +689,15 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
                     className={`drive-row-clickable${sel ? " drive-row-selected" : ""}`}
                   >
                     <Td mono gold>{p.id}</Td>
-                    <td className="drive-td drive-td-name text-[0.8125rem] font-medium" style={{ color: v("--text") }}>{p.pessoa.nomeRazaoSocial}</td>
-                    <Td mono sub nowrap>{doc ? `${doc.tipoNome} ${formatarDocumentoExibicao(doc.tipoCodigo, doc.numero)}` : "—"}</Td>
-                    <Td mono sub nowrap>{tel}</Td>
-                    <Td sub clip title={p.pessoa.email ?? undefined}>{p.pessoa.email ?? "—"}</Td>
+                    <td className="drive-td drive-td-clip text-[0.8125rem] font-medium" style={{ color: v("--text") }} title={p.pessoa.nomeRazaoSocial}>{p.pessoa.nomeRazaoSocial}</td>
+                    <Td mono sub clip title={docTitle}>{docNum}</Td>
                     <Td sub clip title={cidade !== "—" ? cidade : undefined}>{cidade}</Td>
-                    <td className="drive-td">
-                      <StatusBadge status={p.status} />
+                    <td className="drive-td drive-td-status" onClick={(e) => e.stopPropagation()}>
+                      <StatusBadge
+                        status={p.status === "inativo" ? "inativo" : "ativo"}
+                        disabled={statusBusyId === p.id}
+                        onToggle={() => void alternarStatusPapel(p)}
+                      />
                     </td>
                     <PapelRowMenu
                       item={p}
@@ -652,6 +708,8 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
                       onView={() => setSelected(p.id)}
                       onEdit={() => { setEditando(p); setFormAberto(true); }}
                       onChanged={carregar}
+                      statusBusy={statusBusyId === p.id}
+                      onToggleStatus={() => alternarStatusPapel(p)}
                     />
                   </tr>
                 );
@@ -739,9 +797,9 @@ function enderecoPreenchido(e: EnderecoForm): boolean {
   );
 }
 
-function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onNavigate }: {
+function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onAbrirExistente, onNavigate }: {
   recurso: Recurso; singular: string; cidades: Cidade[]; editando: Papel | null;
-  onClose: () => void; onSaved: () => Promise<void>; onNavigate: (v: View) => void;
+  onClose: () => void; onSaved: () => Promise<void>; onAbrirExistente: (papel: Papel) => void; onNavigate: (v: View) => void;
 }) {
   const { t } = useI18n();
   const { hasPermission } = useAuth();
@@ -770,7 +828,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
   const [idPessoaPendente, setIdPessoaPendente] = useState<number | null>(null);
   const [previewPessoaId, setPreviewPessoaId] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
-  const [guia, setGuia] = useState<"dados" | "enderecos" | "documentos">("dados");
+  const [guia, setGuia] = useState<"dados" | "enderecos">("dados");
 
   useEffect(() => { void listarPaises().then(setPaises); }, []);
   useEffect(() => {
@@ -787,44 +845,17 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
   }, [paisPadrao, idPais]);
 
   const tipoSelecionado = tipos.find((t) => t.id === idTipo);
+  const consultaDocSeq = useRef(0);
 
   useEffect(() => {
     if (!numero.trim() || !tipoSelecionado) return;
     setNumero((atual) => formatarDocumentoEntrada(tipoSelecionado.codigo, atual));
   }, [tipoSelecionado?.codigo]);
 
-  const hintNumero = (() => {
-    const c = tipoSelecionado?.codigo?.toUpperCase();
-    switch (c) {
-      case "CPF":
-        return t("papel.hint.cpf");
-      case "CNPJ":
-        return t("papel.hint.cnpj");
-      case "CI":
-        return t("papel.hint.ci");
-      case "RUC":
-        return t("papel.hint.ruc");
-      default:
-        return undefined;
-    }
-  })();
-
-  useEffect(() => {
-    if (!erroNumero) return;
-    setGuia("documentos");
-    numeroRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    numeroRef.current?.focus();
-  }, [erroNumero]);
-
   useEffect(() => {
     if (!conflito) return;
     conflitoRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [conflito]);
-
-  useEffect(() => {
-    if (!erro) return;
-    conflitoRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [erro]);
 
   function patchEndereco(index: number, patch: Partial<EnderecoForm>) {
     setEnderecos((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
@@ -891,12 +922,12 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
     }
     if (idPais === "" || idTipo === "") {
       setErro(t("papel.error.docRequired"));
-      setGuia("documentos");
+      setGuia("dados");
       return false;
     }
     if (!numero.trim()) {
       setErroNumero(t("papel.error.docNumberRequired"));
-      setGuia("documentos");
+      setGuia("dados");
       return false;
     }
     return true;
@@ -928,6 +959,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
       if (e instanceof ApiError && e.status === 409) {
         const body = e.body as DocumentoConflito | VinculoFilialConflito;
         setConflito(body);
+        setGuia("dados");
         if (body.codigo === "VINCULO_FILIAL") {
           setIdPessoaPendente(body.pessoa.id);
         } else if (idPessoaExistente != null) {
@@ -935,7 +967,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
         }
       } else if (isErroCampoDocumento(e)) {
         setErroNumero(msg);
-        setGuia("documentos");
+        setGuia("dados");
       } else {
         setErro(msg);
         const codigo = e instanceof ApiError ? (e.body as { codigo?: string })?.codigo : undefined;
@@ -946,8 +978,52 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
     }
   }
 
-  function filiaisConflitoTexto(filiais: { nome: string }[]) {
-    return filiais.map((f) => f.nome).join(", ");
+  function filiaisConflitoTexto(filiais: { nome: string }[] | undefined) {
+    return (filiais ?? []).map((f) => f.nome).join(", ");
+  }
+
+  async function consultarDocumentoExistente(valor = numero) {
+    if (idPais === "" || idTipo === "" || !valor.trim()) {
+      setConflito(null);
+      return;
+    }
+    const seq = ++consultaDocSeq.current;
+    try {
+      await consultarPapelDocumento(recurso, {
+        idPais: Number(idPais),
+        idTipoDocumento: Number(idTipo),
+        numero: valor,
+        tipoPessoa,
+        ignorarPessoaId: editando?.pessoa.id,
+      });
+      if (seq !== consultaDocSeq.current) return;
+      setConflito(null);
+      setErroNumero(null);
+    } catch (e) {
+      if (seq !== consultaDocSeq.current) return;
+      if (e instanceof ApiError && e.status === 409) {
+        const body = e.body as DocumentoConflito | VinculoFilialConflito;
+        setConflito(body);
+        setErroNumero(null);
+        setGuia("dados");
+        if (body.codigo === "VINCULO_FILIAL") setIdPessoaPendente(body.pessoa.id);
+      } else if (isErroCampoDocumento(e)) {
+        setErroNumero(mensagemErroApi(e, t, "papel.error.saveFailed"));
+        setConflito(null);
+      }
+    }
+  }
+
+  async function abrirCadastroExistente(idPapel: number) {
+    setErro(null);
+    setSalvando(true);
+    try {
+      onAbrirExistente(await buscarPapel(recurso, idPapel));
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "papel.loadExistingFailed"));
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
@@ -963,7 +1039,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
 
       <form className="rounded-lg p-5 space-y-5" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
         onSubmit={(e) => { e.preventDefault(); void salvar(); }}
-        onKeyDown={(e) => navegarGuiaNoTeclado(e, ["dados", "enderecos", "documentos"], guia, setGuia)}>
+        onKeyDown={(e) => navegarGuiaNoTeclado(e, ["dados", "enderecos"], guia, setGuia)}>
 
         <FormTabs
           value={guia}
@@ -971,15 +1047,96 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
           tabs={[
             { id: "dados", label: t("form.tab.data") },
             { id: "enderecos", label: t("form.tab.address") },
-            { id: "documentos", label: t("form.tab.document") },
           ]}
         />
 
         <div role="tabpanel" id="form-panel-dados" aria-labelledby="form-tab-dados" hidden={guia !== "dados"}>
-          <div className="form-grid-2">
+          <Section title={t("papel.section.document")}>
+            {hasPermission(Permissao.DOCUMENTO_GERENCIAR) && (
+              <div className="flex items-center justify-end gap-2 mb-1">
+                <button type="button" className="text-xs cursor-pointer underline-offset-2 hover:underline"
+                  style={{ color: v("--gold") }}
+                  onClick={() => onNavigate("documentos")}>
+                  {t("papel.manageDocTypes")}
+                </button>
+              </div>
+            )}
+            <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+              <Field label={t("papel.country")}>
+                <select className="field" value={idPais} onChange={(e) => setIdPais(Number(e.target.value))}>
+                  {paises.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                </select>
+              </Field>
+              <Field label={t("papel.docType")}>
+                <select className="field" value={idTipo} onChange={(e) => { setIdTipo(Number(e.target.value)); setErroNumero(null); }}>
+                  {tipos.length === 0 && <option value="">{t("papel.noDocType")}</option>}
+                  {tipos.map((tp) => <option key={tp.id} value={tp.id}>{tp.nome}</option>)}
+                </select>
+              </Field>
+              <Field label={t("papel.docNumber")} required error={erroNumero ?? undefined}>
+                <input
+                  ref={numeroRef}
+                  className="field font-mono"
+                  autoFocus={!editando}
+                  value={numero}
+                  onChange={(e) => {
+                    setNumero(formatarDocumentoEntrada(tipoSelecionado?.codigo, e.target.value));
+                    setErroNumero(null);
+                    setConflito(null);
+                  }}
+                  onBlur={(e) => void consultarDocumentoExistente(e.currentTarget.value)}
+                  placeholder={placeholderDocumento(tipoSelecionado?.codigo)}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          {conflito && (
+            <div ref={conflitoRef} className="mt-3 p-3 rounded-md space-y-3" style={{ background: v("--gold-bg"), border: `1px solid ${v("--gold-border")}` }}>
+              <p className="text-sm" style={{ color: v("--text") }}>
+                {conflito.codigo === "VINCULO_FILIAL"
+                  ? tf(t, "papel.conflict.linkBranch", {
+                      nome: conflito.pessoa.nomeRazaoSocial,
+                      filiais: filiaisConflitoTexto(conflito.filiaisVinculadas),
+                      filialAlvo: "filialAlvoNome" in conflito ? conflito.filialAlvoNome : "",
+                    })
+                  : mensagemConflitoDocumento(conflito, t)}
+              </p>
+              {conflito.filiaisVinculadas && conflito.filiaisVinculadas.length > 0 && conflito.codigo !== "VINCULO_FILIAL" && (
+                <p className="text-xs" style={{ color: v("--text-muted") }}>
+                  {t("papel.registeredBranches")}: {filiaisConflitoTexto(conflito.filiaisVinculadas)}
+                </p>
+              )}
+              <p className="text-sm font-medium" style={{ color: v("--text-sub") }}>{conflito.pessoa.nomeRazaoSocial}</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="btn-ghost text-sm px-3 py-1.5"
+                  onClick={() => setPreviewPessoaId(conflito.pessoa.id)}>
+                  {t("papel.viewExisting")}
+                </button>
+                {conflito.codigo === "VINCULO_FILIAL" ? (
+                  <button type="button" className="btn-gold text-sm px-3 py-1.5"
+                    onClick={() => void salvar(idPessoaPendente ?? conflito.pessoa.id, true)}>
+                    {t("papel.confirmLinkBranch")}
+                  </button>
+                ) : conflito.idPapel != null ? (
+                  <button type="button" className="btn-gold text-sm px-3 py-1.5"
+                    onClick={() => void abrirCadastroExistente(conflito.idPapel!)}>
+                    {t("papel.openExisting")}
+                  </button>
+                ) : (
+                  <button type="button" className="btn-gold text-sm px-3 py-1.5"
+                    onClick={() => void salvar(conflito.pessoa.id)}>
+                    {t("papel.useExisting")}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="form-grid-2 mt-5">
             <Section title={t("papel.section.identification")}>
               <Field label={t("papel.name")} required>
-                <input className="field" autoFocus value={nome}
+                <input className="field" autoFocus={Boolean(editando)} value={nome}
                   onChange={(e) => { setNome(e.target.value); setErro(null); }}
                   onBlur={() => setNome((x) => toTitleCase(x))}
                   placeholder={t("papel.namePlaceholder")} />
@@ -1109,88 +1266,8 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onN
           </button>
         </div>
 
-        <div role="tabpanel" id="form-panel-documentos" aria-labelledby="form-tab-documentos" hidden={guia !== "documentos"}>
-        <Section title={t("papel.section.document")}>
-          {hasPermission(Permissao.DOCUMENTO_GERENCIAR) && (
-            <div className="flex items-center justify-end gap-2 mb-1">
-              <button type="button" className="text-xs cursor-pointer underline-offset-2 hover:underline"
-                style={{ color: v("--gold") }}
-                onClick={() => onNavigate("documentos")}>
-                {t("papel.manageDocTypes")}
-              </button>
-            </div>
-          )}
-          <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-            <Field label={t("papel.country")}>
-              <select className="field" value={idPais} onChange={(e) => setIdPais(Number(e.target.value))}>
-                {paises.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-              </select>
-            </Field>
-            <Field label={t("papel.docType")}>
-              <select className="field" value={idTipo} onChange={(e) => { setIdTipo(Number(e.target.value)); setErroNumero(null); }}>
-                {tipos.length === 0 && <option value="">{t("papel.noDocType")}</option>}
-                {tipos.map((tp) => <option key={tp.id} value={tp.id}>{tp.nome}</option>)}
-              </select>
-            </Field>
-            <Field label={t("papel.docNumber")} required error={erroNumero ?? undefined} hint={!erroNumero ? hintNumero : undefined}>
-              <input
-                ref={numeroRef}
-                className="field font-mono"
-                value={numero}
-                onChange={(e) => {
-                  setNumero(formatarDocumentoEntrada(tipoSelecionado?.codigo, e.target.value));
-                  setErroNumero(null);
-                }}
-                placeholder={placeholderDocumento(tipoSelecionado?.codigo)}
-              />
-            </Field>
-          </div>
-        </Section>
-        </div>
-
-        {(erro || conflito) && (
-          <div ref={conflitoRef} className="space-y-2 pt-1" style={{ borderTop: `1px solid ${v("--border")}` }}>
-            {erro && (
-              <p className="text-sm px-3 py-2 rounded-md" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)" }}>{erro}</p>
-            )}
-
-            {conflito && (
-              <div className="p-3 rounded-md space-y-3" style={{ background: v("--gold-bg"), border: `1px solid ${v("--gold-border")}` }}>
-                <p className="text-sm" style={{ color: v("--text") }}>
-                  {conflito.codigo === "VINCULO_FILIAL"
-                    ? tf(t, "papel.conflict.linkBranch", {
-                        nome: conflito.pessoa.nomeRazaoSocial,
-                        filiais: filiaisConflitoTexto(conflito.filiaisVinculadas),
-                        filialAlvo: conflito.filialAlvoNome,
-                      })
-                    : mensagemConflitoDocumento(conflito, t)}
-                </p>
-                {conflito.filiaisVinculadas && conflito.filiaisVinculadas.length > 0 && conflito.codigo !== "VINCULO_FILIAL" && (
-                  <p className="text-xs" style={{ color: v("--text-muted") }}>
-                    {t("papel.registeredBranches")}: {filiaisConflitoTexto(conflito.filiaisVinculadas)}
-                  </p>
-                )}
-                <p className="text-sm font-medium" style={{ color: v("--text-sub") }}>{conflito.pessoa.nomeRazaoSocial}</p>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" className="btn-ghost text-sm px-3 py-1.5"
-                    onClick={() => setPreviewPessoaId(conflito.pessoa.id)}>
-                    {t("papel.viewExisting")}
-                  </button>
-                  {conflito.codigo === "VINCULO_FILIAL" ? (
-                    <button type="button" className="btn-gold text-sm px-3 py-1.5"
-                      onClick={() => void salvar(idPessoaPendente ?? conflito.pessoa.id, true)}>
-                      {t("papel.confirmLinkBranch")}
-                    </button>
-                  ) : (
-                    <button type="button" className="btn-gold text-sm px-3 py-1.5"
-                      onClick={() => void salvar(conflito.pessoa.id)}>
-                      {t("papel.useExisting")} {singular.toLowerCase()}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+        {erro && (
+          <p className="text-sm px-3 py-2 rounded-md" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)" }}>{erro}</p>
         )}
 
         <div className="flex justify-end gap-2">
@@ -1257,7 +1334,18 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
     }
   }
   useEffect(() => { void carregar(); }, []);
-  useEffect(() => { setPage(1); }, [search]);
+  const filtered = itens.filter((item) =>
+    `${item.codigo} ${item.nome} ${paises.find((p) => p.id === item.idPais)?.nome ?? ""} ${item.tipoPessoa}`.toLowerCase().includes(search.toLowerCase()),
+  );
+  const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (item, k) => {
+    if (k === "pais") return paises.find((p) => p.id === item.idPais)?.nome ?? "";
+    if (k === "pessoa") return item.tipoPessoa;
+    if (k === "codigo") return item.codigo;
+    if (k === "nome") return item.nome;
+    if (k === "unico") return item.unico;
+    return item.id;
+  });
+  useEffect(() => { setPage(1); }, [search, sortKey, sortDir]);
 
   function abrir(item?: DocumentoTipo) {
     setEditando(item ?? null);
@@ -1339,10 +1427,7 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
   }
 
   const paisNome = (id: number) => paises.find((p) => p.id === id)?.nome ?? "—";
-  const filtered = itens.filter((t) =>
-    `${t.codigo} ${t.nome} ${paisNome(t.idPais)} ${t.tipoPessoa}`.toLowerCase().includes(search.toLowerCase()),
-  );
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(ordenados, page);
 
   return (
     <div className="space-y-5">
@@ -1354,7 +1439,20 @@ function DocumentosTiposPage({ paises, navReset }: { paises: Pais[]; navReset: n
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "papel.country", "col.person", "col.code", "common.name", "col.unique", ""]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "papel.country", sort: "pais" },
+                { label: "col.person", sort: "pessoa" },
+                { label: "col.code", sort: "codigo" },
+                { label: "common.name", sort: "nome" },
+                { label: "col.unique", sort: "unico" },
+                "",
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((item) => (
@@ -1401,6 +1499,7 @@ function UsuariosPage({ navReset }: { navReset: number }) {
   const { t } = useI18n();
   const [itens, setItens] = useState<Usuario[]>([]);
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
@@ -1460,10 +1559,20 @@ function UsuariosPage({ navReset }: { navReset: number }) {
       })
       .catch(() => setCaixasDisponiveis([]));
   }, [idsFiliais]);
-  useEffect(() => { setPage(1); }, [search]);
   useEffect(() => {
     if (erro) erroRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [erro]);
+  const filteredUsuarios = itens.filter((u) =>
+    passaFiltroStatus(u.status, filtroStatus) &&
+    `${u.nome} ${u.login} ${u.email} ${u.perfil}`.toLowerCase().includes(search.toLowerCase()));
+  const { items: usuariosOrdenados, sortKey, sortDir, onSort } = useListSort(filteredUsuarios, (u, k) => {
+    if (k === "nome") return u.nome;
+    if (k === "login") return u.login;
+    if (k === "email") return u.email;
+    if (k === "perfil") return u.perfil;
+    return u.id;
+  });
+  useEffect(() => { setPage(1); }, [search, filtroStatus, sortKey, sortDir]);
 
   function abrir(item?: Usuario) {
     setEditando(item ?? null);
@@ -1666,34 +1775,50 @@ function UsuariosPage({ navReset }: { navReset: number }) {
     );
   }
 
-  const filtered = itens.filter((u) => `${u.nome} ${u.login} ${u.email} ${u.perfil}`.toLowerCase().includes(search.toLowerCase()));
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(usuariosOrdenados, page);
 
   return (
     <div className="space-y-5">
       <CatalogHeader titulo={t("usuario.title")} count={itens.length} novoLabel={t("usuario.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
-        className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+      <ListToolbar>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+          className="px-3 py-2 text-sm rounded-md outline-none w-64"
+          style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+        <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
+      </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "common.name", "common.login", "common.email", "common.profile", "usuario.branches", "common.status", ""]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "common.name", sort: "nome" },
+                { label: "common.login", sort: "login" },
+                { label: "common.email", sort: "email" },
+                { label: "common.profile", sort: "perfil" },
+                { label: "usuario.branches" },
+                { label: "common.status" },
+                "",
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((u) => (
               <tr key={u.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
                 <Td mono gold>{u.id}</Td>
-                <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{u.nome}</td>
+                <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{u.nome}</td>
                 <Td mono>{u.login}</Td>
                 <Td mono>{u.email}</Td>
                 <Td>{perfilLabel(u.perfil, t)}</Td>
                 <Td clip title={(u.filiais ?? []).map((f) => f.nome).join(", ") || "—"}>
                   {(u.filiais ?? []).map((f) => f.nome).join(", ") || "—"}
                 </Td>
-                <td className="px-4 py-3"><StatusBadge status={u.status} /></td>
-                <td className="px-4 py-3 text-right">
+                <td className="drive-td"><StatusBadge status={u.status} /></td>
+                <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(u)}>{t("common.edit")}</button>
                   {u.login !== "system" && (
                     <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
@@ -1708,8 +1833,8 @@ function UsuariosPage({ navReset }: { navReset: number }) {
             ))}
           </tbody>
         </table>
-        {!filtered.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
-        {filtered.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
+        {!filteredUsuarios.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
+        {filteredUsuarios.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
       </div>
     </div>
   );
@@ -1719,6 +1844,7 @@ function PaisesPage({ navReset }: { navReset: number }) {
   const { t } = useI18n();
   const [itens, setItens] = useState<Pais[]>([]);
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
@@ -1744,7 +1870,15 @@ function PaisesPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, []);
-  useEffect(() => { setPage(1); }, [search]);
+  const filteredPaises = itens.filter((p) =>
+    passaFiltroStatus(p.status, filtroStatus) && `${p.nome} ${p.sigla}`.toLowerCase().includes(search.toLowerCase()));
+  const { items: paisesOrdenados, sortKey, sortDir, onSort } = useListSort(filteredPaises, (p, k) => {
+    if (k === "nome") return p.nome;
+    if (k === "sigla") return p.sigla;
+    if (k === "divisao") return p.usaSiglaDivisao ? 1 : 0;
+    return p.id;
+  });
+  useEffect(() => { setPage(1); }, [search, filtroStatus, sortKey, sortDir]);
 
   function abrir(item?: Pais) {
     setEditando(item ?? null);
@@ -1819,30 +1953,44 @@ function PaisesPage({ navReset }: { navReset: number }) {
     );
   }
 
-  const filtered = itens.filter((p) => `${p.nome} ${p.sigla}`.toLowerCase().includes(search.toLowerCase()));
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(paisesOrdenados, page);
 
   return (
     <div className="space-y-5">
       <CatalogHeader titulo={t("nav.paises")} count={itens.length} novoLabel={t("pais.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
-        className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+      <ListToolbar>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+          className="px-3 py-2 text-sm rounded-md outline-none w-64"
+          style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+        <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
+      </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "common.name", "col.initials", "col.division", "common.status", ""]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "common.name", sort: "nome" },
+                { label: "col.initials", sort: "sigla" },
+                { label: "col.division", sort: "divisao" },
+                { label: "common.status" },
+                "",
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((p) => (
               <tr key={p.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
                 <Td mono gold>{p.id}</Td>
-                <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{p.nome}</td>
+                <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{p.nome}</td>
                 <Td mono>{p.sigla}</Td>
                 <Td sub>{p.usaSiglaDivisao ? t("pais.divisionTypeUf") : t("pais.divisionTypeDept")}</Td>
-                <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
-                <td className="px-4 py-3 text-right">
+                <td className="drive-td"><StatusBadge status={p.status} /></td>
+                <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(p)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async () => {
@@ -1855,8 +2003,8 @@ function PaisesPage({ navReset }: { navReset: number }) {
             ))}
           </tbody>
         </table>
-        {!filtered.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
-        {filtered.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
+        {!filteredPaises.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
+        {filteredPaises.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
       </div>
     </div>
   );
@@ -1866,6 +2014,7 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
   const { t } = useI18n();
   const [itens, setItens] = useState<Divisao[]>([]);
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
@@ -1891,9 +2040,16 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
     }
   }
   useEffect(() => { void carregar(); }, []);
-  useEffect(() => { setPage(1); }, [search]);
-
   const paisNome = (id: number) => paises.find((p) => p.id === id)?.nome ?? "—";
+  const filteredDivisoes = itens.filter((d) =>
+    passaFiltroStatus(d.status, filtroStatus) && `${d.nome} ${d.sigla ?? ""} ${paisNome(d.idPais)}`.toLowerCase().includes(search.toLowerCase()));
+  const { items: divisoesOrdenadas, sortKey, sortDir, onSort } = useListSort(filteredDivisoes, (d, k) => {
+    if (k === "nome") return d.nome;
+    if (k === "sigla") return d.sigla ?? "";
+    if (k === "pais") return paisNome(d.idPais);
+    return d.id;
+  });
+  useEffect(() => { setPage(1); }, [search, filtroStatus, sortKey, sortDir]);
   const paisPadrao = paises.find((p) => p.sigla === "BR") ?? paises[0];
 
   function abrir(item?: Divisao) {
@@ -1968,30 +2124,44 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
     );
   }
 
-  const filtered = itens.filter((d) => `${d.nome} ${d.sigla ?? ""} ${paisNome(d.idPais)}`.toLowerCase().includes(search.toLowerCase()));
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(divisoesOrdenadas, page);
 
   return (
     <div className="space-y-5">
       <CatalogHeader titulo={t("nav.divisoes")} count={itens.length} novoLabel={t("divisao.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
-        className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+      <ListToolbar>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+          className="px-3 py-2 text-sm rounded-md outline-none w-64"
+          style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+        <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
+      </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "common.name", "col.initials", "papel.country", "common.status", ""]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "common.name", sort: "nome" },
+                { label: "col.initials", sort: "sigla" },
+                { label: "papel.country", sort: "pais" },
+                { label: "common.status" },
+                "",
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((d) => (
               <tr key={d.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
                 <Td mono gold>{d.id}</Td>
-                <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{d.nome}</td>
+                <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{d.nome}</td>
                 <Td mono sub>{d.sigla ?? "—"}</Td>
                 <Td sub>{paisNome(d.idPais)}</Td>
-                <td className="px-4 py-3"><StatusBadge status={d.status} /></td>
-                <td className="px-4 py-3 text-right">
+                <td className="drive-td"><StatusBadge status={d.status} /></td>
+                <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(d)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async () => {
@@ -2004,8 +2174,8 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
             ))}
           </tbody>
         </table>
-        {!filtered.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
-        {filtered.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
+        {!filteredDivisoes.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
+        {filteredDivisoes.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
       </div>
     </div>
   );
@@ -2018,6 +2188,7 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
   const [paisesLocal, setPaisesLocal] = useState<Pais[]>([]);
   const paises = paisesProp.length > 0 ? paisesProp : paisesLocal;
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
@@ -2045,7 +2216,16 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
     }
   }
   useEffect(() => { void carregar(); }, []);
-  useEffect(() => { setPage(1); }, [search]);
+  const filteredCidades = itens.filter((c) =>
+    passaFiltroStatus(c.status, filtroStatus) &&
+    `${c.nome} ${c.divisaoNome} ${c.paisNome}`.toLowerCase().includes(search.toLowerCase()));
+  const { items: cidadesOrdenadas, sortKey, sortDir, onSort } = useListSort(filteredCidades, (c, k) => {
+    if (k === "nome") return c.nome;
+    if (k === "divisao") return c.divisaoNome;
+    if (k === "pais") return c.paisNome;
+    return c.id;
+  });
+  useEffect(() => { setPage(1); }, [search, filtroStatus, sortKey, sortDir]);
 
   useEffect(() => {
     if (paisesProp.length > 0) return;
@@ -2150,31 +2330,44 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
     );
   }
 
-  const filtered = itens.filter((c) =>
-    `${c.nome} ${c.divisaoNome} ${c.paisNome}`.toLowerCase().includes(search.toLowerCase()));
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(cidadesOrdenadas, page);
 
   return (
     <div className="space-y-5">
       <CatalogHeader titulo={t("nav.cidades")} count={itens.length} novoLabel={t("cidade.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
-        className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+      <ListToolbar>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+          className="px-3 py-2 text-sm rounded-md outline-none w-64"
+          style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+        <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
+      </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "common.name", "col.divisionRegion", "papel.country", "common.status", ""]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "common.name", sort: "nome" },
+                { label: "col.divisionRegion", sort: "divisao" },
+                { label: "papel.country", sort: "pais" },
+                { label: "common.status" },
+                "",
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((c) => (
               <tr key={c.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
                 <Td mono gold>{c.id}</Td>
-                <td className="px-4 py-3 text-xs font-medium" style={{ color: v("--text") }}>{c.nome}</td>
+                <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{c.nome}</td>
                 <Td sub>{c.divisaoSigla ? `${c.divisaoNome} (${c.divisaoSigla})` : c.divisaoNome}</Td>
                 <Td sub>{c.paisNome}</Td>
-                <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
-                <td className="px-4 py-3 text-right">
+                <td className="drive-td"><StatusBadge status={c.status} /></td>
+                <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(c)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async () => {
@@ -2187,8 +2380,8 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
             ))}
           </tbody>
         </table>
-        {!filtered.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
-        {filtered.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
+        {!filteredCidades.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
+        {filteredCidades.length > 0 && <TablePagination page={paged.pageSafe} total={paged.total} onPageChange={setPage} />}
       </div>
     </div>
   );

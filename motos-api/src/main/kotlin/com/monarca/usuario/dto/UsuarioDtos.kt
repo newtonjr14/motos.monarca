@@ -11,6 +11,7 @@ data class FilialAcessoResponse(
     val nome: String,
     val principal: Boolean,
     val moedaOperacao: String = "usd",
+    val idEstoquePadrao: Long? = null,
 )
 
 @Serializable

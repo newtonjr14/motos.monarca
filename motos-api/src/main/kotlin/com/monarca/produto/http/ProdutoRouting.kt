@@ -12,6 +12,7 @@ import com.monarca.localidade.service.AcessoNegado
 import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.RequisicaoInvalida
 import com.monarca.produto.dto.ProdutoRequest
+import com.monarca.produto.dto.ProdutoStatusRequest
 import com.monarca.produto.service.ProdutoService
 import com.monarca.produto.service.VinculoFilialProdutoConflito
 import io.ktor.http.HttpStatusCode
@@ -59,6 +60,15 @@ fun Application.configureProduto() {
                     val request = call.receive<ProdutoRequest>()
                     call.withAudit {
                         call.respond(service.atualizar(resource.id, request))
+                    }
+                }
+            }
+            put<Produtos.Id.StatusPatch> { resource ->
+                call.handleProduto(service) {
+                    call.podeGerenciarProduto()
+                    val request = call.receive<ProdutoStatusRequest>()
+                    call.withAudit {
+                        call.respond(service.atualizarStatus(resource.parent.id, request.status))
                     }
                 }
             }

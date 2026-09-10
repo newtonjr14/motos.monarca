@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/crud/Field";
-import { CatalogHeader, StatusBadge, TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
+import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -22,6 +22,7 @@ export default function CaixasPage({ navReset }: { navReset: number }) {
   const idFilial = useFilialId();
   const [itens, setItens] = useState<Caixa[]>([]);
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
@@ -45,7 +46,10 @@ export default function CaixasPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, [idFilial]);
-  useEffect(() => { setPage(1); }, [search]);
+  const filtered = itens.filter((e) =>
+    passaFiltroStatus(e.status, filtroStatus) && e.nome.toLowerCase().includes(search.toLowerCase()));
+  const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => k === "nome" ? e.nome : e.id);
+  useEffect(() => { setPage(1); }, [search, filtroStatus, sortKey, sortDir]);
 
   function abrir(item?: Caixa) {
     setEditando(item ?? null);
@@ -108,20 +112,33 @@ export default function CaixasPage({ navReset }: { navReset: number }) {
     );
   }
 
-  const filtered = itens.filter((e) => e.nome.toLowerCase().includes(search.toLowerCase()));
-  const paged = slicePage(filtered, page);
+  const paged = slicePage(ordenados, page);
 
   return (
     <div className="space-y-5">
       <CatalogHeader titulo={t("nav.caixas")} count={itens.length} novoLabel={t("caixa.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
-        className="px-3 py-2 text-sm rounded-md outline-none w-64"
-        style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+      <ListToolbar>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+          className="px-3 py-2 text-sm rounded-md outline-none w-64"
+          style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+        <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
+      </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <table className="drive-table w-full">
           <thead>
-            <TableHeadRow cols={["col.id", "common.name", "caixa.session", "common.status", ""]} />
+            <TableHeadRow
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              cols={[
+                { label: "col.id", sort: "id" },
+                { label: "common.name", sort: "nome" },
+                { label: "caixa.session" },
+                { label: "common.status" },
+                "",
+              ]}
+            />
           </thead>
           <tbody>
             {paged.slice.map((e) => (
@@ -129,8 +146,8 @@ export default function CaixasPage({ navReset }: { navReset: number }) {
                 <Td mono gold>{e.id}</Td>
                 <Td>{e.nome}</Td>
                 <Td>{e.sessaoAbertaId ? t("caixa.session.open") : t("caixa.session.closed")}</Td>
-                <td className="px-4 py-3"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
-                <td className="px-4 py-3 text-right">
+                <td className="drive-td"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
+                <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={(ev) => { ev.stopPropagation(); abrir(e); }}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
                     onClick={async (ev) => {
