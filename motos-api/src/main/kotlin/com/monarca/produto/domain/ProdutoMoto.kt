@@ -3,7 +3,6 @@ package com.monarca.produto.domain
 data class ProdutoMoto(
     val id: Long,
     val idProduto: Long,
-    val chassi: String?,
     val cor: String?,
     val potenciaMotorW: Int?,
     val autonomiaKm: Int?,

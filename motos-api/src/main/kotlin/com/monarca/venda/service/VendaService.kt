@@ -113,16 +113,23 @@ class VendaService(
         idFilial: Long,
         cotacao: CotacaoResponse,
     ): List<VendaItemPersistencia> {
-        val agrupado = linkedMapOf<Pair<Long, Long?>, Int>()
+        val agrupado = linkedMapOf<Pair<Long, Long?>, Pair<Int, MutableList<Long>>>()
         for (item in request.itens) {
             if (item.quantidade <= 0) {
                 throw invalido("VENDA_QTD_INVALIDA", "A quantidade deve ser maior que zero")
             }
             val chave = item.idProduto to item.idEstoque
-            agrupado[chave] = (agrupado[chave] ?: 0) + item.quantidade
+            val atual = agrupado[chave]
+            if (atual == null) {
+                agrupado[chave] = item.quantidade to item.idsUnidades.toMutableList()
+            } else {
+                atual.second += item.idsUnidades
+                agrupado[chave] = (atual.first + item.quantidade) to atual.second
+            }
         }
-        return agrupado.map { (chave, quantidade) ->
+        return agrupado.map { (chave, acc) ->
             val (idProduto, idEstoquePedido) = chave
+            val (quantidade, idsUnidades) = acc
             val completo = produtoRepository.buscar(idProduto)
                 ?: throw RecursoNaoEncontrado("Produto $idProduto não encontrado")
             val produto = completo.produto
@@ -143,6 +150,14 @@ class VendaService(
             } else {
                 padrao
             }
+            val unidades = validarUnidadesVenda(
+                produto.controlaChassi,
+                produto.codigo,
+                idProduto,
+                escolhido.idEstoque,
+                quantidade,
+                idsUnidades,
+            )
             if (escolhido.quantidadeDisponivel < quantidade) {
                 throw invalido("ESTOQUE_INSUFICIENTE", "Saldo insuficiente para vender ${produto.codigo}")
             }
@@ -159,8 +174,48 @@ class VendaService(
                 precoLista = produto.precoLista,
                 precoUnitarioPyg = unitario,
                 totalPyg = unitario * quantidade,
+                idsUnidades = unidades.map { it.id },
+                chassis = unidades.map { it.numero },
             )
         }
+    }
+
+    private suspend fun validarUnidadesVenda(
+        controlaChassi: Boolean,
+        codigo: String,
+        idProduto: Long,
+        idEstoque: Long,
+        quantidade: Int,
+        idsUnidades: List<Long>,
+    ): List<com.monarca.produto.domain.ProdutoUnidade> {
+        if (!controlaChassi) {
+            if (idsUnidades.isNotEmpty()) {
+                throw invalido("CHASSI_NAO_CONTROLADO", "Este produto não controla chassis")
+            }
+            return emptyList()
+        }
+        if (idsUnidades.isEmpty()) {
+            throw invalido("UNIDADE_OBRIGATORIA", "Informe o chassi do produto $codigo")
+        }
+        if (idsUnidades.size != idsUnidades.distinct().size) {
+            throw invalido("UNIDADE_REPETIDA", "Há chassis repetidos na venda")
+        }
+        if (idsUnidades.size != quantidade) {
+            throw invalido("UNIDADE_QTD", "A quantidade deve ser igual ao número de chassis")
+        }
+        val unidades = produtoRepository.buscarUnidadesPorIds(idsUnidades)
+        if (unidades.size != idsUnidades.size) {
+            throw invalido("UNIDADE_INVALIDA", "Chassi não encontrado")
+        }
+        for (u in unidades) {
+            if (u.idProduto != idProduto || u.idEstoque != idEstoque) {
+                throw invalido("UNIDADE_INVALIDA", "O chassi ${u.numero} não pertence a este produto")
+            }
+            if (u.situacao != com.monarca.produto.domain.SituacaoUnidade.DISPONIVEL) {
+                throw invalido("UNIDADE_INDISPONIVEL", "O chassi ${u.numero} não está disponível", "chassi" to u.numero)
+            }
+        }
+        return unidades
     }
 
     private suspend fun montarNegociacao(
@@ -249,6 +304,7 @@ class VendaService(
                 precoLista = it.precoLista,
                 precoUnitarioPyg = it.precoUnitarioPyg,
                 totalPyg = it.totalPyg,
+                chassis = it.chassis,
             )
         },
         negociacao = negociacao.map {

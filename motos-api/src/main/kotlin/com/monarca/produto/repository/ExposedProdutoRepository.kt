@@ -11,6 +11,8 @@ import com.monarca.produto.domain.ProdutoCompleto
 import com.monarca.produto.domain.ProdutoEstoqueSaldo
 import com.monarca.produto.domain.ProdutoMoto
 import com.monarca.produto.domain.ProdutoSaldoTotal
+import com.monarca.produto.domain.ProdutoUnidade
+import com.monarca.produto.domain.SituacaoUnidade
 import com.monarca.produto.domain.TipoProduto
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.singleOrNull
@@ -22,9 +24,11 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
@@ -94,17 +98,12 @@ class ExposedProdutoRepository(
         idExistente != null && idExistente != ignorarId
     }
 
-    override suspend fun existeChassi(chassi: String, ignorarIdProduto: Long?): Boolean = suspendTransaction(database) {
-        val idExistente = ProdutoMotosTable
-            .innerJoin(ProdutosTable)
-            .selectAll()
-            .where {
-                (ProdutoMotosTable.chassi eq chassi) and
-                    (ProdutosTable.status neq Status.DELETADO.name.lowercase())
-            }
-            .map { it[ProdutoMotosTable.idProduto].value }
+    override suspend fun existeNumeroUnidade(numero: String, ignorarId: Long?): Boolean = suspendTransaction(database) {
+        val idExistente = ProdutoUnidadesTable.selectAll()
+            .where { ProdutoUnidadesTable.numero eq numero }
+            .map { it[ProdutoUnidadesTable.id].value }
             .singleOrNull()
-        idExistente != null && idExistente != ignorarIdProduto
+        idExistente != null && idExistente != ignorarId
     }
 
     override suspend fun existeNumeroSerieQuadro(serie: String, ignorarIdProduto: Long?): Boolean = suspendTransaction(database) {
@@ -126,6 +125,7 @@ class ExposedProdutoRepository(
         bicicleta: ProdutoBicicleta?,
         idFilial: Long,
         quantidadeInicial: Int,
+        numerosIniciais: List<String>,
     ): Long = suspendTransaction(database) {
         val codigoInformado = produto.codigo.trim().uppercase()
         val placeholder = codigoInformado.ifEmpty {
@@ -138,6 +138,7 @@ class ExposedProdutoRepository(
             it[idModelo] = produto.idModelo
             it[descricao] = produto.descricao
             it[tipo] = produto.tipo.name.lowercase()
+            it[controlaChassi] = produto.controlaChassi
             it[idFilialCadastro] = idFilial
             it[aliquotaIva] = produto.aliquotaIva
             it[moedaPreco] = produto.moedaPreco.name.lowercase()
@@ -160,6 +161,12 @@ class ExposedProdutoRepository(
             quantidadeInicial,
         )
         check(itens.isNotEmpty()) { "Não foi possível criar o saldo zerado nos estoques da filial" }
+        if (numerosIniciais.isNotEmpty()) {
+            val idEstoque = estoquePadraoDaFilial(idFilial)
+                ?: error("Filial sem estoque padrão para chassis")
+            inserirUnidadesInterno(id, idEstoque, numerosIniciais)
+            sincronizarQuantidadeInterno(id, idEstoque)
+        }
         com.monarca.estoque.repository.EstoqueProdutoSeed.auditarInsert(
             "produto",
             id,
@@ -200,6 +207,7 @@ class ExposedProdutoRepository(
             it[idModelo] = produto.idModelo
             it[descricao] = produto.descricao
             it[tipo] = produto.tipo.name.lowercase()
+            it[controlaChassi] = produto.controlaChassi
             it[aliquotaIva] = produto.aliquotaIva
             it[moedaPreco] = produto.moedaPreco.name.lowercase()
             it[precoLista] = produto.precoLista
@@ -371,7 +379,6 @@ class ExposedProdutoRepository(
             .singleOrNull()
         if (existente != null) {
             ProdutoMotosTable.update({ ProdutoMotosTable.idProduto eq idProduto }) {
-                it[chassi] = moto.chassi
                 it[cor] = moto.cor
                 it[potenciaMotorW] = moto.potenciaMotorW
                 it[autonomiaKm] = moto.autonomiaKm
@@ -389,7 +396,6 @@ class ExposedProdutoRepository(
         } else {
             ProdutoMotosTable.insert {
                 it[ProdutoMotosTable.idProduto] = idProduto
-                it[chassi] = moto.chassi
                 it[cor] = moto.cor
                 it[potenciaMotorW] = moto.potenciaMotorW
                 it[autonomiaKm] = moto.autonomiaKm
@@ -534,6 +540,7 @@ class ExposedProdutoRepository(
         modeloNome = this[ModelosTable.nome],
         descricao = this[ProdutosTable.descricao],
         tipo = TipoProduto.valueOf(this[ProdutosTable.tipo].uppercase()),
+        controlaChassi = this[ProdutosTable.controlaChassi],
         idFilialCadastro = this[ProdutosTable.idFilialCadastro]?.value,
         aliquotaIva = this[ProdutosTable.aliquotaIva],
         moedaPreco = com.monarca.produto.domain.Moeda.valueOf(this[ProdutosTable.moedaPreco].uppercase()),
@@ -549,7 +556,6 @@ class ExposedProdutoRepository(
                 ProdutoMoto(
                     id = it[ProdutoMotosTable.id].value,
                     idProduto = it[ProdutoMotosTable.idProduto].value,
-                    chassi = it[ProdutoMotosTable.chassi],
                     cor = it[ProdutoMotosTable.cor],
                     potenciaMotorW = it[ProdutoMotosTable.potenciaMotorW],
                     autonomiaKm = it[ProdutoMotosTable.autonomiaKm],
@@ -589,4 +595,115 @@ class ExposedProdutoRepository(
                 )
             }
             .singleOrNull()
+
+    override suspend fun listarUnidades(
+        idProduto: Long,
+        idFilial: Long?,
+        situacao: SituacaoUnidade?,
+    ): List<ProdutoUnidade> = suspendTransaction(database) {
+        val porProduto = ProdutoUnidadesTable.idProduto eq idProduto
+        val porSituacao = if (situacao != null) ProdutoUnidadesTable.situacao eq situacao.name.lowercase() else Op.TRUE
+        val porFilial = if (idFilial != null) EstoquesTable.idFilial eq idFilial else Op.TRUE
+        ProdutoUnidadesTable
+            .innerJoin(EstoquesTable)
+            .selectAll()
+            .where { porProduto and porSituacao and porFilial }
+            .orderBy(ProdutoUnidadesTable.numero to SortOrder.ASC)
+            .map { it.toUnidade() }
+            .toList()
+    }
+
+    override suspend fun buscarUnidadesPorIds(ids: List<Long>): List<ProdutoUnidade> = suspendTransaction(database) {
+        if (ids.isEmpty()) return@suspendTransaction emptyList()
+        ProdutoUnidadesTable
+            .innerJoin(EstoquesTable)
+            .selectAll()
+            .where { ProdutoUnidadesTable.id inList ids }
+            .map { it.toUnidade() }
+            .toList()
+    }
+
+    override suspend fun inserirUnidades(idProduto: Long, idEstoque: Long, numeros: List<String>): List<Long> =
+        suspendTransaction(database) {
+            val ids = inserirUnidadesInterno(idProduto, idEstoque, numeros)
+            sincronizarQuantidadeInterno(idProduto, idEstoque)
+            ids
+        }
+
+    override suspend fun excluirUnidade(id: Long): Boolean = suspendTransaction(database) {
+        val row = ProdutoUnidadesTable
+            .innerJoin(EstoquesTable)
+            .selectAll()
+            .where { ProdutoUnidadesTable.id eq id }
+            .singleOrNull() ?: return@suspendTransaction false
+        if (row[ProdutoUnidadesTable.situacao] != SituacaoUnidade.DISPONIVEL.name.lowercase()) {
+            return@suspendTransaction false
+        }
+        val idProduto = row[ProdutoUnidadesTable.idProduto].value
+        val idEstoque = row[ProdutoUnidadesTable.idEstoque].value
+        val ok = ProdutoUnidadesTable.deleteWhere { ProdutoUnidadesTable.id eq id } > 0
+        if (ok) sincronizarQuantidadeInterno(idProduto, idEstoque)
+        ok
+    }
+
+    override suspend fun produtoControlaChassi(id: Long): Boolean = suspendTransaction(database) {
+        ProdutosTable.selectAll()
+            .where { ProdutosTable.id eq id }
+            .map { it[ProdutosTable.controlaChassi] }
+            .singleOrNull() == true
+    }
+
+    private suspend fun estoquePadraoDaFilial(idFilial: Long): Long? =
+        FiliaisTable.selectAll()
+            .where { FiliaisTable.id eq idFilial }
+            .map { it[FiliaisTable.idEstoquePadrao] }
+            .singleOrNull()
+
+    private suspend fun inserirUnidadesInterno(idProduto: Long, idEstoque: Long, numeros: List<String>): List<Long> {
+        val ids = mutableListOf<Long>()
+        for (numero in numeros) {
+            val inserted = ProdutoUnidadesTable.insert {
+                it[ProdutoUnidadesTable.idProduto] = idProduto
+                it[ProdutoUnidadesTable.idEstoque] = idEstoque
+                it[ProdutoUnidadesTable.numero] = numero
+                it[situacao] = SituacaoUnidade.DISPONIVEL.name.lowercase()
+                it[status] = Status.ATIVO.name.lowercase()
+            }
+            ids += inserted[ProdutoUnidadesTable.id].value
+        }
+        return ids
+    }
+
+    private suspend fun sincronizarQuantidadeInterno(idProduto: Long, idEstoque: Long) {
+        val qtd = ProdutoUnidadesTable.selectAll()
+            .where {
+                (ProdutoUnidadesTable.idProduto eq idProduto) and
+                    (ProdutoUnidadesTable.idEstoque eq idEstoque) and
+                    (ProdutoUnidadesTable.situacao eq SituacaoUnidade.DISPONIVEL.name.lowercase())
+            }
+            .toList()
+            .size
+        val item = EstoqueProdutosTable.selectAll()
+            .where {
+                (EstoqueProdutosTable.idProduto eq idProduto) and
+                    (EstoqueProdutosTable.idEstoque eq idEstoque) and
+                    (EstoqueProdutosTable.status neq Status.DELETADO.name.lowercase())
+            }
+            .singleOrNull() ?: return
+        val reservada = item[EstoqueProdutosTable.quantidadeReservada].coerceAtMost(qtd)
+        EstoqueProdutosTable.update({ EstoqueProdutosTable.id eq item[EstoqueProdutosTable.id].value }) {
+            it[quantidade] = qtd
+            it[quantidadeReservada] = reservada
+        }
+    }
+
+    private fun ResultRow.toUnidade() = ProdutoUnidade(
+        id = this[ProdutoUnidadesTable.id].value,
+        idProduto = this[ProdutoUnidadesTable.idProduto].value,
+        idEstoque = this[ProdutoUnidadesTable.idEstoque].value,
+        estoqueNome = this[EstoquesTable.nome],
+        numero = this[ProdutoUnidadesTable.numero],
+        situacao = SituacaoUnidade.valueOf(this[ProdutoUnidadesTable.situacao].uppercase()),
+        idVendaItem = this[ProdutoUnidadesTable.idVendaItem],
+    )
 }

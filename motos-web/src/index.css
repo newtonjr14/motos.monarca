@@ -228,6 +228,43 @@ select.field:disabled {
 .drive-table-produtos th:nth-child(6) {
   text-align: right;
 }
+.drive-table-filiais {
+  table-layout: fixed;
+}
+.drive-table-filiais th:nth-child(1),
+.drive-table-filiais td:nth-child(1) {
+  width: 3.25rem;
+}
+.drive-table-filiais td:nth-child(3) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.drive-table-filiais th:nth-child(4),
+.drive-table-filiais td:nth-child(4) {
+  width: 7.5rem;
+}
+.drive-table-filiais th:nth-child(5),
+.drive-table-filiais td:nth-child(5) {
+  width: 4.75rem;
+}
+.drive-table-filiais th:nth-child(8),
+.drive-table-filiais td:nth-child(8) {
+  width: 8.5rem;
+}
+.filial-estab {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  background: var(--card2);
+  border: 1px solid var(--border);
+}
 .produto-nome-linha {
   display: block;
   line-height: 1.35;
@@ -317,11 +354,11 @@ select.field:disabled {
 }
 .drive-table-papel th:nth-child(5),
 .drive-table-papel td:nth-child(5) {
-  width: 5.75rem;
+  width: 3.25rem;
   padding-left: 0.5rem;
-  padding-right: 0.15rem;
+  padding-right: 0.5rem;
   white-space: nowrap;
-  text-align: right;
+  text-align: left;
 }
 .drive-table-papel th:nth-child(6),
 .drive-table-papel td:nth-child(6) {
@@ -329,37 +366,33 @@ select.field:disabled {
   padding-left: 0;
   padding-right: 0.4rem;
 }
+.drive-th-status,
 .drive-td-status {
-  text-align: right;
+  width: 1%;
+  white-space: nowrap;
+  text-align: left;
+  vertical-align: middle;
+}
+.drive-th-actions,
+.drive-td.text-right {
+  width: 1%;
+  white-space: nowrap;
 }
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  border: 1px solid;
-  white-space: nowrap;
-  line-height: 1.2;
-}
-.status-badge.is-on {
-  background: var(--success-bg);
-  border-color: var(--success-border);
-  color: var(--success);
-}
-.status-badge.is-off {
-  background: rgba(148, 163, 184, 0.1);
-  border-color: rgba(148, 163, 184, 0.2);
-  color: var(--text-muted);
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  line-height: 0;
 }
 .status-badge-toggle {
   cursor: pointer;
   font: inherit;
   margin: 0;
 }
-.status-badge-toggle:hover:not(:disabled) {
+.status-badge-toggle:hover:not(:disabled) .status-switch {
   filter: brightness(0.94);
 }
 .status-badge-toggle:disabled {
@@ -367,30 +400,31 @@ select.field:disabled {
   cursor: not-allowed;
 }
 .status-switch {
-  width: 1.15rem;
-  height: 0.7rem;
+  width: 2rem;
+  height: 1.15rem;
   border-radius: 999px;
-  background: currentColor;
-  opacity: 0.38;
+  background: #cbd5e1;
   position: relative;
   flex-shrink: 0;
+  display: block;
 }
 .status-switch::after {
   content: "";
   position: absolute;
-  top: 1px;
-  left: 1px;
-  width: 0.5rem;
-  height: 0.5rem;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 0.9rem;
+  height: 0.9rem;
   border-radius: 999px;
   background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+  transition: left 0.15s ease;
 }
 .status-switch.is-on {
-  opacity: 1;
+  background: var(--success);
 }
 .status-switch.is-on::after {
-  left: auto;
-  right: 1px;
+  left: calc(100% - 1.025rem);
 }
 .drive-td-nowrap {
   white-space: nowrap;
@@ -439,17 +473,24 @@ select.field:disabled {
   cursor: not-allowed;
 }
 
-/* Modal ficha — altura pelo conteúdo; topo fixo evita salto da navegação */
+/* Modal ficha — topo fixo; locked = altura estável ao navegar ←/→ */
 .ficha-modal-overlay {
-  padding-top: 6vh;
+  padding-top: 4vh;
 }
 .ficha-modal {
-  max-height: calc(94vh - 6vh);
+  max-height: calc(100vh - 8vh);
   overflow: hidden;
+}
+.ficha-modal-locked {
+  height: min(40rem, calc(100vh - 8vh));
 }
 .ficha-modal-body {
   overflow-y: auto;
-  max-height: min(22rem, 50vh);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.ficha-modal-tabs .form-tabs {
+  margin: 0;
 }
 
 /* Botões de ação na ficha */
@@ -668,6 +709,46 @@ select.field:disabled {
 .pdv-card:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+.pdv-chassi-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 0.85rem;
+}
+.pdv-chassi-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.pdv-chassi-list {
+  overflow-y: auto;
+  min-height: 8rem;
+  flex: 1;
+  border-top: 1px solid var(--border);
+  margin: 0 -0.85rem -0.85rem;
+  padding: 0.25rem 0 0.5rem;
+}
+.pdv-chassi-row {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+.pdv-chassi-row:hover {
+  background: var(--card2);
 }
 .pdv-card-thumb {
   height: 4.5rem;

@@ -266,7 +266,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
         else setErro(t("caixa.error.noneClosed"));
       }} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("caixa.searchPlaceholder")}
         className="px-3 py-2 text-sm rounded-md outline-none w-64"
         style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>

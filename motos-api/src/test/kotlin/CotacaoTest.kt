@@ -23,35 +23,26 @@ import kotlinx.serialization.json.long
 
 class CotacaoTest {
 
-    private val hoje = LocalDate.now(ZoneId.of("America/Asuncion")).toString()
+    private val zona = ZoneId.of("America/Asuncion")
+    private val hoje = LocalDate.now(zona).toString()
 
     @Test
-    fun `crud de cotacao do dia e bloqueia data futura`() = testApplication {
+    fun `edita so a cotacao do dia e nao exclui`() = testApplication {
         configure()
         withAuth { token ->
             val listaExistente = Json.parseToJsonElement(client.get("/cotacoes") { auth(token) }.bodyAsText()).jsonArray
-            for (item in listaExistente) {
-                client.delete("/cotacoes/${item.jsonObject["id"]!!.jsonPrimitive.long}") { auth(token) }
+            val hojeExistente = listaExistente.firstOrNull { it.jsonObject["data"]!!.jsonPrimitive.content == hoje }
+            val id = if (hojeExistente != null) {
+                hojeExistente.jsonObject["id"]!!.jsonPrimitive.long
+            } else {
+                val criada = client.post("/cotacoes") {
+                    auth(token)
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"data":"$hoje","usdPyg":7300,"brlPyg":1400}""")
+                }
+                assertEquals(HttpStatusCode.Created, criada.status, criada.bodyAsText())
+                Json.parseToJsonElement(criada.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
             }
-            val listaVazia = client.get("/cotacoes") { auth(token) }
-            assertEquals(HttpStatusCode.OK, listaVazia.status)
-            assertEquals(0, Json.parseToJsonElement(listaVazia.bodyAsText()).jsonArray.size)
-
-            val hojeRes = client.get("/cotacoes/hoje") { auth(token) }
-            assertEquals(HttpStatusCode.NotFound, hojeRes.status)
-            assertEquals("COTACAO_DIA_AUSENTE", Json.parseToJsonElement(hojeRes.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
-
-            val criada = client.post("/cotacoes") {
-                auth(token)
-                contentType(ContentType.Application.Json)
-                setBody("""{"data":"$hoje","usdPyg":7300,"brlPyg":1400}""")
-            }
-            assertEquals(HttpStatusCode.Created, criada.status, criada.bodyAsText())
-            val body = Json.parseToJsonElement(criada.bodyAsText()).jsonObject
-            val id = body["id"]!!.jsonPrimitive.long
-            assertEquals(hoje, body["data"]!!.jsonPrimitive.content)
-            assertEquals(7300.0, body["usdPyg"]!!.jsonPrimitive.content.toDouble())
-            assertTrue(auditouCotacao(id), "faltou audit_logs de cotacao $id")
 
             val dup = client.post("/cotacoes") {
                 auth(token)
@@ -66,14 +57,15 @@ class CotacaoTest {
                 contentType(ContentType.Application.Json)
                 setBody("""{"data":"$hoje","usdPyg":7350.5,"brlPyg":1410}""")
             }
-            assertEquals(HttpStatusCode.OK, editada.status)
+            assertEquals(HttpStatusCode.OK, editada.status, editada.bodyAsText())
             assertEquals(7350.5, Json.parseToJsonElement(editada.bodyAsText()).jsonObject["usdPyg"]!!.jsonPrimitive.content.toDouble())
+            assertTrue(auditouCotacao(id), "faltou audit_logs de cotacao $id")
 
             val atual = client.get("/cotacoes/hoje") { auth(token) }
             assertEquals(HttpStatusCode.OK, atual.status)
             assertEquals(id, Json.parseToJsonElement(atual.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long)
 
-            val futura = LocalDate.now(ZoneId.of("America/Asuncion")).plusDays(1)
+            val futura = LocalDate.now(zona).plusDays(1)
             val futuro = client.post("/cotacoes") {
                 auth(token)
                 contentType(ContentType.Application.Json)
@@ -82,16 +74,40 @@ class CotacaoTest {
             assertEquals(HttpStatusCode.BadRequest, futuro.status)
             assertEquals("COTACAO_DATA_FUTURA", Json.parseToJsonElement(futuro.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
 
+            val ontem = LocalDate.now(zona).minusDays(1).toString()
             val taxa = client.post("/cotacoes") {
                 auth(token)
                 contentType(ContentType.Application.Json)
-                setBody("""{"data":"${LocalDate.parse(hoje).minusDays(1)}","usdPyg":0,"brlPyg":1400}""")
+                setBody("""{"data":"$ontem","usdPyg":0,"brlPyg":1400}""")
             }
             assertEquals(HttpStatusCode.BadRequest, taxa.status)
             assertEquals("COTACAO_TAXA_INVALIDA", Json.parseToJsonElement(taxa.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
 
-            assertEquals(HttpStatusCode.NoContent, client.delete("/cotacoes/$id") { auth(token) }.status)
-            assertEquals(HttpStatusCode.NotFound, client.get("/cotacoes/hoje") { auth(token) }.status)
+            val listaAtual = Json.parseToJsonElement(client.get("/cotacoes") { auth(token) }.bodyAsText()).jsonArray
+            val ontemExistente = listaAtual.firstOrNull { it.jsonObject["data"]!!.jsonPrimitive.content == ontem }
+            val idOntem = if (ontemExistente != null) {
+                ontemExistente.jsonObject["id"]!!.jsonPrimitive.long
+            } else {
+                val passada = client.post("/cotacoes") {
+                    auth(token)
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"data":"$ontem","usdPyg":7200,"brlPyg":1390}""")
+                }
+                assertEquals(HttpStatusCode.Created, passada.status, passada.bodyAsText())
+                Json.parseToJsonElement(passada.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+            }
+            val editaPassada = client.put("/cotacoes/$idOntem") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"data":"$ontem","usdPyg":7210,"brlPyg":1395}""")
+            }
+            assertEquals(HttpStatusCode.BadRequest, editaPassada.status)
+            assertEquals("COTACAO_SO_HOJE", Json.parseToJsonElement(editaPassada.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
+
+            val exclui = client.delete("/cotacoes/$id") { auth(token) }
+            assertEquals(HttpStatusCode.BadRequest, exclui.status)
+            assertEquals("COTACAO_NAO_EXCLUI", Json.parseToJsonElement(exclui.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
+            assertEquals(HttpStatusCode.OK, client.get("/cotacoes/hoje") { auth(token) }.status)
         }
     }
 
@@ -120,12 +136,23 @@ class CotacaoTest {
                     setBody("""{"data":"$hoje","usdPyg":7300,"brlPyg":1400}""")
                 }.status,
             )
-            val criada = client.post("/cotacoes") {
-                auth(gestor)
-                contentType(ContentType.Application.Json)
-                setBody("""{"data":"$hoje","usdPyg":7300,"brlPyg":1400}""")
+            val hojeRes = client.get("/cotacoes/hoje") { auth(gestor) }
+            if (hojeRes.status == HttpStatusCode.NotFound) {
+                val criada = client.post("/cotacoes") {
+                    auth(gestor)
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"data":"$hoje","usdPyg":7300,"brlPyg":1400}""")
+                }
+                assertEquals(HttpStatusCode.Created, criada.status, criada.bodyAsText())
+            } else {
+                val id = Json.parseToJsonElement(hojeRes.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+                val editada = client.put("/cotacoes/$id") {
+                    auth(gestor)
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"data":"$hoje","usdPyg":7300,"brlPyg":1400}""")
+                }
+                assertEquals(HttpStatusCode.OK, editada.status, editada.bodyAsText())
             }
-            assertEquals(HttpStatusCode.Created, criada.status, criada.bodyAsText())
         }
     }
 }

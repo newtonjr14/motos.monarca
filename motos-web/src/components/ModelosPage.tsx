@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/crud/Field";
-import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
+import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useAlternarStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -52,6 +52,17 @@ export default function ModelosPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, []);
+  const { statusBusyId, alternar } = useAlternarStatus(
+    setItens,
+    (item, proximo) => atualizarModelo(item.id, {
+      idMarca: item.idMarca,
+      nome: item.nome,
+      tipo: item.tipo,
+      status: proximo,
+    }),
+    (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
+    carregar,
+  );
   const filtered = itens.filter((e) =>
     passaFiltroStatus(e.status, filtroStatus) &&
     `${e.nome} ${e.marcaNome} ${e.tipo}`.toLowerCase().includes(search.toLowerCase()));
@@ -149,7 +160,7 @@ export default function ModelosPage({ navReset }: { navReset: number }) {
       <CatalogHeader titulo={t("nav.modelos")} count={itens.length} novoLabel={t("modelo.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("modelo.searchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
         <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
@@ -178,7 +189,13 @@ export default function ModelosPage({ navReset }: { navReset: number }) {
                 <Td sub>{e.marcaNome}</Td>
                 <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{e.nome}</td>
                 <Td sub>{e.tipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")}</Td>
-                <td className="drive-td"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
+                <td className="drive-td drive-td-status" onClick={(ev) => ev.stopPropagation()}>
+                  <StatusBadge
+                    status={e.status === "inativo" ? "inativo" : "ativo"}
+                    disabled={statusBusyId === e.id}
+                    onToggle={() => void alternar(e)}
+                  />
+                </td>
                 <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(e)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}

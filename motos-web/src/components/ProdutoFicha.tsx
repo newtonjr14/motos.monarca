@@ -1,8 +1,9 @@
 import EquivalentesMoeda from "@/components/EquivalentesMoeda";
-import { atualizarProduto, buscarCotacaoHoje, buscarProduto, excluirProduto, type Cotacao, type Produto } from "@/api";
+import { atualizarProdutoStatus, buscarProduto, excluirProduto, listarUnidades, type Produto, type ProdutoUnidade } from "@/api";
 import { useFilial, useFilialId } from "@/auth/FilialContext";
-import { Section } from "@/components/crud/Field";
-import { StatusBadge } from "@/components/crud/ListUi";
+import { useCotacaoHoje } from "@/components/CotacaoBanner";
+import { FormTabs, Section } from "@/components/crud/Field";
+import { StatusTexto, Td } from "@/components/crud/ListUi";
 import { converterMoeda, formatMoeda, moedaOperacaoDe } from "@/format";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -58,9 +59,11 @@ export default function ProdutoFicha({
   const idFilial = useFilialId();
   const { filial } = useFilial();
   const moedaOp = moedaOperacaoDe(filial?.moedaOperacao);
+  const { cotacao } = useCotacaoHoje();
   const [item, setItem] = useState<Produto>(fallback);
-  const [cotacao, setCotacao] = useState<Cotacao | null>(null);
-  const [carregando, setCarregando] = useState(true);
+  const [unidades, setUnidades] = useState<ProdutoUnidade[]>([]);
+  const [guia, setGuia] = useState<"dados" | "estoque">("dados");
+  const [carregando, setCarregando] = useState(() => fallback.moto == null && fallback.bicicleta == null);
   const [loading, setLoading] = useState<"status" | "delete" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const completo = item.moto != null || item.bicicleta != null;
@@ -68,15 +71,27 @@ export default function ProdutoFicha({
   useEffect(() => {
     let ativo = true;
     setItem(fallback);
-    setCarregando(true);
     setErro(null);
+    const precisaDetalhe = fallback.moto == null && fallback.bicicleta == null;
+    if (precisaDetalhe) setCarregando(true);
     void buscarProduto(id, idFilial)
       .then((detalhe) => { if (ativo) setItem(detalhe); })
       .catch((e) => { if (ativo) setErro(mensagemErroApi(e, t, "common.error.loadFailed")); })
       .finally(() => { if (ativo) setCarregando(false); });
-    void buscarCotacaoHoje().then((c) => { if (ativo) setCotacao(c); }).catch(() => { if (ativo) setCotacao(null); });
     return () => { ativo = false; };
   }, [id, idFilial, fallback.id, t]);
+
+  useEffect(() => {
+    if (!item.controlaChassi) {
+      setUnidades([]);
+      return;
+    }
+    let ativo = true;
+    void listarUnidades(id, idFilial)
+      .then((lista) => { if (ativo) setUnidades(lista); })
+      .catch(() => { if (ativo) setUnidades([]); });
+    return () => { ativo = false; };
+  }, [id, idFilial, item.controlaChassi]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -108,23 +123,9 @@ export default function ProdutoFicha({
     if (!confirm(msg)) return;
     setLoading("status");
     try {
-      await atualizarProduto(item.id, {
-        codigo: item.codigo,
-        idMarca: item.idMarca,
-        idModelo: item.idModelo,
-        descricao: item.descricao,
-        tipo: item.tipo,
-        idFilialCadastro: idFilial,
-        aliquotaIva: item.aliquotaIva ?? 10,
-        moedaPreco: moedaOp,
-        precoLista: item.precoLista ?? 0,
-        custo: item.custo ?? 0,
-        status: proximo,
-        moto: item.moto,
-        bicicleta: item.bicicleta,
-      });
+      const atualizado = await atualizarProdutoStatus(item.id, proximo);
+      setItem((prev) => ({ ...prev, ...atualizado, moto: prev.moto, bicicleta: prev.bicicleta, estoques: prev.estoques }));
       await onChanged();
-      setItem(await buscarProduto(item.id, idFilial));
     } finally {
       setLoading(null);
     }
@@ -156,7 +157,7 @@ export default function ProdutoFicha({
       aria-labelledby="produto-ficha-title"
     >
       <div
-        className="ficha-modal w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
+        className="ficha-modal ficha-modal-locked w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
         style={{ background: v("--card"), border: border1() }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -166,9 +167,12 @@ export default function ProdutoFicha({
               {item.nome}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={item.status === "inativo" ? "inativo" : "ativo"} />
+              <StatusTexto status={item.status} />
               <span className="text-xs" style={{ color: v("--text-sub") }}>
-                {item.tipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")} · {item.marca} {item.modelo}
+                {item.tipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")}
+                {item.nome.trim() !== `${item.marca} ${item.modelo}`.trim()
+                  ? ` · ${item.marca} ${item.modelo}`
+                  : ""}
               </span>
             </div>
           </div>
@@ -198,135 +202,188 @@ export default function ProdutoFicha({
           </div>
         </div>
 
-        <div className="px-6 py-3 shrink-0" style={{ background: v("--card2"), borderBottom: border1() }}>
-          <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>
-            {t("produto.codigo")}
-          </p>
-          <p className="text-sm font-mono mt-0.5" style={{ color: v("--text") }}>{item.codigo}</p>
+        <div className="px-6 py-3 shrink-0 flex items-start justify-between gap-4" style={{ background: v("--card2"), borderBottom: border1() }}>
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>
+              {t("produto.codigo")}
+            </p>
+            <p className="text-sm font-mono mt-0.5" style={{ color: v("--text") }}>{item.codigo}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>
+              {t("estoque.available")}
+            </p>
+            <p className="text-sm font-mono mt-0.5 tabular-nums" style={{ color: v("--text") }}>{disponivel}</p>
+          </div>
+        </div>
+
+        <div className="ficha-modal-tabs px-6 shrink-0">
+          <FormTabs
+            tabs={[
+              { id: "dados", label: t("ficha.tab.dados") },
+              { id: "estoque", label: t("ficha.tab.estoque") },
+            ]}
+            value={guia}
+            onChange={setGuia}
+          />
         </div>
 
         <div className="ficha-modal-body px-6 py-5 space-y-5">
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
 
-          <Section title={t("produto.section.price")}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Dado label={t("produto.iva")} value={`${item.aliquotaIva ?? 10}%`} />
-              <Dado
-                label={t("empresa.moedaOperacao")}
-                value={moedaOp === "pyg" ? t("produto.currency.pyg") : moedaOp === "brl" ? t("produto.currency.brl") : t("produto.currency.usd")}
-              />
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("produto.listPrice")}</p>
-                <p className="text-sm mt-1 font-mono" style={{ color: v("--text") }}>
-                  {formatMoeda(converterMoeda(item.precoLista ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}
-                </p>
-                <EquivalentesMoeda valor={converterMoeda(item.precoLista ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("produto.cost")}</p>
-                <p className="text-sm mt-1 font-mono" style={{ color: v("--text") }}>
-                  {formatMoeda(converterMoeda(item.custo ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}
-                </p>
-                <EquivalentesMoeda valor={converterMoeda(item.custo ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
-              </div>
-            </div>
-          </Section>
+          {guia === "dados" && (
+            <>
+              <Section title={t("produto.section.price")}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Dado label={t("produto.iva")} value={`${item.aliquotaIva ?? 10}%`} />
+                  <Dado
+                    label={t("empresa.moedaOperacao")}
+                    value={moedaOp === "pyg" ? t("produto.currency.pyg") : moedaOp === "brl" ? t("produto.currency.brl") : t("produto.currency.usd")}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("produto.listPrice")}</p>
+                    <p className="text-sm mt-1 font-mono" style={{ color: v("--text") }}>
+                      {formatMoeda(converterMoeda(item.precoLista ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}
+                    </p>
+                    <EquivalentesMoeda valor={converterMoeda(item.precoLista ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("produto.cost")}</p>
+                    <p className="text-sm mt-1 font-mono" style={{ color: v("--text") }}>
+                      {formatMoeda(converterMoeda(item.custo ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}
+                    </p>
+                    <EquivalentesMoeda valor={converterMoeda(item.custo ?? 0, item.moedaPreco ?? "usd", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
+                  </div>
+                </div>
+              </Section>
 
-          <Section title={t("produto.section.estoque")}>
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className="text-2xl font-semibold tabular-nums" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
-                {disponivel}
-              </span>
-              <span className="text-xs" style={{ color: v("--text-muted") }}>{t("estoque.available")}</span>
-            </div>
-            {carregando && estoques.length === 0 ? (
-              <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("common.loading")}</p>
-            ) : estoques.length === 0 ? (
-              <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("produto.noStock")}</p>
-            ) : (
-              <div className="rounded-md overflow-hidden" style={{ border: border1() }}>
-                <table className="drive-table w-full">
-                  <thead>
-                    <tr>
-                      <th className="drive-th">{t("nav.estoques")}</th>
-                      <th className="drive-th">{t("estoque.qty")}</th>
-                      <th className="drive-th">{t("estoque.reserved")}</th>
-                      <th className="drive-th">{t("estoque.available")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {estoques.map((e) => (
-                      <tr key={e.idEstoque} style={{ borderBottom: border1() }}>
-                        <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>
-                          {e.estoqueNome}
-                          {e.padrao ? (
-                            <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: v("--gold") }}>
-                              {t("estoque.padraoBadge")}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{e.quantidade}</td>
-                        <td className="drive-td font-mono" style={{ color: v("--text-muted") }}>{e.quantidadeReservada}</td>
-                        <td className="drive-td font-mono" style={{ color: v("--text") }}>{e.quantidadeDisponivel}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Section>
+              {item.descricao && (
+                <Section title={t("produto.descricao")}>
+                  <p className="text-sm leading-relaxed break-words" style={{ color: v("--text") }}>{item.descricao}</p>
+                </Section>
+              )}
 
-          {item.descricao && (
-            <Section title={t("produto.descricao")}>
-              <p className="text-sm leading-relaxed break-words" style={{ color: v("--text") }}>{item.descricao}</p>
-            </Section>
+              <Section title={item.tipo === "moto" ? t("produto.section.moto") : t("produto.section.bicicleta")}>
+                {!completo ? (
+                  <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("common.loading")}</p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {item.tipo === "moto" && item.moto && (
+                      <>
+                        <Dado label={`${t("produto.anoFabricacao")} / ${t("produto.anoModelo")}`}
+                          value={`${item.moto.anoFabricacao}/${item.moto.anoModelo}`} />
+                        <Dado label={t("produto.cor")} value={item.moto.cor} />
+                        <Dado label={t("produto.potencia")} value={item.moto.potenciaMotorW} />
+                        <Dado label={t("produto.autonomia")} value={item.moto.autonomiaKm} />
+                        <Dado label={t("produto.velocidade")} value={item.moto.velocidadeMaxKmh} />
+                        <Dado label={t("produto.bateria")} value={item.moto.capacidadeBateriaAh} />
+                        <Dado label={t("produto.voltagem")} value={item.moto.voltagemBateria} />
+                        <Dado label={t("produto.carga")} value={item.moto.tempoCargaHoras} />
+                        <Dado label={t("produto.peso")} value={item.moto.pesoKg} />
+                        <Dado label={t("produto.capacidadeCarga")} value={item.moto.capacidadeCargaKg} />
+                        <Dado label={t("produto.assentos")} value={item.moto.assentos} />
+                        <Dado label={t("produto.freio")} value={item.moto.tipoFreio} />
+                      </>
+                    )}
+                    {item.tipo === "bicicleta" && item.bicicleta && (
+                      <>
+                        <Dado label={t("produto.serieQuadro")} value={item.bicicleta.numeroSerieQuadro} />
+                        <Dado label={t("produto.cor")} value={item.bicicleta.cor} />
+                        <Dado label={t("produto.potencia")} value={item.bicicleta.potenciaMotorW} />
+                        <Dado label={t("produto.autonomia")} value={item.bicicleta.autonomiaKm} />
+                        <Dado label={t("produto.bateria")} value={item.bicicleta.capacidadeBateriaAh} />
+                        <Dado label={t("produto.voltagem")} value={item.bicicleta.voltagemBateria} />
+                        <Dado label={t("produto.carga")} value={item.bicicleta.tempoCargaHoras} />
+                        <Dado label={t("produto.peso")} value={item.bicicleta.pesoKg} />
+                        <Dado label={t("produto.aro")} value={item.bicicleta.aro} />
+                        <Dado label={t("produto.quadro")} value={item.bicicleta.tipoQuadro} />
+                        <Dado label={t("produto.marchas")} value={item.bicicleta.numeroMarchas} />
+                        <Dado label={t("produto.freio")} value={item.bicicleta.tipoFreio} />
+                      </>
+                    )}
+                    {completo && specs && Object.values(specs).every((x) => x == null || x === "") && (
+                      <p className="text-sm italic sm:col-span-2" style={{ color: v("--text-muted") }}>{t("ficha.notInformed")}</p>
+                    )}
+                  </div>
+                )}
+              </Section>
+            </>
           )}
 
-          <Section title={item.tipo === "moto" ? t("produto.section.moto") : t("produto.section.bicicleta")}>
-            {!completo ? (
-              <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("common.loading")}</p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {item.tipo === "moto" && item.moto && (
-                  <>
-                    <Dado label={t("produto.chassi")} value={item.moto.chassi} />
-                    <Dado label={`${t("produto.anoFabricacao")} / ${t("produto.anoModelo")}`}
-                      value={`${item.moto.anoFabricacao}/${item.moto.anoModelo}`} />
-                    <Dado label={t("produto.cor")} value={item.moto.cor} />
-                    <Dado label={t("produto.potencia")} value={item.moto.potenciaMotorW} />
-                    <Dado label={t("produto.autonomia")} value={item.moto.autonomiaKm} />
-                    <Dado label={t("produto.velocidade")} value={item.moto.velocidadeMaxKmh} />
-                    <Dado label={t("produto.bateria")} value={item.moto.capacidadeBateriaAh} />
-                    <Dado label={t("produto.voltagem")} value={item.moto.voltagemBateria} />
-                    <Dado label={t("produto.carga")} value={item.moto.tempoCargaHoras} />
-                    <Dado label={t("produto.peso")} value={item.moto.pesoKg} />
-                    <Dado label={t("produto.capacidadeCarga")} value={item.moto.capacidadeCargaKg} />
-                    <Dado label={t("produto.assentos")} value={item.moto.assentos} />
-                    <Dado label={t("produto.freio")} value={item.moto.tipoFreio} />
-                  </>
+          {guia === "estoque" && (
+            <>
+              <Section title={t("produto.section.estoque")}>
+                {carregando && estoques.length === 0 ? (
+                  <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("common.loading")}</p>
+                ) : estoques.length === 0 ? (
+                  <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("produto.noStock")}</p>
+                ) : (
+                  <div className="rounded-md overflow-hidden" style={{ border: border1() }}>
+                    <table className="drive-table w-full">
+                      <thead>
+                        <tr>
+                          <th className="drive-th">{t("nav.estoques")}</th>
+                          <th className="drive-th">{t("estoque.qty")}</th>
+                          <th className="drive-th">{t("estoque.reserved")}</th>
+                          <th className="drive-th">{t("estoque.available")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {estoques.map((e) => (
+                          <tr key={e.idEstoque} style={{ borderBottom: border1() }}>
+                            <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>
+                              {e.estoqueNome}
+                              {e.padrao ? (
+                                <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: v("--gold") }}>
+                                  {t("estoque.padraoBadge")}
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{e.quantidade}</td>
+                            <td className="drive-td font-mono" style={{ color: v("--text-muted") }}>{e.quantidadeReservada}</td>
+                            <td className="drive-td font-mono" style={{ color: v("--text") }}>{e.quantidadeDisponivel}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-                {item.tipo === "bicicleta" && item.bicicleta && (
-                  <>
-                    <Dado label={t("produto.serieQuadro")} value={item.bicicleta.numeroSerieQuadro} />
-                    <Dado label={t("produto.cor")} value={item.bicicleta.cor} />
-                    <Dado label={t("produto.potencia")} value={item.bicicleta.potenciaMotorW} />
-                    <Dado label={t("produto.autonomia")} value={item.bicicleta.autonomiaKm} />
-                    <Dado label={t("produto.bateria")} value={item.bicicleta.capacidadeBateriaAh} />
-                    <Dado label={t("produto.voltagem")} value={item.bicicleta.voltagemBateria} />
-                    <Dado label={t("produto.carga")} value={item.bicicleta.tempoCargaHoras} />
-                    <Dado label={t("produto.peso")} value={item.bicicleta.pesoKg} />
-                    <Dado label={t("produto.aro")} value={item.bicicleta.aro} />
-                    <Dado label={t("produto.quadro")} value={item.bicicleta.tipoQuadro} />
-                    <Dado label={t("produto.marchas")} value={item.bicicleta.numeroMarchas} />
-                    <Dado label={t("produto.freio")} value={item.bicicleta.tipoFreio} />
-                  </>
-                )}
-                {completo && specs && Object.values(specs).every((x) => x == null || x === "") && (
-                  <p className="text-sm italic sm:col-span-2" style={{ color: v("--text-muted") }}>{t("ficha.notInformed")}</p>
-                )}
-              </div>
-            )}
-          </Section>
+              </Section>
+              {item.controlaChassi && (
+                <Section title={t("produto.chassiLote")}>
+                  {unidades.length === 0 ? (
+                    <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("produto.chassiEmpty")}</p>
+                  ) : (
+                    <div className="rounded-md overflow-auto max-h-56" style={{ border: border1() }}>
+                      <table className="drive-table w-full">
+                        <thead>
+                          <tr>
+                            <th className="drive-th">{t("produto.chassiCodigo")}</th>
+                            <th className="drive-th">{t("produto.chassi")}</th>
+                            <th className="drive-th">{t("common.status")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {unidades.map((u) => (
+                            <tr key={u.id} style={{ borderBottom: border1() }}>
+                              <Td mono>{u.id}</Td>
+                              <Td mono>{u.numero}</Td>
+                              <td className="drive-td text-xs" style={{ color: v("--text-sub") }}>
+                                {t(u.situacao === "disponivel" ? "produto.situacao.disponivel" : "produto.situacao.vendido")}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Section>
+              )}
+              <Section title={t("ficha.stockLog")}>
+                <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("ficha.stockLogSoon")}</p>
+              </Section>
+            </>
+          )}
         </div>
 
         <div className="ficha-modal-actions px-6 py-3 shrink-0" style={{ borderTop: border1(), background: v("--card2") }}>

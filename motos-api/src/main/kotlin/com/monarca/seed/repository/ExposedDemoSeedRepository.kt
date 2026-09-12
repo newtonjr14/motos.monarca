@@ -21,10 +21,12 @@ import com.monarca.produto.repository.ModelosTable
 import com.monarca.produto.repository.ProdutoBicicletasTable
 import com.monarca.produto.repository.ProdutoFilialTable
 import com.monarca.produto.repository.ProdutoMotosTable
+import com.monarca.produto.repository.ProdutoUnidadesTable
 import com.monarca.produto.repository.ProdutosTable
 import com.monarca.seed.dto.SeedDemoStatusResponse
 import com.monarca.usuario.repository.UsuarioFiliaisTable
 import com.monarca.usuario.repository.UsuariosTable
+import com.monarca.venda.repository.VendaItemUnidadesTable
 import com.monarca.venda.repository.VendaItensTable
 import com.monarca.venda.repository.VendaNegociacoesTable
 import com.monarca.venda.repository.VendasTable
@@ -126,6 +128,16 @@ class ExposedDemoSeedRepository(
             CaixaMovimentacoesTable.deleteWhere { CaixaMovimentacoesTable.id inList todosMovs }
         }
         if (vendas.isNotEmpty()) {
+            val itemIds = VendaItensTable.selectAll()
+                .where { VendaItensTable.idVenda inList vendas }
+                .toList()
+                .map { it[VendaItensTable.id].value }
+            if (itemIds.isNotEmpty()) {
+                ProdutoUnidadesTable.update({ ProdutoUnidadesTable.idVendaItem inList itemIds }) {
+                    it[idVendaItem] = null
+                }
+                VendaItemUnidadesTable.deleteWhere { VendaItemUnidadesTable.idVendaItem inList itemIds }
+            }
             VendaNegociacoesTable.deleteWhere { VendaNegociacoesTable.idVenda inList vendas }
             VendaItensTable.deleteWhere { VendaItensTable.idVenda inList vendas }
             VendasTable.deleteWhere { VendasTable.id inList vendas }
@@ -190,6 +202,7 @@ class ExposedDemoSeedRepository(
             val livres = produtos.filter { it !in emVenda }
             val presos = produtos.filter { it in emVenda }
             if (livres.isNotEmpty()) {
+                ProdutoUnidadesTable.deleteWhere { ProdutoUnidadesTable.idProduto inList livres }
                 EstoqueProdutosTable.deleteWhere { EstoqueProdutosTable.idProduto inList livres }
                 ProdutoFilialTable.deleteWhere { ProdutoFilialTable.idProduto inList livres }
                 ProdutoMotosTable.deleteWhere { ProdutoMotosTable.idProduto inList livres }

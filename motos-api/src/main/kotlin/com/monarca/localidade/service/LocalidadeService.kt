@@ -2,6 +2,7 @@ package com.monarca.localidade.service
 
 import com.monarca.Texto
 import com.monarca.localidade.domain.CidadeDetalhe
+import com.monarca.localidade.domain.TipoCidade
 import com.monarca.localidade.domain.Divisao
 import com.monarca.localidade.domain.Pais
 import com.monarca.common.enums.Status
@@ -12,6 +13,7 @@ import com.monarca.localidade.dto.DivisaoResponse
 import com.monarca.localidade.dto.PaisRequest
 import com.monarca.localidade.dto.PaisResponse
 import com.monarca.localidade.repository.LocalidadeRepository
+import com.monarca.localidade.repository.foldNome
 
 class LocalidadeService(
     private val repository: LocalidadeRepository,
@@ -115,8 +117,10 @@ class LocalidadeService(
         val nome = validarNome(request.nome, "Nome da cidade")
         val status = validarStatusVisivel(request.status)
         garantirDivisao(request.idDivisao)
-        garantirCidadeUnica(request.idDivisao, nome)
-        val id = repository.inserirCidade(nome, request.idDivisao, status)
+        val tipo = request.tipo
+        val idMunicipio = validarTipoEMunicipio(tipo, request.idCidadeMunicipio, request.idDivisao, nome)
+        garantirCidadeUnica(request.idDivisao, nome, idMunicipio)
+        val id = repository.inserirCidade(nome, request.idDivisao, tipo.name.lowercase(), idMunicipio, status)
         return buscarCidade(id)
     }
 
@@ -124,14 +128,25 @@ class LocalidadeService(
         val nome = validarNome(request.nome, "Nome da cidade")
         val status = validarStatusVisivel(request.status)
         garantirDivisao(request.idDivisao)
-        repository.buscarCidade(id)
+        val atual = repository.buscarCidade(id)
             ?: throw RecursoNaoEncontrado("Cidade $id não encontrada")
-        garantirCidadeUnica(request.idDivisao, nome, ignorarId = id)
-        repository.atualizarCidade(id, nome, request.idDivisao, status)
+        val tipo = request.tipo
+        if (atual.cidade.tipo == TipoCidade.MUNICIPIO && tipo == TipoCidade.DISTRITO) {
+            if (repository.contarDistritosDoMunicipio(id) > 0) {
+                throw invalido("CIDADE_COM_DISTRITOS", "Não é possível transformar em distrito um município que possui distritos")
+            }
+        }
+        val idMunicipio = validarTipoEMunicipio(tipo, request.idCidadeMunicipio, request.idDivisao, nome, idCidade = id)
+        garantirCidadeUnica(request.idDivisao, nome, idMunicipio, ignorarId = id)
+        repository.atualizarCidade(id, nome, request.idDivisao, tipo.name.lowercase(), idMunicipio, status)
         return buscarCidade(id)
     }
 
     suspend fun excluirCidade(id: Long) {
+        repository.buscarCidade(id) ?: throw RecursoNaoEncontrado("Cidade $id não encontrada")
+        if (repository.contarDistritosDoMunicipio(id) > 0) {
+            throw invalido("CIDADE_COM_DISTRITOS", "Não é possível excluir um município que possui distritos")
+        }
         if (!repository.excluirCidade(id)) {
             throw RecursoNaoEncontrado("Cidade $id não encontrada")
         }
@@ -173,10 +188,48 @@ class LocalidadeService(
             ?: throw RecursoNaoEncontrado("Divisão $id não encontrada")
     }
 
-    private suspend fun garantirCidadeUnica(idDivisao: Long, nome: String, ignorarId: Long? = null) {
-        if (repository.existeCidade(idDivisao, nome, ignorarId)) {
-            throw invalido("CIDADE_NOME_DUPLICADO", "Já existe uma cidade '$nome' nesta divisão", "nome" to nome)
+    private suspend fun garantirCidadeUnica(
+        idDivisao: Long,
+        nome: String,
+        idCidadeMunicipio: Long?,
+        ignorarId: Long? = null,
+    ) {
+        if (repository.existeCidade(idDivisao, nome, idCidadeMunicipio, ignorarId)) {
+            val detalhe = if (idCidadeMunicipio == null) "nesta divisão" else "neste município"
+            throw invalido("CIDADE_NOME_DUPLICADO", "Já existe uma cidade '$nome' $detalhe", "nome" to nome)
         }
+    }
+
+    private suspend fun validarTipoEMunicipio(
+        tipo: TipoCidade,
+        idCidadeMunicipio: Long?,
+        idDivisao: Long,
+        nome: String,
+        idCidade: Long? = null,
+    ): Long? {
+        if (tipo == TipoCidade.MUNICIPIO) {
+            if (idCidadeMunicipio != null) {
+                throw invalido("CIDADE_MUNICIPIO_INVALIDO", "Município não tem município pai")
+            }
+            return null
+        }
+        val idPai = idCidadeMunicipio
+            ?: throw invalido("CIDADE_MUNICIPIO_OBRIGATORIO", "Informe o município do distrito")
+        if (idCidade != null && idPai == idCidade) {
+            throw invalido("CIDADE_MUNICIPIO_INVALIDO", "O distrito não pode pertencer a si mesmo")
+        }
+        val pai = repository.buscarCidade(idPai)
+            ?: throw RecursoNaoEncontrado("Município $idPai não encontrado")
+        if (pai.cidade.tipo != TipoCidade.MUNICIPIO) {
+            throw invalido("CIDADE_MUNICIPIO_INVALIDO", "O município informado precisa ser um município")
+        }
+        if (pai.cidade.idDivisao != idDivisao) {
+            throw invalido("CIDADE_MUNICIPIO_INVALIDO", "O distrito precisa ser da mesma divisão do município")
+        }
+        if (foldNome(nome) == foldNome(pai.cidade.nome)) {
+            throw invalido("CIDADE_DISTRITO_SEDE", "A sede do município já é o próprio município")
+        }
+        return idPai
     }
 
     private fun Pais.toResponse() = PaisResponse(id, nome, sigla, usaSiglaDivisao, status)
@@ -186,6 +239,9 @@ class LocalidadeService(
     private fun CidadeDetalhe.toResponse() = CidadeResponse(
         id = cidade.id,
         nome = cidade.nome,
+        tipo = cidade.tipo,
+        idCidadeMunicipio = cidade.idCidadeMunicipio,
+        municipioNome = municipioNome,
         idDivisao = cidade.idDivisao,
         divisaoNome = divisao.nome,
         divisaoSigla = divisao.sigla,

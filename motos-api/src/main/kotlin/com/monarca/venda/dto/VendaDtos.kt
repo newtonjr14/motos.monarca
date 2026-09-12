@@ -9,6 +9,7 @@ data class VendaItemRequest(
     val idProduto: Long,
     val idEstoque: Long? = null,
     val quantidade: Int,
+    val idsUnidades: List<Long> = emptyList(),
 )
 
 @Serializable
@@ -49,6 +50,7 @@ data class VendaItemResponse(
     val precoLista: Double,
     val precoUnitarioPyg: Double,
     val totalPyg: Double,
+    val chassis: List<String> = emptyList(),
 )
 
 @Serializable

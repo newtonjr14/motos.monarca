@@ -1,6 +1,7 @@
 package com.monarca.localidade.dto
 
 import com.monarca.common.enums.Status
+import com.monarca.localidade.domain.TipoCidade
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -33,6 +34,9 @@ data class DivisaoResponse(
 data class CidadeResponse(
     val id: Long,
     val nome: String,
+    val tipo: TipoCidade,
+    val idCidadeMunicipio: Long? = null,
+    val municipioNome: String? = null,
     val idDivisao: Long,
     val divisaoNome: String,
     val divisaoSigla: String? = null,
@@ -54,5 +58,7 @@ data class DivisaoRequest(
 data class CidadeRequest(
     val nome: String,
     val idDivisao: Long,
+    val tipo: TipoCidade = TipoCidade.MUNICIPIO,
+    val idCidadeMunicipio: Long? = null,
     val status: Status = Status.ATIVO,
 )

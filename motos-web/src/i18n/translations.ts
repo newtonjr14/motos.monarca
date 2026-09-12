@@ -187,10 +187,15 @@ export type TranslationKey =
   | "ficha.moreDocuments"
   | "ficha.prev"
   | "ficha.next"
+  | "ficha.tab.dados"
+  | "ficha.tab.estoque"
+  | "ficha.stockLog"
+  | "ficha.stockLogSoon"
   | "papel.actionsMenu"
   | "papel.viewSheet"
   | "col.actions"
   | "col.id"
+  | "col.date"
   | "col.document"
   | "col.phone"
   | "col.city"
@@ -222,6 +227,7 @@ export type TranslationKey =
   | "usuario.branches"
   | "usuario.error.branchesRequired"
   | "usuario.error.systemProtected"
+  | "usuario.searchPlaceholder"
   | "filial.selectTitle"
   | "filial.selectHint"
   | "filial.noAccess"
@@ -249,16 +255,24 @@ export type TranslationKey =
   | "pais.divisionTypeUf"
   | "pais.divisionTypeDept"
   | "pais.placeholderName"
+  | "pais.searchPlaceholder"
   | "divisao.new"
   | "divisao.edit"
   | "divisao.error.required"
   | "divisao.siglaHint"
   | "divisao.placeholderName"
+  | "divisao.searchPlaceholder"
   | "cidade.new"
   | "cidade.edit"
   | "cidade.error.required"
+  | "cidade.error.municipioRequired"
+  | "cidade.listSearchPlaceholder"
   | "cidade.placeholderName"
   | "cidade.selectDivision"
+  | "cidade.tipo"
+  | "cidade.tipo.municipio"
+  | "cidade.tipo.distrito"
+  | "cidade.municipio"
   | "error.conflict.docUnique"
   | "error.conflict.possibleDuplicate"
   | "api.NAO_ENCONTRADO"
@@ -312,6 +326,19 @@ export type TranslationKey =
   | "api.ANO_MODELO_ANTERIOR"
   | "api.ANO_FORA_FAIXA"
   | "api.CHASSI_DUPLICADO"
+  | "api.CHASSI_OBRIGATORIO"
+  | "api.CHASSI_INTERVALO_INVALIDO"
+  | "api.CHASSI_INTERVALO_GRANDE"
+  | "api.UNIDADE_SO_MOTO"
+  | "api.CHASSI_NAO_CONTROLADO"
+  | "api.CONTROLA_CHASSI_IMUTAVEL"
+  | "api.UNIDADE_VENDIDA"
+  | "api.UNIDADE_OBRIGATORIA"
+  | "api.UNIDADE_REPETIDA"
+  | "api.UNIDADE_QTD"
+  | "api.UNIDADE_INVALIDA"
+  | "api.UNIDADE_INDISPONIVEL"
+  | "api.ESTOQUE_QTD_CHASSI"
   | "api.SERIE_QUADRO_DUPLICADA"
   | "api.ESTOQUE_NOME_DUPLICADO"
   | "api.ESTOQUE_COM_PRODUTOS"
@@ -326,6 +353,8 @@ export type TranslationKey =
   | "api.COTACAO_DATA_INVALIDA"
   | "api.COTACAO_DATA_FUTURA"
   | "api.COTACAO_TAXA_INVALIDA"
+  | "api.COTACAO_SO_HOJE"
+  | "api.COTACAO_NAO_EXCLUI"
   | "api.IVA_ALIQUOTA_INVALIDA"
   | "api.QTD_NEGATIVA"
   | "api.QTD_RESERVADA_NEGATIVA"
@@ -341,6 +370,10 @@ export type TranslationKey =
   | "api.DIVISAO_SIGLA_TAMANHO"
   | "api.PAIS_SIGLA_ISO"
   | "api.CIDADE_NOME_DUPLICADO"
+  | "api.CIDADE_MUNICIPIO_OBRIGATORIO"
+  | "api.CIDADE_MUNICIPIO_INVALIDO"
+  | "api.CIDADE_COM_DISTRITOS"
+  | "api.CIDADE_DISTRITO_SEDE"
   | "api.DOCUMENTO_TIPO_CODIGO_DUPLICADO"
   | "api.DOCUMENTO_TIPO_EM_USO"
   | "api.DOCUMENTO_OBRIGATORIO"
@@ -417,7 +450,20 @@ export type TranslationKey =
   | "produto.noStock"
   | "produto.qtyInicial"
   | "produto.stockHint"
+  | "produto.stockHintChassi"
+  | "produto.controlaChassi"
+  | "produto.controlaChassiHint"
   | "produto.chassi"
+  | "produto.chassiLote"
+  | "produto.chassiLoteHint"
+  | "produto.chassiLotePlaceholder"
+  | "produto.chassiCount"
+  | "produto.chassiAdd"
+  | "produto.chassiEmpty"
+  | "produto.chassiCodigo"
+  | "produto.situacao.disponivel"
+  | "produto.situacao.vendido"
+  | "produto.error.chassiIntervalo"
   | "produto.cor"
   | "produto.potencia"
   | "produto.autonomia"
@@ -449,16 +495,21 @@ export type TranslationKey =
   | "produto.anoModelo"
   | "produto.serieQuadro"
   | "produto.nomeRestore"
+  | "produto.searchPlaceholder"
   | "marca.new"
+  | "marca.searchPlaceholder"
   | "marca.edit"
   | "marca.error.nameRequired"
   | "modelo.new"
   | "modelo.edit"
   | "modelo.error.required"
+  | "modelo.searchPlaceholder"
   | "estoque.new"
   | "estoque.edit"
   | "estoque.placeholderName"
   | "estoque.items"
+  | "estoque.searchPlaceholder"
+  | "estoque.itemSearchPlaceholder"
   | "estoque.itemNew"
   | "estoque.itemEdit"
   | "estoque.product"
@@ -472,6 +523,7 @@ export type TranslationKey =
   | "estoque.error.nameRequired"
   | "estoque.error.productRequired"
   | "estoque.error.qtyInvalid"
+  | "estoque.qtyChassisHint"
   | "estoque.padraoBadge"
   | "cotacao.new"
   | "cotacao.edit"
@@ -483,6 +535,7 @@ export type TranslationKey =
   | "cotacao.brlPygHint"
   | "cotacao.error.required"
   | "cotacao.error.rate"
+  | "cotacao.searchPlaceholder"
   | "cotacao.banner.missing"
   | "cotacao.banner.wait"
   | "cotacao.banner.save"
@@ -501,6 +554,7 @@ export type TranslationKey =
   | "finalizador.tipo.cheque"
   | "finalizador.tipo.outro"
   | "finalizador.error.nameRequired"
+  | "finalizador.searchPlaceholder"
   | "caixa.new"
   | "caixa.edit"
   | "caixa.session"
@@ -519,6 +573,7 @@ export type TranslationKey =
   | "caixa.movementType"
   | "caixa.default"
   | "caixa.error.nameRequired"
+  | "caixa.searchPlaceholder"
   | "caixa.error.conferencia"
   | "caixa.error.destino"
   | "caixa.error.valor"
@@ -530,6 +585,8 @@ export type TranslationKey =
   | "caixa.mov.transferencia_entrada"
   | "venda.new"
   | "venda.view"
+  | "venda.status.finalizada"
+  | "venda.status.cancelada"
   | "venda.client"
   | "venda.till"
   | "venda.tillHint"
@@ -553,6 +610,7 @@ export type TranslationKey =
   | "venda.seller"
   | "venda.changeSeller"
   | "venda.sellerSearchPlaceholder"
+  | "venda.searchPlaceholder"
   | "venda.error.seller"
   | "venda.error.product"
   | "venda.error.qty"
@@ -576,6 +634,13 @@ export type TranslationKey =
   | "venda.filter.all"
   | "venda.units"
   | "venda.vitrineMore"
+  | "venda.pickChassis"
+  | "venda.chassisSearchPlaceholder"
+  | "venda.chassisDone"
+  | "venda.noChassis"
+  | "venda.error.chassisRequired"
+  | "venda.chassisMore"
+  | "venda.chassisInCart"
   | "usuario.caixas"
   | "usuario.caixaPadrao"
   | "api.FINALIZADOR_NOME_DUPLICADO"
@@ -818,10 +883,15 @@ const pt: Record<TranslationKey, string> = {
   "ficha.moreDocuments": "Outros documentos",
   "ficha.prev": "Anterior",
   "ficha.next": "Próximo",
+  "ficha.tab.dados": "Dados",
+  "ficha.tab.estoque": "Estoque",
+  "ficha.stockLog": "Movimentações",
+  "ficha.stockLogSoon": "O log de estoque entra nesta guia em breve.",
   "papel.actionsMenu": "Ações",
   "papel.viewSheet": "Ver ficha",
   "col.actions": "",
   "col.id": "ID",
+  "col.date": "Data",
   "col.document": "Documento",
   "col.phone": "Telefone",
   "col.city": "Cidade",
@@ -853,6 +923,7 @@ const pt: Record<TranslationKey, string> = {
   "usuario.branches": "Filiais",
   "usuario.error.branchesRequired": "Selecione ao menos uma filial",
   "usuario.error.systemProtected": "O usuário SYSTEM não pode ser alterado ou excluído",
+  "usuario.searchPlaceholder": "Nome, login, e-mail...",
   "filial.selectTitle": "Escolha a filial",
   "filial.selectHint": "Seu usuário tem acesso a mais de uma filial",
   "filial.noAccess": "Sem filial",
@@ -880,16 +951,24 @@ const pt: Record<TranslationKey, string> = {
   "pais.divisionTypeUf": "UF (sigla)",
   "pais.divisionTypeDept": "Departamento",
   "pais.placeholderName": "Brasil",
+  "pais.searchPlaceholder": "Nome, sigla...",
   "divisao.new": "Nova UF / departamento",
   "divisao.edit": "Editar UF / departamento",
   "divisao.error.required": "Informe país e nome",
   "divisao.siglaHint": "Opcional. Ex. MS. Deixe vazio para departamento.",
   "divisao.placeholderName": "Mato Grosso Do Sul",
+  "divisao.searchPlaceholder": "Nome, sigla, país...",
   "cidade.new": "Nova cidade",
   "cidade.edit": "Editar cidade",
   "cidade.error.required": "Informe divisão e nome",
+  "cidade.error.municipioRequired": "Informe o município do distrito",
+  "cidade.listSearchPlaceholder": "Nome, município, divisão, país...",
   "cidade.placeholderName": "Ponta Porã",
   "cidade.selectDivision": "Selecione",
+  "cidade.tipo": "Tipo",
+  "cidade.tipo.municipio": "Município",
+  "cidade.tipo.distrito": "Distrito",
+  "cidade.municipio": "Município",
   "error.conflict.docUnique": "Já existe uma pessoa cadastrada com {tipo} {numero}",
   "error.conflict.possibleDuplicate": "Já existe uma pessoa com o mesmo documento. Confirme se deseja cadastrar outra pessoa.",
   "api.NAO_ENCONTRADO": "Registro não encontrado",
@@ -943,6 +1022,19 @@ const pt: Record<TranslationKey, string> = {
   "api.ANO_MODELO_ANTERIOR": "O ano modelo não pode ser anterior ao ano de fabricação",
   "api.ANO_FORA_FAIXA": "O ano deve estar entre {min} e {max}",
   "api.CHASSI_DUPLICADO": "Já existe uma moto com o chassi {chassi}",
+  "api.CHASSI_OBRIGATORIO": "Informe ao menos um chassi",
+  "api.CHASSI_INTERVALO_INVALIDO": "Intervalo de chassi inválido",
+  "api.CHASSI_INTERVALO_GRANDE": "O intervalo não pode passar de {max} chassis",
+  "api.UNIDADE_SO_MOTO": "Chassis só se aplicam a produtos que controlam chassis",
+  "api.CHASSI_NAO_CONTROLADO": "Este produto não controla chassis",
+  "api.CONTROLA_CHASSI_IMUTAVEL": "Não é possível alterar o controle de chassis",
+  "api.UNIDADE_VENDIDA": "Não é possível excluir um chassi já vendido",
+  "api.UNIDADE_OBRIGATORIA": "Informe o chassi da moto",
+  "api.UNIDADE_REPETIDA": "Há chassis repetidos na venda",
+  "api.UNIDADE_QTD": "A quantidade deve ser igual ao número de chassis",
+  "api.UNIDADE_INVALIDA": "Chassi não encontrado",
+  "api.UNIDADE_INDISPONIVEL": "Este chassi não está disponível",
+  "api.ESTOQUE_QTD_CHASSI": "A quantidade deste produto vem dos chassis. Inclua no cadastro do produto.",
   "api.SERIE_QUADRO_DUPLICADA": "Já existe uma bicicleta com o número de série {serie}",
   "api.ESTOQUE_NOME_DUPLICADO": "Já existe um estoque com o nome {nome} nesta filial",
   "api.ESTOQUE_COM_PRODUTOS": "Não é possível excluir um estoque que possui produtos",
@@ -957,6 +1049,8 @@ const pt: Record<TranslationKey, string> = {
   "api.COTACAO_DATA_INVALIDA": "Data inválida. Use AAAA-MM-DD",
   "api.COTACAO_DATA_FUTURA": "Não é possível informar cotação de data futura",
   "api.COTACAO_TAXA_INVALIDA": "A taxa deve ser maior que zero",
+  "api.COTACAO_SO_HOJE": "Só é possível editar a cotação do dia",
+  "api.COTACAO_NAO_EXCLUI": "Não é possível excluir cotações. O histórico é permanente.",
   "api.FINALIZADOR_NOME_DUPLICADO": "Já existe um finalizador com o nome {nome}",
   "api.FINALIZADOR_EM_USO": "Não é possível excluir um finalizador em uso",
   "api.FINALIZADOR_NOME_OBRIGATORIO": "O nome do finalizador é obrigatório",
@@ -1008,7 +1102,11 @@ const pt: Record<TranslationKey, string> = {
   "api.DIVISAO_COM_CIDADES": "Não é possível excluir uma divisão que possui cidades",
   "api.DIVISAO_SIGLA_TAMANHO": "A sigla da divisão deve ter até 10 caracteres",
   "api.PAIS_SIGLA_ISO": "A sigla do país deve ter 2 letras (ISO)",
-  "api.CIDADE_NOME_DUPLICADO": "Já existe uma cidade “{nome}” nesta divisão",
+  "api.CIDADE_NOME_DUPLICADO": "Já existe uma cidade “{nome}” neste município ou divisão",
+  "api.CIDADE_MUNICIPIO_OBRIGATORIO": "Informe o município do distrito",
+  "api.CIDADE_MUNICIPIO_INVALIDO": "O município do distrito é inválido",
+  "api.CIDADE_COM_DISTRITOS": "Não é possível excluir um município que possui distritos",
+  "api.CIDADE_DISTRITO_SEDE": "A sede do município já é o próprio município",
   "api.DOCUMENTO_TIPO_CODIGO_DUPLICADO": "Já existe um tipo com o código {codigo} neste país",
   "api.DOCUMENTO_TIPO_EM_USO": "Tipo em uso por pessoas cadastradas e não pode ser excluído",
   "api.DOCUMENTO_OBRIGATORIO": "Informe pelo menos um documento",
@@ -1085,7 +1183,20 @@ const pt: Record<TranslationKey, string> = {
   "produto.noStock": "Sem saldo nesta filial",
   "produto.qtyInicial": "Quantidade inicial",
   "produto.stockHint": "Quantidades se ajustam em Operação → Estoques.",
+  "produto.stockHintChassi": "O saldo é o número de chassis disponíveis. Inclua ou remova chassis aqui.",
+  "produto.controlaChassi": "Controla chassis",
+  "produto.controlaChassiHint": "Ligado: estoque e venda por chassi. Desligado: por quantidade. Não muda depois de criar.",
   "produto.chassi": "Chassi",
+  "produto.chassiLote": "Chassis",
+  "produto.chassiLoteHint": "Um por linha, ou intervalo INÍCIO~FIM com til. Ex.: HD5BL2318SA063647~HD5BL2318SA063696",
+  "produto.chassiLotePlaceholder": "HD5BL2318SA063647~HD5BL2318SA063696",
+  "produto.chassiCount": "{n} chassis",
+  "produto.chassiAdd": "Incluir chassis",
+  "produto.chassiEmpty": "Nenhum chassi neste produto",
+  "produto.chassiCodigo": "Cód. interno",
+  "produto.situacao.disponivel": "Disponível",
+  "produto.situacao.vendido": "Vendido",
+  "produto.error.chassiIntervalo": "Intervalo inválido. Use o mesmo tamanho e o til (~).",
   "produto.cor": "Cor",
   "produto.potencia": "Potência (W)",
   "produto.autonomia": "Autonomia (km)",
@@ -1117,16 +1228,21 @@ const pt: Record<TranslationKey, string> = {
   "produto.anoModelo": "Ano modelo",
   "produto.serieQuadro": "Nº de série do quadro",
   "produto.nomeRestore": "Usar marca e modelo",
+  "produto.searchPlaceholder": "Código, nome, marca...",
   "marca.new": "Nova marca",
+  "marca.searchPlaceholder": "Nome...",
   "marca.edit": "Editar marca",
   "marca.error.nameRequired": "Informe o nome da marca",
   "modelo.new": "Novo modelo",
   "modelo.edit": "Editar modelo",
   "modelo.error.required": "Informe marca e nome do modelo",
+  "modelo.searchPlaceholder": "Nome, marca...",
   "estoque.new": "Novo estoque",
   "estoque.edit": "Editar estoque",
   "estoque.placeholderName": "Estoque Geral",
   "estoque.items": "Itens",
+  "estoque.searchPlaceholder": "Nome...",
+  "estoque.itemSearchPlaceholder": "Código, nome...",
   "estoque.itemNew": "Adicionar produto",
   "estoque.itemEdit": "Editar quantidade",
   "estoque.product": "Produto",
@@ -1140,17 +1256,19 @@ const pt: Record<TranslationKey, string> = {
   "estoque.error.nameRequired": "Informe o nome do estoque",
   "estoque.error.productRequired": "Selecione o produto",
   "estoque.error.qtyInvalid": "Quantidade e reserva devem ser inteiros ≥ 0, e a reserva não pode ser maior que a quantidade",
+  "estoque.qtyChassisHint": "A quantidade deste produto vem dos chassis. Inclua no cadastro do produto, guia Estoque.",
   "estoque.padraoBadge": "Padrão",
   "cotacao.new": "Nova cotação",
   "cotacao.edit": "Editar cotação",
   "cotacao.date": "Data",
-  "cotacao.dateHint": "Fuso America/Asunción. Não é possível informar data futura.",
+  "cotacao.dateHint": "Só a cotação de hoje pode ser editada. O histórico não é excluído.",
   "cotacao.usdPyg": "USD → PYG",
   "cotacao.usdPygHint": "Quantos guaranis equivalem a 1 dólar hoje.",
   "cotacao.brlPyg": "BRL → PYG",
   "cotacao.brlPygHint": "Quantos guaranis equivalem a 1 real hoje.",
   "cotacao.error.required": "Informe a data da cotação",
   "cotacao.error.rate": "Informe as duas taxas, maiores que zero",
+  "cotacao.searchPlaceholder": "Data...",
   "cotacao.banner.missing": "Sem cotação do dia. Vendas, recebimentos, pagamentos e facturas eletrônicas ficam bloqueados.",
   "cotacao.banner.wait": "Sem cotação do dia. Aguarde um administrador ou gestor informar as taxas para liberar vendas e facturas.",
   "cotacao.banner.save": "Informar",
@@ -1164,6 +1282,7 @@ const pt: Record<TranslationKey, string> = {
   "finalizador.tipo.cheque": "Cheque",
   "finalizador.tipo.outro": "Outro",
   "finalizador.error.nameRequired": "Informe o nome do finalizador",
+  "finalizador.searchPlaceholder": "Nome...",
   "caixa.new": "Novo caixa",
   "caixa.edit": "Editar caixa",
   "caixa.session": "Sessão",
@@ -1182,6 +1301,7 @@ const pt: Record<TranslationKey, string> = {
   "caixa.movementType": "Tipo",
   "caixa.default": "Padrão",
   "caixa.error.nameRequired": "Informe o nome do caixa",
+  "caixa.searchPlaceholder": "Nome...",
   "caixa.error.conferencia": "Informe a conferência de fechamento",
   "caixa.error.destino": "Selecione o caixa de destino",
   "caixa.error.valor": "Informe ao menos um valor",
@@ -1193,6 +1313,8 @@ const pt: Record<TranslationKey, string> = {
   "caixa.mov.transferencia_entrada": "Transferência (entrada)",
   "venda.new": "Nova venda",
   "venda.view": "Venda",
+  "venda.status.finalizada": "Finalizada",
+  "venda.status.cancelada": "Cancelada",
   "venda.client": "Cliente",
   "venda.till": "Caixa",
   "venda.tillHint": "Precisa estar aberto na filial atual",
@@ -1216,6 +1338,7 @@ const pt: Record<TranslationKey, string> = {
   "venda.seller": "Vendedor",
   "venda.changeSeller": "Trocar",
   "venda.sellerSearchPlaceholder": "Nome do usuário",
+  "venda.searchPlaceholder": "Cliente, vendedor...",
   "venda.error.seller": "Selecione o vendedor",
   "venda.error.product": "Selecione um produto",
   "venda.error.qty": "Informe uma quantidade válida",
@@ -1228,11 +1351,18 @@ const pt: Record<TranslationKey, string> = {
   "venda.productSearch": "Produto / SKU",
   "venda.productSearchPlaceholder": "Código, SKU ou nome — Enter lança",
   "venda.emptyCart": "Sua venda está vazia",
-  "venda.emptyHint": "Clique em um produto ou busque pelo código.",
+  "venda.emptyHint": "Clique em um produto ou busque pelo código. Na moto, escolha o chassi.",
   "venda.clear": "Limpar venda",
   "venda.filter.all": "Todos",
   "venda.units": "{n} un.",
   "venda.vitrineMore": "Mostrando {n} de {total}. Busque pelo código ou nome.",
+  "venda.pickChassis": "Escolha o chassi",
+  "venda.chassisSearchPlaceholder": "Leia ou digite o chassi — Enter confirma",
+  "venda.chassisDone": "Pronto",
+  "venda.noChassis": "Não há chassis disponíveis deste produto",
+  "venda.error.chassisRequired": "Escolha o chassi da moto",
+  "venda.chassisMore": "+{n}",
+  "venda.chassisInCart": "{n} no carrinho",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pago",
   "venda.remaining": "Falta",
@@ -1445,10 +1575,15 @@ const es: Record<TranslationKey, string> = {
   "ficha.moreDocuments": "Otros documentos",
   "ficha.prev": "Anterior",
   "ficha.next": "Siguiente",
+  "ficha.tab.dados": "Datos",
+  "ficha.tab.estoque": "Stock",
+  "ficha.stockLog": "Movimientos",
+  "ficha.stockLogSoon": "El registro de stock estará en esta pestaña en breve.",
   "papel.actionsMenu": "Acciones",
   "papel.viewSheet": "Ver ficha",
   "col.actions": "",
   "col.id": "ID",
+  "col.date": "Fecha",
   "col.document": "Documento",
   "col.phone": "Teléfono",
   "col.city": "Ciudad",
@@ -1480,6 +1615,7 @@ const es: Record<TranslationKey, string> = {
   "usuario.branches": "Sucursales",
   "usuario.error.branchesRequired": "Seleccione al menos una sucursal",
   "usuario.error.systemProtected": "El usuario SYSTEM no puede modificarse ni eliminarse",
+  "usuario.searchPlaceholder": "Nombre, usuario, correo...",
   "filial.selectTitle": "Elija la sucursal",
   "filial.selectHint": "Su usuario tiene acceso a más de una sucursal",
   "filial.noAccess": "Sin sucursal",
@@ -1507,16 +1643,24 @@ const es: Record<TranslationKey, string> = {
   "pais.divisionTypeUf": "UF (sigla)",
   "pais.divisionTypeDept": "Departamento",
   "pais.placeholderName": "Brasil",
+  "pais.searchPlaceholder": "Nombre, sigla...",
   "divisao.new": "Nueva UF / departamento",
   "divisao.edit": "Editar UF / departamento",
   "divisao.error.required": "Indique país y nombre",
   "divisao.siglaHint": "Opcional. Ej. MS. Deje vacío para departamento.",
   "divisao.placeholderName": "Mato Grosso Do Sul",
+  "divisao.searchPlaceholder": "Nombre, sigla, país...",
   "cidade.new": "Nueva ciudad",
   "cidade.edit": "Editar ciudad",
   "cidade.error.required": "Indique división y nombre",
+  "cidade.error.municipioRequired": "Indique el municipio del distrito",
+  "cidade.listSearchPlaceholder": "Nombre, municipio, división, país...",
   "cidade.placeholderName": "Ponta Porã",
   "cidade.selectDivision": "Seleccione",
+  "cidade.tipo": "Tipo",
+  "cidade.tipo.municipio": "Municipio",
+  "cidade.tipo.distrito": "Distrito",
+  "cidade.municipio": "Municipio",
   "error.conflict.docUnique": "Ya existe una persona registrada con {tipo} {numero}",
   "error.conflict.possibleDuplicate": "Ya existe una persona con el mismo documento. Confirme si desea registrar otra persona.",
   "api.NAO_ENCONTRADO": "Registro no encontrado",
@@ -1570,6 +1714,19 @@ const es: Record<TranslationKey, string> = {
   "api.ANO_MODELO_ANTERIOR": "El año modelo no puede ser anterior al año de fabricación",
   "api.ANO_FORA_FAIXA": "El año debe estar entre {min} y {max}",
   "api.CHASSI_DUPLICADO": "Ya existe una moto con el chasis {chassi}",
+  "api.CHASSI_OBRIGATORIO": "Indique al menos un chasis",
+  "api.CHASSI_INTERVALO_INVALIDO": "Intervalo de chasis inválido",
+  "api.CHASSI_INTERVALO_GRANDE": "El intervalo no puede superar {max} chasis",
+  "api.UNIDADE_SO_MOTO": "Los chasis solo se aplican a productos que controlan chasis",
+  "api.CHASSI_NAO_CONTROLADO": "Este producto no controla chasis",
+  "api.CONTROLA_CHASSI_IMUTAVEL": "No es posible cambiar el control de chasis",
+  "api.UNIDADE_VENDIDA": "No se puede eliminar un chasis ya vendido",
+  "api.UNIDADE_OBRIGATORIA": "Indique el chasis de la moto",
+  "api.UNIDADE_REPETIDA": "Hay chasis repetidos en la venta",
+  "api.UNIDADE_QTD": "La cantidad debe ser igual al número de chasis",
+  "api.UNIDADE_INVALIDA": "Chasis no encontrado",
+  "api.UNIDADE_INDISPONIVEL": "Este chasis no está disponible",
+  "api.ESTOQUE_QTD_CHASSI": "La cantidad de este producto sale de los chasis. Inclúyalos en el registro del producto.",
   "api.SERIE_QUADRO_DUPLICADA": "Ya existe una bicicleta con el número de serie {serie}",
   "api.ESTOQUE_NOME_DUPLICADO": "Ya existe un depósito con el nombre {nome} en esta sucursal",
   "api.ESTOQUE_COM_PRODUTOS": "No se puede eliminar un depósito que tiene productos",
@@ -1584,6 +1741,8 @@ const es: Record<TranslationKey, string> = {
   "api.COTACAO_DATA_INVALIDA": "Fecha inválida. Use AAAA-MM-DD",
   "api.COTACAO_DATA_FUTURA": "No es posible informar cotización de fecha futura",
   "api.COTACAO_TAXA_INVALIDA": "La tasa debe ser mayor que cero",
+  "api.COTACAO_SO_HOJE": "Solo es posible editar la cotización del día",
+  "api.COTACAO_NAO_EXCLUI": "No es posible eliminar cotizaciones. El historial es permanente.",
   "api.FINALIZADOR_NOME_DUPLICADO": "Ya existe un finalizador con el nombre {nome}",
   "api.FINALIZADOR_EM_USO": "No es posible eliminar un finalizador en uso",
   "api.FINALIZADOR_NOME_OBRIGATORIO": "El nombre del finalizador es obligatorio",
@@ -1635,7 +1794,11 @@ const es: Record<TranslationKey, string> = {
   "api.DIVISAO_COM_CIDADES": "No se puede eliminar una división que tiene ciudades",
   "api.DIVISAO_SIGLA_TAMANHO": "La sigla de la división debe tener hasta 10 caracteres",
   "api.PAIS_SIGLA_ISO": "La sigla del país debe tener 2 letras (ISO)",
-  "api.CIDADE_NOME_DUPLICADO": "Ya existe una ciudad “{nome}” en esta división",
+  "api.CIDADE_NOME_DUPLICADO": "Ya existe una ciudad “{nome}” en este municipio o división",
+  "api.CIDADE_MUNICIPIO_OBRIGATORIO": "Indique el municipio del distrito",
+  "api.CIDADE_MUNICIPIO_INVALIDO": "El municipio del distrito no es válido",
+  "api.CIDADE_COM_DISTRITOS": "No se puede eliminar un municipio que tiene distritos",
+  "api.CIDADE_DISTRITO_SEDE": "La sede del municipio ya es el propio municipio",
   "api.DOCUMENTO_TIPO_CODIGO_DUPLICADO": "Ya existe un tipo con el código {codigo} en este país",
   "api.DOCUMENTO_TIPO_EM_USO": "El tipo está en uso por personas registradas y no puede eliminarse",
   "api.DOCUMENTO_OBRIGATORIO": "Indique al menos un documento",
@@ -1722,7 +1885,20 @@ const es: Record<TranslationKey, string> = {
   "produto.noStock": "Sin saldo en esta sucursal",
   "produto.qtyInicial": "Cantidad inicial",
   "produto.stockHint": "Las cantidades se ajustan en Operación → Depósitos.",
+  "produto.stockHintChassi": "El saldo es el número de chasis disponibles. Incluya o quite chasis aquí.",
+  "produto.controlaChassi": "Controla chasis",
+  "produto.controlaChassiHint": "Activado: stock y venta por chasis. Desactivado: por cantidad. No cambia después de crear.",
   "produto.chassi": "Chasis",
+  "produto.chassiLote": "Chasis",
+  "produto.chassiLoteHint": "Uno por línea, o intervalo INICIO~FIN con virgulilla. Ej.: HD5BL2318SA063647~HD5BL2318SA063696",
+  "produto.chassiLotePlaceholder": "HD5BL2318SA063647~HD5BL2318SA063696",
+  "produto.chassiCount": "{n} chasis",
+  "produto.chassiAdd": "Incluir chasis",
+  "produto.chassiEmpty": "Ningún chasis en este producto",
+  "produto.chassiCodigo": "Cód. interno",
+  "produto.situacao.disponivel": "Disponible",
+  "produto.situacao.vendido": "Vendido",
+  "produto.error.chassiIntervalo": "Intervalo inválido. Use la misma longitud y la virgulilla (~).",
   "produto.cor": "Color",
   "produto.potencia": "Potencia (W)",
   "produto.autonomia": "Autonomía (km)",
@@ -1754,16 +1930,21 @@ const es: Record<TranslationKey, string> = {
   "produto.anoModelo": "Año modelo",
   "produto.serieQuadro": "Nº de serie del cuadro",
   "produto.nomeRestore": "Usar marca y modelo",
+  "produto.searchPlaceholder": "Código, nombre, marca...",
   "marca.new": "Nueva marca",
+  "marca.searchPlaceholder": "Nombre...",
   "marca.edit": "Editar marca",
   "marca.error.nameRequired": "Indique el nombre de la marca",
   "modelo.new": "Nuevo modelo",
   "modelo.edit": "Editar modelo",
   "modelo.error.required": "Indique marca y nombre del modelo",
+  "modelo.searchPlaceholder": "Nombre, marca...",
   "estoque.new": "Nuevo depósito",
   "estoque.edit": "Editar depósito",
   "estoque.placeholderName": "Depósito general",
   "estoque.items": "Ítems",
+  "estoque.searchPlaceholder": "Nombre...",
+  "estoque.itemSearchPlaceholder": "Código, nombre...",
   "estoque.itemNew": "Agregar producto",
   "estoque.itemEdit": "Editar cantidad",
   "estoque.product": "Producto",
@@ -1777,17 +1958,19 @@ const es: Record<TranslationKey, string> = {
   "estoque.error.nameRequired": "Indique el nombre del depósito",
   "estoque.error.productRequired": "Seleccione el producto",
   "estoque.error.qtyInvalid": "Cantidad y reserva deben ser enteros ≥ 0, y la reserva no puede ser mayor que la cantidad",
+  "estoque.qtyChassisHint": "La cantidad de este producto sale de los chasis. Inclúyalos en el registro del producto, pestaña Stock.",
   "estoque.padraoBadge": "Estándar",
   "cotacao.new": "Nueva cotización",
   "cotacao.edit": "Editar cotización",
   "cotacao.date": "Fecha",
-  "cotacao.dateHint": "Zona America/Asunción. No es posible informar fecha futura.",
+  "cotacao.dateHint": "Solo la cotización de hoy puede editarse. El historial no se elimina.",
   "cotacao.usdPyg": "USD → PYG",
   "cotacao.usdPygHint": "Cuántos guaraníes equivalen a 1 dólar hoy.",
   "cotacao.brlPyg": "BRL → PYG",
   "cotacao.brlPygHint": "Cuántos guaraníes equivalen a 1 real hoy.",
   "cotacao.error.required": "Indique la fecha de la cotización",
   "cotacao.error.rate": "Indique las dos tasas, mayores que cero",
+  "cotacao.searchPlaceholder": "Fecha...",
   "cotacao.banner.missing": "Sin cotización del día. Ventas, cobros, pagos y facturas electrónicas quedan bloqueados.",
   "cotacao.banner.wait": "Sin cotización del día. Espere a que un administrador o gestor informe las tasas para liberar ventas y facturas.",
   "cotacao.banner.save": "Informar",
@@ -1801,6 +1984,7 @@ const es: Record<TranslationKey, string> = {
   "finalizador.tipo.cheque": "Cheque",
   "finalizador.tipo.outro": "Otro",
   "finalizador.error.nameRequired": "Indique el nombre del finalizador",
+  "finalizador.searchPlaceholder": "Nombre...",
   "caixa.new": "Nueva caja",
   "caixa.edit": "Editar caja",
   "caixa.session": "Sesión",
@@ -1819,6 +2003,7 @@ const es: Record<TranslationKey, string> = {
   "caixa.movementType": "Tipo",
   "caixa.default": "Predeterminada",
   "caixa.error.nameRequired": "Indique el nombre de la caja",
+  "caixa.searchPlaceholder": "Nombre...",
   "caixa.error.conferencia": "Indique el conteo de cierre",
   "caixa.error.destino": "Seleccione la caja de destino",
   "caixa.error.valor": "Indique al menos un valor",
@@ -1830,6 +2015,8 @@ const es: Record<TranslationKey, string> = {
   "caixa.mov.transferencia_entrada": "Transferencia (entrada)",
   "venda.new": "Nueva venta",
   "venda.view": "Venta",
+  "venda.status.finalizada": "Finalizada",
+  "venda.status.cancelada": "Cancelada",
   "venda.client": "Cliente",
   "venda.till": "Caja",
   "venda.tillHint": "Debe estar abierta en la sucursal actual",
@@ -1853,6 +2040,7 @@ const es: Record<TranslationKey, string> = {
   "venda.seller": "Vendedor",
   "venda.changeSeller": "Cambiar",
   "venda.sellerSearchPlaceholder": "Nombre del usuario",
+  "venda.searchPlaceholder": "Cliente, vendedor...",
   "venda.error.seller": "Seleccione el vendedor",
   "venda.error.product": "Seleccione un producto",
   "venda.error.qty": "Indique una cantidad válida",
@@ -1865,11 +2053,18 @@ const es: Record<TranslationKey, string> = {
   "venda.productSearch": "Producto / SKU",
   "venda.productSearchPlaceholder": "Código, SKU o nombre — Enter lanza",
   "venda.emptyCart": "La venta está vacía",
-  "venda.emptyHint": "Haga clic en un producto o busque por código.",
+  "venda.emptyHint": "Haga clic en un producto o busque por código. En la moto, elija el chasis.",
   "venda.clear": "Limpiar venta",
   "venda.filter.all": "Todos",
   "venda.units": "{n} un.",
   "venda.vitrineMore": "Mostrando {n} de {total}. Busque por código o nombre.",
+  "venda.pickChassis": "Elija el chasis",
+  "venda.chassisSearchPlaceholder": "Lea o escriba el chasis — Enter confirma",
+  "venda.chassisDone": "Listo",
+  "venda.noChassis": "No hay chasis disponibles de este producto",
+  "venda.error.chassisRequired": "Elija el chasis de la moto",
+  "venda.chassisMore": "+{n}",
+  "venda.chassisInCart": "{n} en el carrito",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pagado",
   "venda.remaining": "Falta",

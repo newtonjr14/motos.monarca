@@ -21,7 +21,7 @@ import ProdutosPage from "@/components/ProdutosPage";
 import PapelFicha from "@/components/PapelFicha";
 import PessoaPreviewModal from "@/components/PessoaPreviewModal";
 import { FormTabs, navegarGuiaNoTeclado } from "@/components/crud/Field";
-import { ListToolbar, StatusFilter, TableHeadRow, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
+import { ListToolbar, StatusBadge, StatusFilter, TableHeadRow, passaFiltroStatus, useAlternarStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useSystemHeartbeat } from "@/hooks/useSystemHeartbeat";
 import { useI18n } from "@/i18n";
@@ -82,6 +82,7 @@ import {
   apenasDigitos,
   enderecoPrincipal,
   formatarCidade,
+  rotuloCidade,
   formatarDocumentoEntrada,
   formatarDocumentoExibicao,
   normalizarCep,
@@ -115,45 +116,6 @@ function Badge({ children, color }: { children: React.ReactNode; color: "gold" |
       style={{ background: p.bg, borderColor: p.border, color: p.color }}>
       {children}
     </span>
-  );
-}
-
-function StatusBadge({
-  status,
-  onToggle,
-  disabled,
-}: {
-  status: "ativo" | "inativo";
-  onToggle?: () => void;
-  disabled?: boolean;
-}) {
-  const { t } = useI18n();
-  const ativo = status === "ativo";
-  const label = ativo ? t("common.active") : t("common.inactive");
-  const className = `status-badge${ativo ? " is-on" : " is-off"}`;
-  const inner = (
-    <>
-      {onToggle && <span className={`status-switch${ativo ? " is-on" : ""}`} aria-hidden />}
-      {label}
-    </>
-  );
-  if (!onToggle) {
-    return <span className={className}>{inner}</span>;
-  }
-  return (
-    <button
-      type="button"
-      className={`${className} status-badge-toggle`}
-      disabled={disabled}
-      aria-pressed={ativo}
-      title={ativo ? t("ficha.inactivate") : t("ficha.activate")}
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggle();
-      }}
-    >
-      {inner}
-    </button>
   );
 }
 
@@ -628,10 +590,7 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{titulo}</h1>
-          <p className="text-sm mt-0.5" style={{ color: v("--text-muted") }}>{itens.length} {t("common.registered")}</p>
-        </div>
+        <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{titulo}</h1>
         <button className="btn-gold px-4 py-2 text-sm"
           onClick={() => { setEditando(null); setFormAberto(true); }}>
           {t("common.new")} {singular}
@@ -657,7 +616,7 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
               <col />
               <col style={{ width: "11.5rem" }} />
               <col />
-              <col style={{ width: "5.75rem" }} />
+              <col style={{ width: "3.25rem" }} />
               <col style={{ width: "2.25rem" }} />
             </colgroup>
             <thead>
@@ -1289,16 +1248,12 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
   );
 }
 
-function CatalogHeader({ titulo, count, novoLabel, onNovo }: {
-  titulo: string; count: number; novoLabel: string; onNovo: () => void;
+function CatalogHeader({ titulo, novoLabel, onNovo }: {
+  titulo: string; count?: number; novoLabel: string; onNovo: () => void;
 }) {
-  const { t } = useI18n();
   return (
     <div className="flex items-start justify-between">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{titulo}</h1>
-        <p className="text-sm mt-0.5" style={{ color: v("--text-muted") }}>{count} {t("common.registered")}</p>
-      </div>
+      <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{titulo}</h1>
       <button className="btn-gold px-4 py-2 text-sm" onClick={onNovo}>{novoLabel}</button>
     </div>
   );
@@ -1534,6 +1489,21 @@ function UsuariosPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, []);
+  const { statusBusyId, alternar } = useAlternarStatus(
+    setItens,
+    (u, proximo) => atualizarUsuario(u.id, {
+      nome: u.nome,
+      login: u.login,
+      email: u.email,
+      perfil: u.perfil,
+      status: proximo,
+      idsFiliais: (u.filiais ?? []).map((f) => f.id),
+      idsCaixas: (u.caixas ?? []).map((c) => c.id),
+      idCaixaPadrao: (u.caixas ?? []).find((c) => c.padrao)?.id ?? u.caixas?.[0]?.id ?? null,
+    }),
+    (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
+    carregar,
+  );
   useEffect(() => {
     void listarFiliais().then(setFiliaisDisponiveis).catch(() => setFiliaisDisponiveis([]));
   }, []);
@@ -1782,7 +1752,7 @@ function UsuariosPage({ navReset }: { navReset: number }) {
       <CatalogHeader titulo={t("usuario.title")} count={itens.length} novoLabel={t("usuario.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("usuario.searchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
         <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
@@ -1817,7 +1787,13 @@ function UsuariosPage({ navReset }: { navReset: number }) {
                 <Td clip title={(u.filiais ?? []).map((f) => f.nome).join(", ") || "—"}>
                   {(u.filiais ?? []).map((f) => f.nome).join(", ") || "—"}
                 </Td>
-                <td className="drive-td"><StatusBadge status={u.status} /></td>
+                <td className="drive-td drive-td-status" onClick={(e) => e.stopPropagation()}>
+                  <StatusBadge
+                    status={u.status === "inativo" ? "inativo" : "ativo"}
+                    disabled={u.login === "system" || statusBusyId === u.id}
+                    onToggle={u.login === "system" ? undefined : () => void alternar(u)}
+                  />
+                </td>
                 <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(u)}>{t("common.edit")}</button>
                   {u.login !== "system" && (
@@ -1870,6 +1846,17 @@ function PaisesPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, []);
+  const { statusBusyId, alternar } = useAlternarStatus(
+    setItens,
+    (p, proximo) => atualizarPais(p.id, {
+      nome: p.nome,
+      sigla: p.sigla,
+      usaSiglaDivisao: p.usaSiglaDivisao,
+      status: proximo,
+    }),
+    (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
+    carregar,
+  );
   const filteredPaises = itens.filter((p) =>
     passaFiltroStatus(p.status, filtroStatus) && `${p.nome} ${p.sigla}`.toLowerCase().includes(search.toLowerCase()));
   const { items: paisesOrdenados, sortKey, sortDir, onSort } = useListSort(filteredPaises, (p, k) => {
@@ -1960,7 +1947,7 @@ function PaisesPage({ navReset }: { navReset: number }) {
       <CatalogHeader titulo={t("nav.paises")} count={itens.length} novoLabel={t("pais.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("pais.searchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
         <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
@@ -1989,7 +1976,13 @@ function PaisesPage({ navReset }: { navReset: number }) {
                 <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{p.nome}</td>
                 <Td mono>{p.sigla}</Td>
                 <Td sub>{p.usaSiglaDivisao ? t("pais.divisionTypeUf") : t("pais.divisionTypeDept")}</Td>
-                <td className="drive-td"><StatusBadge status={p.status} /></td>
+                <td className="drive-td drive-td-status" onClick={(e) => e.stopPropagation()}>
+                  <StatusBadge
+                    status={p.status === "inativo" ? "inativo" : "ativo"}
+                    disabled={statusBusyId === p.id}
+                    onToggle={() => void alternar(p)}
+                  />
+                </td>
                 <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(p)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
@@ -2040,6 +2033,17 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
     }
   }
   useEffect(() => { void carregar(); }, []);
+  const { statusBusyId, alternar } = useAlternarStatus(
+    setItens,
+    (d, proximo) => atualizarDivisao(d.id, {
+      nome: d.nome,
+      idPais: d.idPais,
+      sigla: d.sigla,
+      status: proximo,
+    }),
+    (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
+    carregar,
+  );
   const paisNome = (id: number) => paises.find((p) => p.id === id)?.nome ?? "—";
   const filteredDivisoes = itens.filter((d) =>
     passaFiltroStatus(d.status, filtroStatus) && `${d.nome} ${d.sigla ?? ""} ${paisNome(d.idPais)}`.toLowerCase().includes(search.toLowerCase()));
@@ -2131,7 +2135,7 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
       <CatalogHeader titulo={t("nav.divisoes")} count={itens.length} novoLabel={t("divisao.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("divisao.searchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
         <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
@@ -2160,7 +2164,13 @@ function DivisoesPage({ paises, navReset }: { paises: Pais[]; navReset: number }
                 <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{d.nome}</td>
                 <Td mono sub>{d.sigla ?? "—"}</Td>
                 <Td sub>{paisNome(d.idPais)}</Td>
-                <td className="drive-td"><StatusBadge status={d.status} /></td>
+                <td className="drive-td drive-td-status" onClick={(e) => e.stopPropagation()}>
+                  <StatusBadge
+                    status={d.status === "inativo" ? "inativo" : "ativo"}
+                    disabled={statusBusyId === d.id}
+                    onToggle={() => void alternar(d)}
+                  />
+                </td>
                 <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(d)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
@@ -2194,6 +2204,8 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
   const [formAberto, setFormAberto] = useState(false);
   const [editando, setEditando] = useState<Cidade | null>(null);
   const [nome, setNome] = useState("");
+  const [tipo, setTipo] = useState<"municipio" | "distrito">("municipio");
+  const [idMunicipio, setIdMunicipio] = useState<number | "">("");
   const [idPais, setIdPais] = useState<number | "">("");
   const [idDivisao, setIdDivisao] = useState<number | "">("");
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
@@ -2216,11 +2228,24 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
     }
   }
   useEffect(() => { void carregar(); }, []);
+  const { statusBusyId, alternar } = useAlternarStatus(
+    setItens,
+    (c, proximo) => atualizarCidade(c.id, {
+      nome: c.nome,
+      idDivisao: c.idDivisao,
+      tipo: c.tipo ?? "municipio",
+      idCidadeMunicipio: c.idCidadeMunicipio ?? null,
+      status: proximo,
+    }),
+    (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
+    carregar,
+  );
   const filteredCidades = itens.filter((c) =>
     passaFiltroStatus(c.status, filtroStatus) &&
-    `${c.nome} ${c.divisaoNome} ${c.paisNome}`.toLowerCase().includes(search.toLowerCase()));
+    `${c.nome} ${c.municipioNome ?? ""} ${c.tipo} ${c.divisaoNome} ${c.paisNome}`.toLowerCase().includes(search.toLowerCase()));
   const { items: cidadesOrdenadas, sortKey, sortDir, onSort } = useListSort(filteredCidades, (c, k) => {
     if (k === "nome") return c.nome;
+    if (k === "tipo") return c.tipo;
     if (k === "divisao") return c.divisaoNome;
     if (k === "pais") return c.paisNome;
     return c.id;
@@ -2244,6 +2269,8 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
   function abrir(item?: Cidade) {
     setEditando(item ?? null);
     setNome(item?.nome ?? "");
+    setTipo(item?.tipo === "distrito" ? "distrito" : "municipio");
+    setIdMunicipio(item?.idCidadeMunicipio ?? "");
     setIdPais(item?.idPais ?? paisPadrao?.id ?? "");
     setIdDivisao(item?.idDivisao ?? "");
     setStatus(item?.status === "inativo" ? "inativo" : "ativo");
@@ -2255,6 +2282,7 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
     if (!formAberto || idPais === "") return;
     if (idDivisao !== "" && !divisoes.some((d) => d.id === idDivisao && d.idPais === idPais)) {
       setIdDivisao("");
+      setIdMunicipio("");
     }
   }, [idPais, formAberto]);
 
@@ -2264,9 +2292,19 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
       setErro(t("cidade.error.required"));
       return;
     }
+    if (tipo === "distrito" && idMunicipio === "") {
+      setErro(t("cidade.error.municipioRequired"));
+      return;
+    }
     setSalvando(true);
     try {
-      const body = { nome: toTitleCase(nome), idDivisao: Number(idDivisao), status };
+      const body = {
+        nome: toTitleCase(nome),
+        idDivisao: Number(idDivisao),
+        tipo,
+        idCidadeMunicipio: tipo === "distrito" ? Number(idMunicipio) : null,
+        status,
+      };
       if (editando) await atualizarCidade(editando.id, body);
       else await criarCidade(body);
       setFormAberto(false);
@@ -2302,13 +2340,42 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
             </select>
           </Field>
           <Field label={t("col.divisionRegion")} required>
-            <select className="field" value={idDivisao} onChange={(e) => setIdDivisao(e.target.value ? Number(e.target.value) : "")}>
+            <select className="field" value={idDivisao} onChange={(e) => {
+              setIdDivisao(e.target.value ? Number(e.target.value) : "");
+              setIdMunicipio("");
+            }}>
               <option value="">{t("cidade.selectDivision")}</option>
               {divisoesDoPais.map((d) => (
                 <option key={d.id} value={d.id}>{d.sigla ? `${d.nome} (${d.sigla})` : d.nome}</option>
               ))}
             </select>
           </Field>
+          <Field label={t("cidade.tipo")} required>
+            <select
+              className="field"
+              value={tipo}
+              onChange={(e) => {
+                const proximo = e.target.value as "municipio" | "distrito";
+                setTipo(proximo);
+                if (proximo === "municipio") setIdMunicipio("");
+              }}
+            >
+              <option value="municipio">{t("cidade.tipo.municipio")}</option>
+              <option value="distrito">{t("cidade.tipo.distrito")}</option>
+            </select>
+          </Field>
+          {tipo === "distrito" && (
+            <CidadeSearchSelect
+              label={t("cidade.municipio")}
+              required
+              cidades={itens.filter((c) =>
+                (c.tipo ?? "municipio") !== "distrito"
+                && (idDivisao === "" || c.idDivisao === idDivisao)
+                && c.id !== editando?.id)}
+              value={idMunicipio}
+              onChange={setIdMunicipio}
+            />
+          )}
           <Field label={t("common.name")} required>
             <input className="field" autoFocus value={nome} onChange={(e) => setNome(e.target.value)}
               onBlur={() => setNome((x) => toTitleCase(x))} placeholder={t("cidade.placeholderName")} />
@@ -2337,7 +2404,7 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
       <CatalogHeader titulo={t("nav.cidades")} count={itens.length} novoLabel={t("cidade.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("cidade.listSearchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
         <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
@@ -2349,24 +2416,37 @@ function CidadesPage({ paises: paisesProp, navReset }: { paises: Pais[]; navRese
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={onSort}
-              cols={[
-                { label: "col.id", sort: "id" },
-                { label: "common.name", sort: "nome" },
-                { label: "col.divisionRegion", sort: "divisao" },
-                { label: "papel.country", sort: "pais" },
-                { label: "common.status" },
-                "",
-              ]}
+                cols={[
+                  { label: "col.id", sort: "id" },
+                  { label: "common.name", sort: "nome" },
+                  { label: "cidade.tipo", sort: "tipo" },
+                  { label: "col.divisionRegion", sort: "divisao" },
+                  { label: "papel.country", sort: "pais" },
+                  { label: "common.status" },
+                  "",
+                ]}
             />
           </thead>
           <tbody>
             {paged.slice.map((c) => (
               <tr key={c.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
                 <Td mono gold>{c.id}</Td>
-                <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>{c.nome}</td>
+                <td className="drive-td" title={rotuloCidade(c, true)}>
+                  <p className="text-xs font-medium" style={{ color: v("--text") }}>{c.nome}</p>
+                  {c.tipo === "distrito" && c.municipioNome ? (
+                    <p className="text-[11px]" style={{ color: v("--text-muted") }}>{c.municipioNome}</p>
+                  ) : null}
+                </td>
+                <Td sub>{c.tipo === "distrito" ? t("cidade.tipo.distrito") : t("cidade.tipo.municipio")}</Td>
                 <Td sub>{c.divisaoSigla ? `${c.divisaoNome} (${c.divisaoSigla})` : c.divisaoNome}</Td>
                 <Td sub>{c.paisNome}</Td>
-                <td className="drive-td"><StatusBadge status={c.status} /></td>
+                <td className="drive-td drive-td-status" onClick={(e) => e.stopPropagation()}>
+                  <StatusBadge
+                    status={c.status === "inativo" ? "inativo" : "ativo"}
+                    disabled={statusBusyId === c.id}
+                    onToggle={() => void alternar(c)}
+                  />
+                </td>
                 <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={() => abrir(c)}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}

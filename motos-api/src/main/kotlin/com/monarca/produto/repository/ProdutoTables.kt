@@ -1,6 +1,7 @@
 package com.monarca.produto.repository
 
 import com.monarca.empresa.repository.FiliaisTable
+import com.monarca.estoque.repository.EstoquesTable
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
 
 object MarcasTable : LongIdTable("marca") {
@@ -22,6 +23,7 @@ object ProdutosTable : LongIdTable("produto") {
     val idModelo = reference("id_modelo", ModelosTable)
     val descricao = varchar("descricao", 500).nullable()
     val tipo = varchar("tipo", 20)
+    val controlaChassi = bool("controla_chassi").default(false)
     val idFilialCadastro = optReference("id_filial_cadastro", FiliaisTable)
     val aliquotaIva = integer("aliquota_iva").default(10)
     val moedaPreco = varchar("moeda_preco", 3).default("usd")
@@ -40,9 +42,21 @@ object ProdutoFilialTable : LongIdTable("produto_filial") {
     }
 }
 
+object ProdutoUnidadesTable : LongIdTable("produto_unidade") {
+    val idProduto = reference("id_produto", ProdutosTable)
+    val idEstoque = reference("id_estoque", EstoquesTable)
+    val numero = varchar("numero", 40)
+    val situacao = varchar("situacao", 20).default("disponivel")
+    val idVendaItem = long("id_venda_item").nullable()
+    val status = varchar("status", 20).default("ativo")
+
+    init {
+        uniqueIndex(numero)
+    }
+}
+
 object ProdutoMotosTable : LongIdTable("produto_moto") {
     val idProduto = reference("id_produto", ProdutosTable)
-    val chassi = varchar("chassi", 40).nullable()
     val cor = varchar("cor", 40).nullable()
     val potenciaMotorW = integer("potencia_motor_w").nullable()
     val autonomiaKm = integer("autonomia_km").nullable()

@@ -6,5 +6,7 @@ data class Cidade(
     val id: Long,
     val idDivisao: Long,
     val nome: String,
+    val tipo: TipoCidade,
+    val idCidadeMunicipio: Long?,
     val status: Status,
 )

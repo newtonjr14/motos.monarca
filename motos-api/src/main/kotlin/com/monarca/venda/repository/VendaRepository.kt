@@ -13,6 +13,8 @@ data class VendaItemPersistencia(
     val precoLista: Double,
     val precoUnitarioPyg: Double,
     val totalPyg: Double,
+    val idsUnidades: List<Long> = emptyList(),
+    val chassis: List<String> = emptyList(),
 )
 
 data class VendaNegociacaoPersistencia(

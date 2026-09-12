@@ -2,6 +2,13 @@ package com.monarca
 
 import org.flywaydb.core.Flyway
 
+data class JdbcCredenciais(
+    val url: String,
+    val user: String,
+    val password: String,
+    val seedCidades: Boolean = true,
+)
+
 fun jdbcUrlFromR2dbc(url: String): String {
     if (url.startsWith("r2dbc:h2:mem:///")) {
         return "jdbc:h2:mem:" + url.removePrefix("r2dbc:h2:mem:///")

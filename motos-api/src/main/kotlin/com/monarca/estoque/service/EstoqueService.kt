@@ -96,6 +96,9 @@ class EstoqueService(
         val estoque = repository.buscar(item.idEstoque) ?: throw RecursoNaoEncontrado("Estoque ${item.idEstoque} não encontrado")
         exigirAcessoFilial(idUsuario, estoque.estoque.idFilial)
         produtoRepository.buscar(item.idProduto) ?: throw RecursoNaoEncontrado("Produto ${item.idProduto} não encontrado")
+        if (produtoRepository.produtoControlaChassi(item.idProduto)) {
+            throw invalido("ESTOQUE_QTD_CHASSI", "A quantidade deste produto vem dos chassis. Inclua os chassis no cadastro do produto.")
+        }
         val existente = repository.buscarItemPorEstoqueProduto(item.idEstoque, item.idProduto)
         val id = when {
             existente == null -> repository.inserirItem(item)
@@ -115,6 +118,9 @@ class EstoqueService(
         val estoque = repository.buscar(item.idEstoque) ?: throw RecursoNaoEncontrado("Estoque ${item.idEstoque} não encontrado")
         exigirAcessoFilial(idUsuario, estoque.estoque.idFilial)
         produtoRepository.buscar(item.idProduto) ?: throw RecursoNaoEncontrado("Produto ${item.idProduto} não encontrado")
+        if (produtoRepository.produtoControlaChassi(item.idProduto)) {
+            throw invalido("ESTOQUE_QTD_CHASSI", "A quantidade deste produto vem dos chassis. Inclua os chassis no cadastro do produto.")
+        }
         repository.atualizarItem(id, item)
         return buscarItem(id, idUsuario)
     }

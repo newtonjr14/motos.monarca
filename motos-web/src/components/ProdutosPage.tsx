@@ -14,25 +14,28 @@ import {
   atualizarProdutoStatus,
   buscarCotacaoHoje,
   buscarProduto,
+  adicionarUnidades,
   criarProduto,
   excluirProduto,
+  excluirUnidade,
   listarMarcas,
   listarModelos,
   listarEstoques,
   listarProdutos,
+  listarUnidades,
   type Cotacao,
   type Marca,
   type Modelo,
   type Produto,
+  type ProdutoUnidade,
   type TipoProduto,
   type VinculoFilialProdutoConflito,
 } from "@/api";
-import { PAGE_SIZE, converterMoeda, formatMoeda, moedaOperacaoDe, slicePage, toTitleCase } from "@/format";
+import { CHASSI_MAXIMO, PAGE_SIZE, converterMoeda, expandirNumerosChassi, formatMoeda, moedaOperacaoDe, slicePage, toTitleCase } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
 type Specs = {
-  chassi: string;
   cor: string;
   potenciaMotorW: string;
   autonomiaKm: string;
@@ -53,7 +56,7 @@ type Specs = {
 };
 
 const specsVazio: Specs = {
-  chassi: "", cor: "", potenciaMotorW: "", autonomiaKm: "", velocidadeMaxKmh: "",
+  cor: "", potenciaMotorW: "", autonomiaKm: "", velocidadeMaxKmh: "",
   capacidadeBateriaAh: "", voltagemBateria: "", tempoCargaHoras: "", pesoKg: "",
   capacidadeCargaKg: "", assentos: "", tipoFreio: "", aro: "", tipoQuadro: "", numeroMarchas: "",
   anoFabricacao: "", anoModelo: "", numeroSerieQuadro: "",
@@ -66,12 +69,64 @@ function num(valor: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function numerosDoLote(texto: string): { numeros: string[]; erro?: "CHASSI_INTERVALO_INVALIDO" | "CHASSI_INTERVALO_GRANDE" | "CHASSI_DUPLICADO"; duplicado?: string } {
+  if (!texto.trim()) return { numeros: [] };
+  const exp = expandirNumerosChassi(texto);
+  if (!exp.ok) return { numeros: [], erro: exp.codigo };
+  const seen = new Set<string>();
+  for (const n of exp.numeros) {
+    if (seen.has(n)) return { numeros: exp.numeros, erro: "CHASSI_DUPLICADO", duplicado: n };
+    seen.add(n);
+  }
+  return { numeros: exp.numeros };
+}
+
+function LoteChassisField({
+  value,
+  onChange,
+  aside,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  aside?: string;
+}) {
+  const { t } = useI18n();
+  const lote = numerosDoLote(value);
+  const erro = lote.erro === "CHASSI_INTERVALO_GRANDE"
+    ? tf(t, "api.CHASSI_INTERVALO_GRANDE", { max: String(CHASSI_MAXIMO) })
+    : lote.erro === "CHASSI_INTERVALO_INVALIDO"
+      ? t("produto.error.chassiIntervalo")
+      : lote.erro === "CHASSI_DUPLICADO"
+        ? tf(t, "api.CHASSI_DUPLICADO", { chassi: lote.duplicado ?? "" })
+        : undefined;
+  const asideCount = !erro && lote.numeros.length
+    ? `${aside ? `${aside} · ` : ""}${tf(t, "produto.chassiCount", { n: String(lote.numeros.length) })}`
+    : aside;
+  const primeiro = lote.numeros[0];
+  const ultimo = lote.numeros[lote.numeros.length - 1];
+  return (
+    <Field label={t("produto.chassiLote")} hint={erro ? undefined : t("produto.chassiLoteHint")} error={erro} aside={asideCount}>
+      <textarea
+        className="field font-mono uppercase"
+        rows={5}
+        value={value}
+        placeholder={t("produto.chassiLotePlaceholder")}
+        onChange={(e) => onChange(e.target.value.toUpperCase())}
+      />
+      {!erro && primeiro && ultimo && primeiro !== ultimo && (
+        <p className="mt-1 text-xs font-mono" style={{ color: v("--text-muted") }}>
+          {primeiro} → {ultimo}
+        </p>
+      )}
+    </Field>
+  );
+}
+
 function specsDe(item?: Produto | null): Specs {
   if (!item) return { ...specsVazio };
   if (item.tipo === "moto" && item.moto) {
     return {
       ...specsVazio,
-      chassi: item.moto.chassi ?? "",
       cor: item.moto.cor ?? "",
       potenciaMotorW: item.moto.potenciaMotorW?.toString() ?? "",
       autonomiaKm: item.moto.autonomiaKm?.toString() ?? "",
@@ -135,12 +190,17 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
   const [codigoManual, setCodigoManual] = useState(false);
   const [qtdInicial, setQtdInicial] = useState("0");
   const [estoquePadraoNome, setEstoquePadraoNome] = useState("");
+  const [chassisTexto, setChassisTexto] = useState("");
+  const [unidades, setUnidades] = useState<ProdutoUnidade[]>([]);
+  const [loteNovo, setLoteNovo] = useState("");
+  const [unidadesBusy, setUnidadesBusy] = useState(false);
   const [idMarca, setIdMarca] = useState<number | "">("");
   const [idModelo, setIdModelo] = useState<number | "">("");
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [modelos, setModelos] = useState<Modelo[]>([]);
   const [descricao, setDescricao] = useState("");
   const [tipo, setTipo] = useState<TipoProduto>("moto");
+  const [controlaChassi, setControlaChassi] = useState(true);
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [specs, setSpecs] = useState<Specs>(specsVazio);
   const [aliquotaIva, setAliquotaIva] = useState<0 | 5 | 10>(10);
@@ -173,6 +233,14 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
   }
   useEffect(() => { void carregar(); }, [idFilial]);
   useEffect(() => {
+    if (!formAberto || !editando || !controlaChassi) return;
+    let ativo = true;
+    void listarUnidades(editando.id, idFilial)
+      .then((lista) => { if (ativo) setUnidades(lista); })
+      .catch((e) => { if (ativo) setErro(mensagemErroApi(e, t, "common.error.loadFailed")); });
+    return () => { ativo = false; };
+  }, [formAberto, editando?.id, controlaChassi, idFilial, t]);
+  useEffect(() => {
     if (idMarca === "") {
       setModelos([]);
       return;
@@ -196,10 +264,14 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       setCodigoManual(false);
     }
     setQtdInicial("0");
+    setChassisTexto("");
+    setLoteNovo("");
+    setUnidades([]);
     setIdMarca(item?.idMarca ?? "");
     setIdModelo(item?.idModelo ?? "");
     setDescricao(item?.descricao ?? "");
     setTipo(item?.tipo ?? "moto");
+    setControlaChassi(item?.controlaChassi ?? (item?.tipo !== "bicicleta"));
     setStatus(item?.status === "inativo" ? "inativo" : "ativo");
     setAliquotaIva(item?.aliquotaIva === 0 || item?.aliquotaIva === 5 ? item.aliquotaIva : 10);
     if (item != null && item.moedaPreco !== moedaOp && cotacao) {
@@ -252,7 +324,6 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
 
   function corpo(confirmarVinculoFilial = false) {
     const moto = tipo === "moto" ? {
-      chassi: specs.chassi.trim() || null,
       cor: specs.cor.trim() || null,
       potenciaMotorW: num(specs.potenciaMotorW),
       autonomiaKm: num(specs.autonomiaKm),
@@ -288,6 +359,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       idModelo: Number(idModelo),
       descricao: descricao.trim() || null,
       tipo,
+      controlaChassi,
       status,
       idFilialCadastro: idFilial,
       confirmarVinculoFilial,
@@ -295,7 +367,8 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       moedaPreco: moedaOp,
       precoLista: num(precoLista) ?? 0,
       custo: num(custo) ?? 0,
-      quantidadeInicial: editando ? 0 : (Number.parseInt(qtdInicial, 10) || 0),
+      quantidadeInicial: editando || controlaChassi ? 0 : (Number.parseInt(qtdInicial, 10) || 0),
+      numerosIniciais: !editando && controlaChassi ? numerosDoLote(chassisTexto).numeros : [],
       moto,
       bicicleta,
     };
@@ -336,11 +409,30 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       return;
     }
     if (!editando) {
-      const qtd = qtdInicial.trim() === "" ? 0 : Number.parseInt(qtdInicial, 10);
-      if (!Number.isInteger(qtd) || qtd < 0) {
-        setErro(t("produto.error.qty"));
-        setGuia("estoque");
-        return;
+      if (controlaChassi) {
+        const lote = numerosDoLote(chassisTexto);
+        if (lote.erro === "CHASSI_INTERVALO_GRANDE") {
+          setErro(tf(t, "api.CHASSI_INTERVALO_GRANDE", { max: String(CHASSI_MAXIMO) }));
+          setGuia("estoque");
+          return;
+        }
+        if (lote.erro === "CHASSI_INTERVALO_INVALIDO") {
+          setErro(t("produto.error.chassiIntervalo"));
+          setGuia("estoque");
+          return;
+        }
+        if (lote.erro === "CHASSI_DUPLICADO") {
+          setErro(tf(t, "api.CHASSI_DUPLICADO", { chassi: lote.duplicado ?? "" }));
+          setGuia("estoque");
+          return;
+        }
+      } else {
+        const qtd = qtdInicial.trim() === "" ? 0 : Number.parseInt(qtdInicial, 10);
+        if (!Number.isInteger(qtd) || qtd < 0) {
+          setErro(t("produto.error.qty"));
+          setGuia("estoque");
+          return;
+        }
       }
     }
     setSalvando(true);
@@ -370,6 +462,64 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function recarregarEstoqueProduto() {
+    if (!editando) return;
+    const [produtos, detalhe, lista] = await Promise.all([
+      listarProdutos(idFilial),
+      buscarProduto(editando.id, idFilial),
+      listarUnidades(editando.id, idFilial),
+    ]);
+    setItens(produtos);
+    setEditando(detalhe);
+    setUnidades(lista);
+  }
+
+  async function incluirChassis() {
+    if (!editando) return;
+    const lote = numerosDoLote(loteNovo);
+    if (lote.erro === "CHASSI_INTERVALO_GRANDE") {
+      setErro(tf(t, "api.CHASSI_INTERVALO_GRANDE", { max: String(CHASSI_MAXIMO) }));
+      return;
+    }
+    if (lote.erro === "CHASSI_INTERVALO_INVALIDO") {
+      setErro(t("produto.error.chassiIntervalo"));
+      return;
+    }
+    if (lote.erro === "CHASSI_DUPLICADO") {
+      setErro(tf(t, "api.CHASSI_DUPLICADO", { chassi: lote.duplicado ?? "" }));
+      return;
+    }
+    if (!lote.numeros.length) {
+      setErro(t("api.CHASSI_OBRIGATORIO"));
+      return;
+    }
+    setUnidadesBusy(true);
+    setErro(null);
+    try {
+      setUnidades(await adicionarUnidades(editando.id, { numeros: lote.numeros }));
+      setLoteNovo("");
+      await recarregarEstoqueProduto();
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+    } finally {
+      setUnidadesBusy(false);
+    }
+  }
+
+  async function removerUnidade(idUnidade: number) {
+    if (!editando) return;
+    setUnidadesBusy(true);
+    setErro(null);
+    try {
+      await excluirUnidade(editando.id, idUnidade);
+      await recarregarEstoqueProduto();
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+    } finally {
+      setUnidadesBusy(false);
     }
   }
 
@@ -452,12 +602,34 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
               <Field label={t("produto.tipo")} required>
                 <select className="field" value={tipo} disabled={Boolean(editando)}
                   onChange={(e) => {
-                    setTipo(e.target.value as TipoProduto);
+                    const proximo = e.target.value as TipoProduto;
+                    setTipo(proximo);
                     setIdModelo("");
+                    setChassisTexto("");
+                    setLoteNovo("");
+                    if (!editando) setControlaChassi(proximo === "moto");
                   }}>
                   <option value="moto">{t("produto.tipo.moto")}</option>
                   <option value="bicicleta">{t("produto.tipo.bicicleta")}</option>
                 </select>
+              </Field>
+              <Field label={t("produto.controlaChassi")} hint={editando ? undefined : t("produto.controlaChassiHint")}>
+                <label className="field flex items-center gap-2 cursor-pointer" style={{ background: editando ? v("--card2") : undefined }}>
+                  <input
+                    type="checkbox"
+                    checked={controlaChassi}
+                    disabled={Boolean(editando)}
+                    onChange={(e) => {
+                      setControlaChassi(e.target.checked);
+                      setChassisTexto("");
+                      setLoteNovo("");
+                      if (!e.target.checked) setQtdInicial("0");
+                    }}
+                  />
+                  <span className="text-sm" style={{ color: v("--text") }}>
+                    {controlaChassi ? t("common.yes") : t("common.no")}
+                  </span>
+                </label>
               </Field>
               <Field label={t("produto.marca")} required>
                 <select className="field" value={idMarca}
@@ -518,10 +690,6 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
             <div className="form-grid-2">
               {tipo === "moto" && (
                 <>
-                  <Field label={t("produto.chassi")}>
-                    <input className="field font-mono uppercase" value={specs.chassi}
-                      onChange={(e) => setSpec("chassi", e.target.value.toUpperCase())} />
-                  </Field>
                   <Field label={t("produto.anoFabricacao")} required>
                     <input className="field" inputMode="numeric" maxLength={4} value={specs.anoFabricacao}
                       onChange={(e) => setSpec("anoFabricacao", e.target.value.replace(/\D/g, "").slice(0, 4))} />
@@ -633,48 +801,111 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
           <div role="tabpanel" id="form-panel-estoque" aria-labelledby="form-tab-estoque" hidden={guia !== "estoque"} className="space-y-3">
             <Section title={t("produto.section.estoque")}>
               {!editando ? (
-                <Field label={t("produto.qtyInicial")} aside={estoquePadraoNome || undefined}>
-                  <input
-                    className="field font-mono"
-                    inputMode="numeric"
-                    value={qtdInicial}
-                    onChange={(e) => setQtdInicial(e.target.value.replace(/\D/g, "").slice(0, 7))}
-                  />
-                </Field>
-              ) : (editando.estoques ?? []).length === 0 ? (
+                controlaChassi ? (
+                  <LoteChassisField value={chassisTexto} onChange={setChassisTexto} aside={estoquePadraoNome || undefined} />
+                ) : (
+                  <Field label={t("produto.qtyInicial")} aside={estoquePadraoNome || undefined}>
+                    <input
+                      className="field font-mono"
+                      inputMode="numeric"
+                      value={qtdInicial}
+                      onChange={(e) => setQtdInicial(e.target.value.replace(/\D/g, "").slice(0, 7))}
+                    />
+                  </Field>
+                )
+              ) : (editando.estoques ?? []).length === 0 && !controlaChassi ? (
                 <p className="text-sm" style={{ color: v("--text-muted") }}>{t("produto.noStock")}</p>
               ) : (
                 <>
-                  <div className="rounded-md overflow-hidden" style={{ border: `1px solid ${v("--border")}` }}>
-                    <table className="drive-table w-full">
-                      <thead>
-                        <tr>
-                          <th className="drive-th">{t("nav.estoques")}</th>
-                          <th className="drive-th">{t("estoque.qty")}</th>
-                          <th className="drive-th">{t("estoque.reserved")}</th>
-                          <th className="drive-th">{t("estoque.available")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(editando.estoques ?? []).map((e) => (
-                          <tr key={e.idEstoque} style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                        <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>
-                          {e.estoqueNome}
-                          {e.padrao ? (
-                            <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: v("--gold") }}>
-                              {t("estoque.padraoBadge")}
-                            </span>
-                          ) : null}
-                        </td>
-                            <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{e.quantidade}</td>
-                            <td className="drive-td font-mono" style={{ color: v("--text-muted") }}>{e.quantidadeReservada}</td>
-                            <td className="drive-td font-mono" style={{ color: v("--text") }}>{e.quantidadeDisponivel}</td>
+                  {(editando.estoques ?? []).length > 0 && (
+                    <div className="rounded-md overflow-hidden" style={{ border: `1px solid ${v("--border")}` }}>
+                      <table className="drive-table w-full">
+                        <thead>
+                          <tr>
+                            <th className="drive-th">{t("nav.estoques")}</th>
+                            <th className="drive-th">{t("estoque.qty")}</th>
+                            <th className="drive-th">{t("estoque.reserved")}</th>
+                            <th className="drive-th">{t("estoque.available")}</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="text-xs" style={{ color: v("--text-muted") }}>{t("produto.stockHint")}</p>
+                        </thead>
+                        <tbody>
+                          {(editando.estoques ?? []).map((e) => (
+                            <tr key={e.idEstoque} style={{ borderBottom: `1px solid ${v("--border")}` }}>
+                              <td className="drive-td text-xs font-medium" style={{ color: v("--text") }}>
+                                {e.estoqueNome}
+                                {e.padrao ? (
+                                  <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: v("--gold") }}>
+                                    {t("estoque.padraoBadge")}
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{e.quantidade}</td>
+                              <td className="drive-td font-mono" style={{ color: v("--text-muted") }}>{e.quantidadeReservada}</td>
+                              <td className="drive-td font-mono" style={{ color: v("--text") }}>{e.quantidadeDisponivel}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {controlaChassi ? (
+                    <>
+                      {unidades.length === 0 ? (
+                        <p className="text-sm" style={{ color: v("--text-muted") }}>{t("produto.chassiEmpty")}</p>
+                      ) : (
+                        <div className="rounded-md overflow-auto max-h-72" style={{ border: `1px solid ${v("--border")}` }}>
+                          <table className="drive-table w-full">
+                            <thead>
+                              <tr>
+                                <th className="drive-th">{t("produto.chassiCodigo")}</th>
+                                <th className="drive-th">{t("produto.chassi")}</th>
+                                <th className="drive-th">{t("common.status")}</th>
+                                <th className="drive-th">{t("col.actions")}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {unidades.map((u) => (
+                                <tr key={u.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
+                                  <Td mono>{u.id}</Td>
+                                  <Td mono>{u.numero}</Td>
+                                  <td className="drive-td text-xs" style={{ color: u.situacao === "disponivel" ? v("--text") : v("--text-muted") }}>
+                                    {t(u.situacao === "disponivel" ? "produto.situacao.disponivel" : "produto.situacao.vendido")}
+                                  </td>
+                                  <td className="drive-td">
+                                    {u.situacao === "disponivel" ? (
+                                      <button
+                                        type="button"
+                                        className="text-xs cursor-pointer"
+                                        style={{ color: "var(--danger)" }}
+                                        disabled={unidadesBusy}
+                                        onClick={() => void removerUnidade(u.id)}
+                                      >
+                                        {t("common.delete")}
+                                      </button>
+                                    ) : null}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      <LoteChassisField value={loteNovo} onChange={setLoteNovo} />
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          className="btn-gold px-4 py-2 text-sm"
+                          disabled={unidadesBusy || !loteNovo.trim()}
+                          onClick={() => void incluirChassis()}
+                        >
+                          {unidadesBusy ? t("common.saving") : t("produto.chassiAdd")}
+                        </button>
+                      </div>
+                      <p className="text-xs" style={{ color: v("--text-muted") }}>{t("produto.stockHintChassi")}</p>
+                    </>
+                  ) : (
+                    <p className="text-xs" style={{ color: v("--text-muted") }}>{t("produto.stockHint")}</p>
+                  )}
                 </>
               )}
             </Section>
@@ -726,7 +957,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       <CatalogHeader titulo={t("nav.produtos")} count={itens.length} novoLabel={t("produto.new")} onNovo={() => void abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("produto.searchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
         <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />

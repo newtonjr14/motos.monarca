@@ -66,6 +66,9 @@ export interface Pais {
 export interface Cidade {
   id: number;
   nome: string;
+  tipo: "municipio" | "distrito";
+  idCidadeMunicipio: number | null;
+  municipioNome: string | null;
   idDivisao: number;
   divisaoNome: string;
   divisaoSigla: string | null;
@@ -448,8 +451,19 @@ export const excluirFilial = (id: number) => api<void>(`/filiais/${id}`, { metho
 export type TipoProduto = "moto" | "bicicleta";
 export type AliquotaIva = 0 | 5 | 10;
 
+export type SituacaoUnidade = "disponivel" | "vendido";
+
+export interface ProdutoUnidade {
+  id: number;
+  idProduto: number;
+  idEstoque: number;
+  estoqueNome: string;
+  numero: string;
+  situacao: SituacaoUnidade;
+  idVendaItem?: number | null;
+}
+
 export interface ProdutoMoto {
-  chassi: string | null;
   cor: string | null;
   potenciaMotorW: number | null;
   autonomiaKm: number | null;
@@ -499,6 +513,7 @@ export interface Produto {
   modelo: string;
   descricao: string | null;
   tipo: TipoProduto;
+  controlaChassi: boolean;
   idFilialCadastro: number | null;
   filialNome?: string | null;
   filiaisVinculadas?: FilialVinculo[];
@@ -570,6 +585,17 @@ export const excluirProduto = (id: number, idFilial?: number) => {
   const q = idFilial != null ? `?idFilial=${idFilial}` : "";
   return api<void>(`/produtos/${id}${q}`, { method: "DELETE" });
 };
+export const listarUnidades = (idProduto: number, idFilial?: number, situacao?: SituacaoUnidade) => {
+  const q = new URLSearchParams();
+  if (idFilial != null) q.set("idFilial", String(idFilial));
+  if (situacao) q.set("situacao", situacao);
+  const suffix = q.toString() ? `?${q}` : "";
+  return api<ProdutoUnidade[]>(`/produtos/${idProduto}/unidades${suffix}`);
+};
+export const adicionarUnidades = (idProduto: number, body: { numeros: string[]; idEstoque?: number | null }) =>
+  api<ProdutoUnidade[]>(`/produtos/${idProduto}/unidades`, { method: "POST", body: JSON.stringify(body) });
+export const excluirUnidade = (idProduto: number, idUnidade: number) =>
+  api<void>(`/produtos/${idProduto}/unidades/${idUnidade}`, { method: "DELETE" });
 
 export interface Marca {
   id: number;
@@ -723,6 +749,7 @@ export interface VendaItem {
   precoLista: number;
   precoUnitarioPyg: number;
   totalPyg: number;
+  chassis?: string[];
 }
 
 export interface VendaNegociacao {

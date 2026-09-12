@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useI18n } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { PAGE_SIZE } from "@/format";
@@ -17,30 +17,43 @@ export function StatusBadge({
   const { t } = useI18n();
   const ativo = status === "ativo";
   const label = ativo ? t("common.active") : t("common.inactive");
-  const className = `status-badge${ativo ? " is-on" : " is-off"}`;
-  const inner = (
-    <>
-      {onToggle && <span className={`status-switch${ativo ? " is-on" : ""}`} aria-hidden />}
-      {label}
-    </>
-  );
+  const switchEl = <span className={`status-switch${ativo ? " is-on" : ""}`} aria-hidden />;
   if (!onToggle) {
-    return <span className={className}>{inner}</span>;
+    return <span className="status-badge" title={label}>{switchEl}</span>;
   }
   return (
     <button
       type="button"
-      className={`${className} status-badge-toggle`}
+      className="status-badge status-badge-toggle"
       disabled={disabled}
       aria-pressed={ativo}
+      aria-label={label}
       title={ativo ? t("ficha.inactivate") : t("ficha.activate")}
       onClick={(e) => {
         e.stopPropagation();
         onToggle();
       }}
     >
-      {inner}
+      {switchEl}
     </button>
+  );
+}
+
+/** Selo de texto Ativo/Inativo — usar na ficha, não o interruptor da lista. */
+export function StatusTexto({ status }: { status: string }) {
+  const { t } = useI18n();
+  const ativo = status !== "inativo";
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border"
+      style={{
+        background: ativo ? "var(--success-bg)" : "var(--card2)",
+        borderColor: ativo ? "var(--success-border)" : "var(--border)",
+        color: ativo ? "var(--success)" : "var(--text-muted)",
+      }}
+    >
+      {ativo ? t("common.active") : t("common.inactive")}
+    </span>
   );
 }
 
@@ -51,9 +64,16 @@ export type TableCol =
   | ""
   | { label: TranslationKey | ""; sort?: string };
 
-function specCol(col: TableCol, i: number): { label: TranslationKey | ""; sort?: string; key: string } {
-  if (typeof col === "string") return { label: col, key: col || `col-${i}` };
-  return { label: col.label, sort: col.sort, key: col.sort || col.label || `col-${i}` };
+function specCol(col: TableCol, i: number): { label: TranslationKey | ""; sort?: string; key: string; thClass?: string } {
+  const spec = typeof col === "string"
+    ? { label: col, key: col || `col-${i}` }
+    : { label: col.label, sort: col.sort, key: col.sort || col.label || `col-${i}` };
+  const thClass = spec.label === "common.status"
+    ? "drive-th-status"
+    : spec.label === "" || spec.label === "col.actions"
+      ? "drive-th-actions"
+      : undefined;
+  return { ...spec, thClass };
 }
 
 export function compararSort(a: unknown, b: unknown): number {
@@ -69,8 +89,9 @@ export function useListSort<T>(
   items: T[],
   valueOf: (item: T, key: string) => unknown,
   defaultKey = "id",
+  defaultDir: SortDir = "asc",
 ) {
-  const [sort, setSort] = useState({ key: defaultKey, dir: "asc" as SortDir });
+  const [sort, setSort] = useState({ key: defaultKey, dir: defaultDir });
   const onSort = useCallback((key: string) => {
     setSort((atual) =>
       atual.key === key
@@ -89,8 +110,42 @@ export function useListSort<T>(
   return { items: sorted, sortKey: sort.key, sortDir: sort.dir, onSort };
 }
 
-export function Th({ children, ariaSort }: { children: ReactNode; ariaSort?: "ascending" | "descending" | "none" }) {
-  return <th className="drive-th" aria-sort={ariaSort}>{children}</th>;
+export function useAlternarStatus<T extends { id: number; status: string }>(
+  setItens: Dispatch<SetStateAction<T[]>>,
+  persist: (item: T, proximo: "ativo" | "inativo") => Promise<unknown>,
+  onError: (e: unknown) => void,
+  recarregar: () => Promise<void>,
+) {
+  const [statusBusyId, setStatusBusyId] = useState<number | null>(null);
+  const persistRef = useRef(persist);
+  persistRef.current = persist;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+  const recarregarRef = useRef(recarregar);
+  recarregarRef.current = recarregar;
+
+  const alternar = useCallback(async (item: T) => {
+    if (statusBusyId != null) return;
+    const proximo = item.status === "ativo" ? "inativo" : "ativo";
+    setStatusBusyId(item.id);
+    setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, status: proximo } : x)));
+    try {
+      await persistRef.current(item, proximo);
+    } catch (e) {
+      onErrorRef.current(e);
+      await recarregarRef.current();
+    } finally {
+      setStatusBusyId(null);
+    }
+  }, [statusBusyId, setItens]);
+
+  return { statusBusyId, alternar };
+}
+
+export function Th({ children, ariaSort, className }: {
+  children: ReactNode; ariaSort?: "ascending" | "descending" | "none"; className?: string;
+}) {
+  return <th className={`drive-th${className ? ` ${className}` : ""}`} aria-sort={ariaSort}>{children}</th>;
 }
 
 export function TableHeadRow({
@@ -113,7 +168,7 @@ export function TableHeadRow({
         const active = sortable && sortKey === spec.sort;
         const ariaSort = !sortable ? undefined : active ? (sortDir === "desc" ? "descending" : "ascending") : "none";
         return (
-          <Th key={spec.key} ariaSort={ariaSort}>
+          <Th key={spec.key} ariaSort={ariaSort} className={spec.thClass}>
             {sortable ? (
               <button
                 type="button"
@@ -211,16 +266,12 @@ export function TablePagination({ page, total, onPageChange }: {
   );
 }
 
-export function CatalogHeader({ titulo, count, novoLabel, onNovo }: {
-  titulo: string; count: number; novoLabel: string; onNovo: () => void;
+export function CatalogHeader({ titulo, novoLabel, onNovo }: {
+  titulo: string; count?: number; novoLabel: string; onNovo: () => void;
 }) {
-  const { t } = useI18n();
   return (
     <div className="flex items-start justify-between">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{titulo}</h1>
-        <p className="text-sm mt-0.5" style={{ color: v("--text-muted") }}>{count} {t("common.registered")}</p>
-      </div>
+      <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{titulo}</h1>
       <button className="btn-gold px-4 py-2 text-sm" onClick={onNovo}>{novoLabel}</button>
     </div>
   );

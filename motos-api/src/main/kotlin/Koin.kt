@@ -30,6 +30,7 @@ fun Application.configureKoin() {
     migrateDatabase(jdbcUrl, databaseUser, databasePassword)
 
     val jwt = jwtConfig()
+    val seedCidades = environment.config.propertyOrNull("seed.cidades")?.getString()?.toBooleanStrictOrNull() ?: true
 
     install(Koin) {
         slf4jLogger()
@@ -43,6 +44,7 @@ fun Application.configureKoin() {
                     )
                 }
                 single { jwt }
+                single { JdbcCredenciais(jdbcUrl, databaseUser, databasePassword, seedCidades) }
             },
             auditModule,
             authModule,

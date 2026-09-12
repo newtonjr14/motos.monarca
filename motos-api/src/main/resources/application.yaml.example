@@ -2,6 +2,7 @@ ktor:
   deployment:
     port: 8080
   application:
+    startupTimeoutMillis: 180000
     modules:
       - com.monarca.HttpKt.configureHttp
       - com.monarca.SerializationKt.configureSerialization
@@ -39,3 +40,4 @@ cotacao:
 
 seed:
   demo: false
+  cidades: true

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/crud/Field";
-import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
+import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useAlternarStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -46,6 +46,12 @@ export default function CaixasPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, [idFilial]);
+  const { statusBusyId, alternar } = useAlternarStatus(
+    setItens,
+    (item, proximo) => atualizarCaixa(item.id, { idFilial, nome: item.nome, status: proximo }),
+    (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
+    carregar,
+  );
   const filtered = itens.filter((e) =>
     passaFiltroStatus(e.status, filtroStatus) && e.nome.toLowerCase().includes(search.toLowerCase()));
   const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => k === "nome" ? e.nome : e.id);
@@ -119,7 +125,7 @@ export default function CaixasPage({ navReset }: { navReset: number }) {
       <CatalogHeader titulo={t("nav.caixas")} count={itens.length} novoLabel={t("caixa.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("caixa.searchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
         <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
@@ -146,7 +152,13 @@ export default function CaixasPage({ navReset }: { navReset: number }) {
                 <Td mono gold>{e.id}</Td>
                 <Td>{e.nome}</Td>
                 <Td>{e.sessaoAbertaId ? t("caixa.session.open") : t("caixa.session.closed")}</Td>
-                <td className="drive-td"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
+                <td className="drive-td drive-td-status" onClick={(ev) => ev.stopPropagation()}>
+                  <StatusBadge
+                    status={e.status === "inativo" ? "inativo" : "ativo"}
+                    disabled={statusBusyId === e.id}
+                    onToggle={() => void alternar(e)}
+                  />
+                </td>
                 <td className="drive-td text-right">
                   <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={(ev) => { ev.stopPropagation(); abrir(e); }}>{t("common.edit")}</button>
                   <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}

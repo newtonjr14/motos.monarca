@@ -40,9 +40,10 @@ Cadastro usado por **adm, gestor e operador** entra em **Operação** (o operado
 - Linhas clicáveis: `drive-row-clickable`; selecionada: `drive-row-selected`.
 - Espaçamento compacto (`drive-th` 8px/16px, `drive-td` 10px/16px; linha ~44–48px), hover suave, borda só entre linhas.
 - Paginação: `TablePagination` + `slicePage` + `PAGE_SIZE` (10) de `@/format`.
-- Ordenação: `useListSort` + `TableHeadRow` com `sort` nas colunas úteis (`@/components/crud/ListUi`). **Padrão: `id` crescente.** Clique no cabeçalho ordena; clique de novo inverte. Status e ações não ordenam. Busca/filtro/ordenação resetam a página para 1.
-- Busca local no front filtrando nome/campos principais; resetar `page` para 1 ao mudar busca **ou** filtro de status.
-- Filtro de status em **todo cadastro com ativo/inativo**: segmento **Todos | Ativos | Inativos** (`StatusFilter` + `passaFiltroStatus` em `@/components/crud/ListUi`), ao lado da busca. **Padrão: Todos.** Contagem do cabeçalho continua o total carregado; a paginação usa o recorte filtrado. Tipos de documento não têm status — sem o filtro.
+- Ordenação: `useListSort` + `TableHeadRow` com `sort` nas colunas úteis (`@/components/crud/ListUi`). **Padrão: `id` crescente** (cotações e histórico de vendas: **data decrescente**). Clique no cabeçalho ordena; clique de novo inverte. Status e ações não ordenam. Busca/filtro/ordenação resetam a página para 1.
+- Busca local no front filtrando nome/campos principais; o placeholder diz o que busca (ex.: “Nome, documento, cidade…”), não só “Buscar...”. Resetar `page` para 1 ao mudar busca **ou** filtro de status.
+- Filtro de status em **todo cadastro com ativo/inativo**: segmento **Todos | Ativos | Inativos** (`StatusFilter` + `passaFiltroStatus` em `@/components/crud/ListUi`), ao lado da busca. **Padrão: Todos.** A paginação usa o recorte filtrado. Tipos de documento não têm status — sem o filtro.
+- Status na lista: só o interruptor (`StatusBadge` + `onToggle`, helper `useAlternarStatus`) — verde ligado, cinza com a bolinha à esquerda. Sem texto Ativo/Inativo no controle (`title` / `aria-label` traduzidos). Cotação: só o dia de hoje. Estoque padrão da filial não inativa. Usuário SYSTEM não altera.
 - Produto: nome é editável (obrigatório). Sem edição, segue marca + modelo; link dourado “Usar marca e modelo” restaura. Na lista, sem coluna de marca: nome automático mostra marca (muted) + modelo (semibold) na mesma linha; nome customizado é uma linha só. Nome **não** usa `clip` (quebra linha se precisar). Preço de lista alinhado à direita; disponível como `{n} un.`. Código no cadastro novo já vem preenchido com o próximo ID (editável; rótulo “sugerido” some ao mudar). Se o código ficar vazio, a API grava o ID real. SKU é único entre produtos não deletados (`PRODUTO_CODIGO_DUPLICADO`). Status na lista usa o mesmo selo liga/desliga de cliente/fornecedor.
 - Cliente e fornecedor: colunas código, nome, documento (só o número mascarado; `title` com tipo+número), cidade (`Nome - UF - País`), status, ações. Sem telefone/país separados na lista (telefone na ficha). Status fica colado no menu (⋮) e o selo **Ativo/Inativo** liga/desliga o cadastro. Nome e cidade usam `clip` só no caso raro de texto muito longo (`title` com o valor completo).
 
@@ -51,7 +52,7 @@ Cadastro usado por **adm, gestor e operador** entra em **Operação** (o operado
 Use `CatalogHeader` (`@/components/crud/ListUi`):
 
 - Título (`text-xl`, font display)
-- Subtítulo: `{count} cadastrados`
+- Sem subtítulo “N cadastrados” — a paginação já mostra “Mostrando 1–10 de 20”
 - Botão dourado: `Novo {singular}`
 
 ## Formulário
@@ -65,7 +66,7 @@ Use `CatalogHeader` (`@/components/crud/ListUi`):
   - Nomes: `toTitleCase`
   - E-mail: `toEmailLower`
   - Documentos/CEP/telefone: `apenasDigitos` quando aplicável
-  - SKU/código/chassi: trim + maiúsculas
+  - SKU/código: trim + maiúsculas. Chassi: trim + maiúsculas, sem espaços.
 
 ## Filial (obrigatório quando o cadastro é por filial)
 
@@ -85,13 +86,15 @@ Mesma regra de cliente e fornecedor:
 ## Cotação do dia
 
 - Uma cotação por data (fuso `America/Asuncion`): taxas obrigatórias **USD→PYG** e **BRL→PYG**. Só **adm e gestor** informam (`cotacao:gerenciar`). Operador e vendedor só consultam.
-- Sem cotação **ativa** no dia, cadastros continuam liberados. A API responde 403 `COTACAO_DIA_AUSENTE` só em vendas, recebimentos, pagamentos e facturas/NF-e (e `CotacaoService.exigirAtiva()` nesses services). O front mostra um **alerta fixo no topo** (não é modal e não se dispensa): adm/gestor informam as taxas ali mesmo; os demais veem o aviso. Com cotação ativa, um chip no topo mostra as taxas do dia.
-- A cotação do mesmo dia pode ser editada. Data futura é rejeitada. Menu **Operação → Cotações** (só adm/gestor).
+- Sem cotação **ativa** no dia, cadastros continuam liberados. A API responde 403 `COTACAO_DIA_AUSENTE` só em vendas, recebimentos, pagamentos e facturas/NF-e (e `CotacaoService.exigirAtiva()` nesses services). O front mostra um **alerta fixo no topo** (não é modal e não se dispensa): adm/gestor informam as taxas ali mesmo; os demais veem o aviso. Com cotação ativa, um chip no topo mostra as taxas do dia. A lista de Cotações escuta `monarca:cotacao-mudou` e recarrega.
+- Só a cotação **de hoje** pode ser editada (`COTACAO_SO_HOJE`). Datas passadas são histórico: sem editar, sem excluir, sem ligar/desligar status. **Nunca exclui** cotação (`COTACAO_NAO_EXCLUI`). Data futura é rejeitada. Datas na lista em **dd/mm/aaaa**. Ordenação padrão: data decrescente. Menu **Operação → Cotações** (só adm/gestor).
 - Produto: IVA 0/5/10 (default 10) é metadado da factura. O preço de gôndola **já inclui IVA**; a venda não soma 0/5/10% em cima. Um preço de lista e custo na **moeda de operação da filial** (parâmetro em Empresa → parâmetros da filial; default USD). Quem cadastra produto não escolhe moeda. O PDV e o cadastro mostram o equivalente nas outras duas (Gs. / US$ / R$) pela cotação do dia. Recebimento da venda continua nas três moedas.
 - **Estoque padrão da venda:** um por filial, parâmetro de sistema em **Empresa → parâmetros da filial** (`filial.id_estoque_padrao`), igual à moeda de operação. Não há flag no cadastro de estoque. A venda e o saldo exibido no PDV/lista usam só esse depósito. Os demais existem para transferência (sem tela de transferência ainda). O primeiro estoque da filial vira o padrão; trocar só no parâmetro da filial. Não dá para inativar o estoque padrão.
 - **Caixa e venda:** cadastro de `finalizador` e `caixa` (por filial) em Cadastros (adm/gestor). Operação: abrir/fechar sessão com conferência, transferir entre caixas abertos da mesma filial, e PDV (`venda` + `venda_item` + `venda_negociacao` em N formas). Cada linha de pagamento tem **forma + moeda** (`pyg`/`usd`/`brl`); `valor` é o recebido na moeda e `valor_pyg` fecha a venda pela cotação do dia. O caixa guarda a mesma tríade; saldo e conferência são por forma+moeda. Troco fica para depois. Venda baixa estoque e lança movimento no caixa na mesma transação. Abertura de caixa não exige cotação; venda exige. Acesso em `usuario_caixa` (um padrão). RBAC: `caixa:gerenciar`, `caixa:operar`, `venda:registrar`. `venda.id_vendedor` é o **usuário** ativo da filial (não há CRUD de vendedor); o PDV inicia com o logado e **Trocar** escolhe outro. Operador do caixa continua sendo quem está autenticado.
-- **PDV (Operação → Vendas):** tela sempre aberta (catálogo em cards + carrinho). Não mistura lista e não tem “Nova venda”. Após finalizar, o carrinho zera, permanece no PDV e o foco volta à busca. Clicar de novo em Vendas (`navReset`) limpa o carrinho. Pagamento (formas + Gs./US$/R$) é o **segundo passo** do painel direito: o operador monta o carrinho e clica **Ir para pagamento**; não é modal e não fica visível enquanto lança itens. A vitrine mostra até 24 produtos com estoque (busca até 48), ordenados por quantidade; o leitor/código consulta o catálogo inteiro da filial.
-- **Histórico (Operação → Histórico):** lista `drive-table` + detalhe (sem modal, sem “Novo”). Mesma permissão `venda:registrar`. Caixa do dia continua em Operação → Caixa.
+- **PDV (Operação → Vendas):** tela sempre aberta (catálogo em cards + carrinho). Não mistura lista e não tem “Nova venda”. Após finalizar, o carrinho zera, permanece no PDV e o foco volta à busca. Clicar de novo em Vendas (`navReset`) limpa o carrinho. Pagamento (formas + Gs./US$/R$) é o **segundo passo** do painel direito: o operador monta o carrinho e clica **Ir para pagamento**; não é modal e não fica visível enquanto lança itens. A vitrine mostra até 24 produtos com estoque (busca até 48), ordenados por quantidade; o leitor/código consulta o catálogo inteiro da filial. **Produto com `controlaChassi`:** não lança pela quantidade — escolhe o chassi (busca/leitor, Enter). A linha do carrinho mostra os chassis; quantidade = unidades; `+` escolhe outro, `−` tira o último. POST com `idsUnidades`. Sem o flag, venda por quantidade como antes.
+- **Histórico (Operação → Histórico):** lista `drive-table` + **ficha** ao clicar na linha (mesmo modal de cliente/produto: overlay, ←/→, Escape). Sem “Novo”, sem editar/excluir. Coluna **Data** visível em dd/mm/aaaa (`title` com data e hora). Ordenação padrão: data decrescente. Mesma permissão `venda:registrar`. Caixa do dia continua em Operação → Caixa.
+- **Ficha (modal):** altura travada (`.ficha-modal-locked`); o miolo rola. Cliente, produto e histórico. Ficha de produto em **2 guias** (Dados | Estoque); o log de movimentação entra na guia Estoque quando existir. Com `controlaChassi`: chassis (código interno + número + situação) na guia Estoque — UI sempre diz “chassi”, para moto ou bicicleta. Sem aninhar aba. Subtítulo do produto é só o tipo; marca+modelo só se o nome for customizado.
+- Cidade: tipo **Município** ou **Distrito**. Distrito exige município da mesma UF/departamento. A sede não se cadastra como distrito de si mesma. Município é único na UF; distrito é único no município (o mesmo nome pode existir em outro município). Lista: nome + município pai (se distrito). Semente: municípios do Brasil (IBGE), distritos com nome diferente da sede, distritos do Paraguai como município.
 
 ## Entidade geral + específica
 
@@ -100,8 +103,9 @@ Quando o cadastro tem um núcleo comum e fichas diferentes (pessoa+papel, produt
 - Tabela geral com `id` (gerado, imutável) e campos de todos.
 - Tabela 1:1 por tipo (`produto_moto`, `produto_bicicleta`) com FK para o geral.
 - Enum `tipo` no geral; **não** mudar o tipo depois de criado.
+- Boolean `controlaChassi` no `produto` (não nas tabelas de tipo). Default na criação: **moto = true**, **bicicleta = false**. **Imutável** depois de criar (como `tipo`). Estoque, PDV e venda usam o flag — não `tipo === moto`. Textos da UI: sempre “chassi/chassis” (pt/es), mesmo em bicicleta.
 - Não criar tipo “reservado” para o futuro (ex.: peça). Quando surgir, nova tabela + valor no enum.
-- Form: guias **Cadastro** | **Ficha técnica** | **Preço e IVA** | **Estoque**. No **cadastro novo**, a guia Estoque tem quantidade inicial (padrão 0) que entra no estoque padrão da filial; os demais depósitos ficam zerados. Na **edição**, a guia é somente leitura — quantidade se ajusta em Operação → Estoques.
+- Form: guias **Cadastro** | **Ficha técnica** | **Preço e IVA** | **Estoque**. No **cadastro novo**, a guia Estoque: sem flag → quantidade inicial (padrão 0) no estoque padrão da filial; com flag → chassis iniciais (um por linha ou intervalo `INICIO~FIM` com `~` — o hífen pode fazer parte do número). Chassi **não** fica na ficha técnica. Na **edição**, sem flag a quantidade é só em Operação → Estoques; com flag inclui/remove chassis na guia Estoque — o saldo = unidades disponíveis. Unidade vendida não se exclui.
 
 ## Backend
 
@@ -133,7 +137,7 @@ Na troca de idioma, **tudo que é estático** deve aparecer traduzido, com gram�
 
 **Não traduzir:** valor que veio do banco (nome de marca, cidade, RUC, SKU, tipo de documento cadastrado). Isso permanece como o usuário gravou.
 
-**Exceção — status:** o enum do banco (`ativo` / `inativo`) **não** aparece cru. Sempre `StatusBadge` / `t("common.active")` e `t("common.inactive")` (pt: Ativo / Inativo; es: Activo / Inactivo).
+**Exceção — status:** o enum do banco (`ativo` / `inativo`) **não** aparece cru. Na **lista**: interruptor (`StatusBadge`). Na **ficha**: texto Ativo/Inativo (`StatusTexto`). Sempre `t("common.active")` / `t("common.inactive")` (pt: Ativo / Inativo; es: Activo / Inactivo).
 
 **Erros da API:** JSON `{ codigo, message, params }`. O `message` em português é só log/teste. A UI usa `mensagemErroApi` → chave `api.{CODIGO}` (placeholders `{campo}` via `params`). No service: `invalido("CODIGO", "frase pt", "campo" to valor)`. Nunca mostrar `e.message` cru na tela. Novo erro = novo código + `api.CODIGO` em pt e es.
 

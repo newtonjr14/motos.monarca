@@ -1,32 +1,33 @@
 import { Field } from "@/components/crud/Field";
 import type { Cidade } from "@/api";
+import { rotuloCidade } from "@/format";
 import { useI18n } from "@/i18n";
 import { useMemo, useRef, useState } from "react";
 
 const v = (name: string) => `var(${name})`;
+const MAX_OPCOES = 80;
 
 function filtrarCidades(cidades: Cidade[], query: string): Cidade[] {
   const q = query.trim().toLowerCase();
   if (!q) return cidades;
   return cidades.filter((c) => {
-    const texto = `${c.nome} ${c.divisaoSigla ?? ""} ${c.divisaoNome ?? ""} ${c.paisNome ?? ""}`.toLowerCase();
+    const texto = `${c.nome} ${c.municipioNome ?? ""} ${c.divisaoSigla ?? ""} ${c.divisaoNome ?? ""} ${c.paisNome ?? ""}`.toLowerCase();
     return texto.includes(q);
   });
-}
-
-function labelCidade(c: Cidade): string {
-  const divisao = c.divisaoSigla ?? c.divisaoNome;
-  return `${c.nome} · ${divisao} · ${c.paisNome}`;
 }
 
 export default function CidadeSearchSelect({
   cidades,
   value,
   onChange,
+  label,
+  required,
 }: {
   cidades: Cidade[];
   value: number | "";
   onChange: (id: number | "") => void;
+  label?: string;
+  required?: boolean;
 }) {
   const { t } = useI18n();
   const [aberto, setAberto] = useState(false);
@@ -35,7 +36,7 @@ export default function CidadeSearchSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const selecionada = value === "" ? undefined : cidades.find((c) => c.id === value);
-  const opcoes = useMemo(() => filtrarCidades(cidades, busca), [cidades, busca]);
+  const opcoes = useMemo(() => filtrarCidades(cidades, busca).slice(0, MAX_OPCOES), [cidades, busca]);
 
   function fechar() {
     setAberto(false);
@@ -55,10 +56,10 @@ export default function CidadeSearchSelect({
     }
   }
 
-  const rotuloAtual = selecionada ? labelCidade(selecionada) : t("cidade.searchPlaceholder");
+  const rotuloAtual = selecionada ? rotuloCidade(selecionada) : t("cidade.searchPlaceholder");
 
   return (
-    <Field label={t("papel.city")}>
+    <Field label={label ?? t("papel.city")} required={required}>
       <div className="relative" ref={containerRef}>
         <button
           ref={triggerRef}
@@ -121,7 +122,7 @@ export default function CidadeSearchSelect({
                       style={{ color: value === c.id ? v("--gold") : v("--text-sub") }}
                       onClick={() => selecionar(c.id)}
                     >
-                      {labelCidade(c)}
+                      {rotuloCidade(c)}
                     </button>
                   </li>
                 ))}

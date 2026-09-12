@@ -23,9 +23,12 @@ object DivisoesTable : LongIdTable("divisao") {
 object CidadesTable : LongIdTable("cidade") {
     val idDivisao = reference("id_divisao", DivisoesTable)
     val nome = varchar("nome", 150)
+    val tipo = varchar("tipo", 20).default("municipio")
+    val idCidadeMunicipio = long("id_cidade_municipio").nullable()
+    val idPaiChave = long("id_pai_chave").default(0)
     val status = varchar("status", 20).default("ativo")
 
     init {
-        uniqueIndex(idDivisao, nome)
+        uniqueIndex(idDivisao, nome, idPaiChave)
     }
 }

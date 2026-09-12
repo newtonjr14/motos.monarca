@@ -33,7 +33,7 @@ class ProdutoEstoqueTest {
                 auth(token)
                 contentType(ContentType.Application.Json)
                 setBody(
-                    """{"codigo":"MTR-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026,"chassi":"CHS$n","cor":"Preto","potenciaMotorW":3000}}""",
+                    """{"codigo":"MTR-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026,"cor":"Preto","potenciaMotorW":3000},"numerosIniciais":["CHS$n"]}""",
                 )
             }
             assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
@@ -41,11 +41,16 @@ class ProdutoEstoqueTest {
             val id = produto["id"]!!.jsonPrimitive.long
             assertEquals("MTR-$n", produto["codigo"]!!.jsonPrimitive.content)
             assertEquals("moto", produto["tipo"]!!.jsonPrimitive.content)
+            assertEquals(true, produto["controlaChassi"]!!.jsonPrimitive.boolean)
             assertEquals("Monarca", produto["marca"]!!.jsonPrimitive.content)
             assertEquals("Urban $n", produto["modelo"]!!.jsonPrimitive.content)
             assertEquals("Monarca Urban $n", produto["nome"]!!.jsonPrimitive.content)
-            assertEquals("CHS$n", produto["moto"]!!.jsonObject["chassi"]!!.jsonPrimitive.content)
             assertEquals("Preto", produto["moto"]!!.jsonObject["cor"]!!.jsonPrimitive.content)
+            val unidades = Json.parseToJsonElement(client.get("/produtos/$id/unidades") { auth(token) }.bodyAsText()).jsonArray
+            assertEquals(1, unidades.size)
+            assertEquals("CHS$n", unidades.first().jsonObject["numero"]!!.jsonPrimitive.content)
+            assertEquals("disponivel", unidades.first().jsonObject["situacao"]!!.jsonPrimitive.content)
+            assertEquals(1, produto["quantidadeDisponivel"]!!.jsonPrimitive.int)
             assertEquals(2026, produto["moto"]!!.jsonObject["anoFabricacao"]!!.jsonPrimitive.int)
             assertEquals(2026, produto["moto"]!!.jsonObject["anoModelo"]!!.jsonPrimitive.int)
             assertEquals(10, produto["aliquotaIva"]!!.jsonPrimitive.int)
@@ -58,7 +63,7 @@ class ProdutoEstoqueTest {
                 auth(token)
                 contentType(ContentType.Application.Json)
                 setBody(
-                    """{"codigo":"MTR-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026,"chassi":"CHS$n","cor":"Vermelho"}}""",
+                    """{"codigo":"MTR-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026,"cor":"Vermelho"}}""",
                 )
             }
             assertEquals(HttpStatusCode.OK, updated.status)
@@ -68,6 +73,8 @@ class ProdutoEstoqueTest {
             val lista = Json.parseToJsonElement(client.get("/produtos") { auth(token) }.bodyAsText()).jsonArray
             assertTrue(lista.any { it.jsonObject["id"]!!.jsonPrimitive.long == id })
 
+            val idUnidade = unidades.first().jsonObject["id"]!!.jsonPrimitive.long
+            assertEquals(HttpStatusCode.NoContent, client.delete("/produtos/$id/unidades/$idUnidade") { auth(token) }.status)
             assertEquals(HttpStatusCode.NoContent, client.delete("/produtos/$id") { auth(token) }.status)
         }
     }
@@ -510,6 +517,136 @@ class ProdutoEstoqueTest {
             }
             assertEquals(HttpStatusCode.OK, inativo.status, inativo.bodyAsText())
             assertEquals("inativo", Json.parseToJsonElement(inativo.bodyAsText()).jsonObject["status"]!!.jsonPrimitive.content)
+        }
+    }
+
+    @Test
+    fun `controlaChassi default por tipo e imutavel na edicao`() = testApplication {
+        configure()
+        withAuth { token ->
+            val n = System.nanoTime()
+            val (idMarcaMoto, idModeloMoto) = criarModelo(token, "moto", "FlagM $n")
+            val (idMarcaBike, idModeloBike) = criarModelo(token, "bicicleta", "FlagB $n")
+
+            val moto = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"FM-$n","idMarca":$idMarcaMoto,"idModelo":$idModeloMoto,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, moto.status, moto.bodyAsText())
+            val motoBody = Json.parseToJsonElement(moto.bodyAsText()).jsonObject
+            val idMoto = motoBody["id"]!!.jsonPrimitive.long
+            assertEquals(true, motoBody["controlaChassi"]!!.jsonPrimitive.boolean)
+
+            val bike = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"FB-$n","idMarca":$idMarcaBike,"idModelo":$idModeloBike,"tipo":"bicicleta","quantidadeInicial":3}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, bike.status, bike.bodyAsText())
+            val bikeBody = Json.parseToJsonElement(bike.bodyAsText()).jsonObject
+            val idBike = bikeBody["id"]!!.jsonPrimitive.long
+            assertEquals(false, bikeBody["controlaChassi"]!!.jsonPrimitive.boolean)
+            assertEquals(3, bikeBody["quantidadeDisponivel"]!!.jsonPrimitive.int)
+
+            val mudaMoto = client.put("/produtos/$idMoto") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"FM-$n","idMarca":$idMarcaMoto,"idModelo":$idModeloMoto,"tipo":"moto","controlaChassi":false,"moto":{"anoFabricacao":2026,"anoModelo":2026}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, mudaMoto.status, mudaMoto.bodyAsText())
+            assertEquals(
+                "CONTROLA_CHASSI_IMUTAVEL",
+                Json.parseToJsonElement(mudaMoto.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
+            )
+
+            val bikeComChassi = client.post("/produtos/$idBike/unidades") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"numeros":["BK$n"]}""")
+            }
+            assertEquals(HttpStatusCode.BadRequest, bikeComChassi.status)
+            assertEquals(
+                "CHASSI_NAO_CONTROLADO",
+                Json.parseToJsonElement(bikeComChassi.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
+            )
+
+            val bikeComFlag = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"FBC-$n","idMarca":$idMarcaBike,"idModelo":$idModeloBike,"tipo":"bicicleta","controlaChassi":true,"numerosIniciais":["BC$n"]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, bikeComFlag.status, bikeComFlag.bodyAsText())
+            val bikeFlag = Json.parseToJsonElement(bikeComFlag.bodyAsText()).jsonObject
+            assertEquals(true, bikeFlag["controlaChassi"]!!.jsonPrimitive.boolean)
+            assertEquals(1, bikeFlag["quantidadeDisponivel"]!!.jsonPrimitive.int)
+
+            val motoSemFlag = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"FMQ-$n","idMarca":$idMarcaMoto,"idModelo":$idModeloMoto,"tipo":"moto","controlaChassi":false,"quantidadeInicial":4,"moto":{"anoFabricacao":2026,"anoModelo":2026}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, motoSemFlag.status, motoSemFlag.bodyAsText())
+            val motoQtd = Json.parseToJsonElement(motoSemFlag.bodyAsText()).jsonObject
+            assertEquals(false, motoQtd["controlaChassi"]!!.jsonPrimitive.boolean)
+            assertEquals(4, motoQtd["quantidadeDisponivel"]!!.jsonPrimitive.int)
+        }
+    }
+
+    @Test
+    fun `moto entra com intervalo de chassi e rejeita duplicado`() = testApplication {
+        configure()
+        withAuth { token ->
+            val n = System.nanoTime()
+            val (idMarca, idModelo) = criarModelo(token, "moto", "Lote $n")
+            val created = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"LOT-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026},"numerosIniciais":["HD5BL${n}SA063647~HD5BL${n}SA063696"]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, created.status, created.bodyAsText())
+            val produto = Json.parseToJsonElement(created.bodyAsText()).jsonObject
+            val id = produto["id"]!!.jsonPrimitive.long
+            assertEquals(50, produto["quantidadeDisponivel"]!!.jsonPrimitive.int)
+            val unidades = Json.parseToJsonElement(client.get("/produtos/$id/unidades") { auth(token) }.bodyAsText()).jsonArray
+            assertEquals(50, unidades.size)
+            assertEquals("HD5BL${n}SA063647", unidades.first().jsonObject["numero"]!!.jsonPrimitive.content)
+            assertEquals("HD5BL${n}SA063696", unidades.last().jsonObject["numero"]!!.jsonPrimitive.content)
+
+            val extra = client.post("/produtos/$id/unidades") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"numeros":["HD5BL${n}SA063647"]}""")
+            }
+            assertEquals(HttpStatusCode.BadRequest, extra.status)
+            assertEquals("CHASSI_DUPLICADO", Json.parseToJsonElement(extra.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
+
+            val repetido = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"DUP-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","moto":{"anoFabricacao":2026,"anoModelo":2026},"numerosIniciais":["AAA$n","AAA$n"]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, repetido.status)
+            assertEquals("CHASSI_DUPLICADO", Json.parseToJsonElement(repetido.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content)
+
+            val idUnidade = unidades.first().jsonObject["id"]!!.jsonPrimitive.long
+            assertEquals(HttpStatusCode.NoContent, client.delete("/produtos/$id/unidades/$idUnidade") { auth(token) }.status)
+            val depois = Json.parseToJsonElement(client.get("/produtos/$id/unidades") { auth(token) }.bodyAsText()).jsonArray
+            assertEquals(49, depois.size)
         }
     }
 }

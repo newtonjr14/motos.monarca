@@ -26,8 +26,27 @@ interface LocalidadeRepository {
 
     suspend fun listarCidades(idPais: Long?, idDivisao: Long?): List<CidadeDetalhe>
     suspend fun buscarCidade(id: Long): CidadeDetalhe?
-    suspend fun existeCidade(idDivisao: Long, nome: String, ignorarId: Long? = null): Boolean
-    suspend fun inserirCidade(nome: String, idDivisao: Long, status: Status): Long
-    suspend fun atualizarCidade(id: Long, nome: String, idDivisao: Long, status: Status): Boolean
+    suspend fun existeCidade(
+        idDivisao: Long,
+        nome: String,
+        idCidadeMunicipio: Long?,
+        ignorarId: Long? = null,
+    ): Boolean
+    suspend fun contarDistritosDoMunicipio(idMunicipio: Long): Long
+    suspend fun inserirCidade(
+        nome: String,
+        idDivisao: Long,
+        tipo: String,
+        idCidadeMunicipio: Long?,
+        status: Status,
+    ): Long
+    suspend fun atualizarCidade(
+        id: Long,
+        nome: String,
+        idDivisao: Long,
+        tipo: String,
+        idCidadeMunicipio: Long?,
+        status: Status,
+    ): Boolean
     suspend fun excluirCidade(id: Long): Boolean
 }

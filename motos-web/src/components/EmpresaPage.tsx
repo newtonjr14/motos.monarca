@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import CidadeSearchSelect from "@/components/CidadeSearchSelect";
 import DdiSearchSelect from "@/components/DdiSearchSelect";
 import FilialParametrosModal, { FilialParametrosIconButton } from "@/components/FilialParametrosModal";
-import { ListToolbar, StatusFilter, TableHeadRow, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
+import { ListToolbar, StatusBadge, StatusFilter, TableHeadRow, Td, passaFiltroStatus, useAlternarStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -24,6 +24,36 @@ import {
 import { normalizarCep, toEmailLower, toTitleCase } from "@/format";
 
 const v = (name: string) => `var(${name})`;
+
+function corpoFilial(idEmpresa: number, f: Filial, status: "ativo" | "inativo") {
+  return {
+    idEmpresa,
+    nome: f.nome,
+    ddi: f.ddi,
+    telefone: f.telefone,
+    email: f.email,
+    tipoLogradouro: f.tipoLogradouro,
+    logradouro: f.logradouro,
+    numero: f.numero,
+    bairro: f.bairro,
+    cep: f.cep,
+    complemento: f.complemento,
+    idCidade: f.idCidade,
+    timbrado: f.timbrado,
+    timbradoVigenciaInicio: f.timbradoVigenciaInicio,
+    timbradoVigenciaFim: f.timbradoVigenciaFim,
+    estabelecimentoNumero: f.estabelecimentoNumero,
+    pontoExpedicao: f.pontoExpedicao,
+    perfilFiscal: f.perfilFiscal,
+    moedaOperacao: f.moedaOperacao,
+    idEstoquePadrao: f.idEstoquePadrao ?? null,
+    principal: f.principal,
+    listarApenasClientesFilial: f.listarApenasClientesFilial,
+    listarApenasFornecedoresFilial: f.listarApenasFornecedoresFilial,
+    listarApenasProdutosFilial: f.listarApenasProdutosFilial,
+    status,
+  };
+}
 
 function Field({
   label,
@@ -55,21 +85,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="text-sm font-medium" style={{ color: v("--text-sub") }}>{title}</h2>
       {children}
     </section>
-  );
-}
-
-function StatusBadge({ status }: { status: "ativo" | "inativo" }) {
-  const { t } = useI18n();
-  const active = status === "ativo";
-  return (
-    <span className="inline-flex px-2 py-0.5 rounded text-xs border"
-      style={{
-        background: active ? "var(--success-bg)" : "rgba(148,163,184,0.1)",
-        borderColor: active ? "var(--success-border)" : "rgba(148,163,184,0.2)",
-        color: active ? "var(--success)" : v("--text-muted"),
-      }}>
-      {active ? t("common.active") : t("common.inactive")}
-    </span>
   );
 }
 
@@ -159,6 +174,13 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
       setErro(mensagemErroApi(e, t, "empresa.error.loadFailed"));
     }
   }
+
+  const { statusBusyId, alternar } = useAlternarStatus(
+    setFiliais,
+    (f, proximo) => atualizarFilial(f.id, corpoFilial(empresa!.id, f, proximo)),
+    (e) => setErro(mensagemErroApi(e, t, "empresa.error.saveFailed")),
+    carregar,
+  );
 
   async function ligarSeed() {
     setSeedSalvando(true);
@@ -489,13 +511,14 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
           </ListToolbar>
         </div>
         <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
-          <table className="drive-table w-full">
+          <table className="drive-table drive-table-filiais w-full">
             <thead>
               <TableHeadRow
                 sortKey={sortKey}
                 sortDir={sortDir}
                 onSort={onSort}
                 cols={[
+                  { label: "col.id", sort: "id" },
                   { label: "common.name", sort: "nome" },
                   { label: "papel.city", sort: "cidade" },
                   { label: "empresa.perfilFiscal" },
@@ -508,18 +531,32 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
             </thead>
             <tbody>
               {filiaisFiltradas.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-6 text-sm text-center" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</td></tr>
+                <tr><td colSpan={8} className="px-4 py-6 text-sm text-center" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</td></tr>
               ) : filiaisOrdenadas.map((f) => (
                 <tr key={f.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                  <td className="drive-td text-sm" style={{ color: v("--text") }}>{f.nome}</td>
-                  <td className="drive-td text-sm" style={{ color: v("--text-sub") }}>
+                  <Td mono gold>{f.id}</Td>
+                  <td className="drive-td">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm truncate" style={{ color: v("--text") }} title={f.nome}>{f.nome}</span>
+                      {f.estabelecimentoNumero ? (
+                        <span className="filial-estab" title={t("empresa.estabelecimento")}>{f.estabelecimentoNumero}</span>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className="drive-td text-sm" style={{ color: v("--text-sub") }} title={f.cidadeNome ? `${f.cidadeNome}${f.divisaoSigla ? ` (${f.divisaoSigla})` : ""}` : undefined}>
                     {f.cidadeNome ? `${f.cidadeNome}${f.divisaoSigla ? ` (${f.divisaoSigla})` : ""}` : "—"}
                   </td>
                   <td className="drive-td text-sm" style={{ color: v("--text-sub") }}>
                     {f.perfilFiscal === "py_iva" ? t("empresa.perfilFiscal.py_iva") : f.perfilFiscal}
                   </td>
                   <td className="drive-td text-sm">{f.principal ? t("common.yes") : t("common.no")}</td>
-                  <td className="drive-td"><StatusBadge status={f.status === "inativo" ? "inativo" : "ativo"} /></td>
+                  <td className="drive-td drive-td-status" onClick={(ev) => ev.stopPropagation()}>
+                    <StatusBadge
+                      status={f.status === "inativo" ? "inativo" : "ativo"}
+                      disabled={statusBusyId === f.id}
+                      onToggle={() => void alternar(f)}
+                    />
+                  </td>
                   <td className="drive-td drive-td-actions">
                     <FilialParametrosIconButton
                       label={t("empresa.branchParameters")}

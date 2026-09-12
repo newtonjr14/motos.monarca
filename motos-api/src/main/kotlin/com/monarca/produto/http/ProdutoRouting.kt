@@ -13,6 +13,7 @@ import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.RequisicaoInvalida
 import com.monarca.produto.dto.ProdutoRequest
 import com.monarca.produto.dto.ProdutoStatusRequest
+import com.monarca.produto.dto.ProdutoUnidadeLoteRequest
 import com.monarca.produto.service.ProdutoService
 import com.monarca.produto.service.VinculoFilialProdutoConflito
 import io.ktor.http.HttpStatusCode
@@ -77,6 +78,40 @@ fun Application.configureProduto() {
                     call.podeGerenciarProduto()
                     call.withAudit {
                         service.excluir(resource.id, resource.idFilial, call.usuarioAutenticado().id)
+                        call.respond(HttpStatusCode.NoContent)
+                    }
+                }
+            }
+            get<Produtos.Id.Unidades> { resource ->
+                call.handleProduto(service) {
+                    call.podeConsultarProduto()
+                    call.respond(
+                        service.listarUnidades(
+                            resource.parent.id,
+                            resource.idFilial ?: resource.parent.idFilial,
+                            resource.situacao,
+                            call.usuarioAutenticado().id,
+                        ),
+                    )
+                }
+            }
+            post<Produtos.Id.Unidades> { resource ->
+                call.handleProduto(service) {
+                    call.podeGerenciarProduto()
+                    val request = call.receive<ProdutoUnidadeLoteRequest>()
+                    call.withAudit {
+                        call.respond(
+                            HttpStatusCode.Created,
+                            service.adicionarUnidades(resource.parent.id, request, call.usuarioAutenticado().id),
+                        )
+                    }
+                }
+            }
+            delete<Produtos.Id.Unidades.IdUnidade> { resource ->
+                call.handleProduto(service) {
+                    call.podeGerenciarProduto()
+                    call.withAudit {
+                        service.excluirUnidade(resource.parent.parent.id, resource.idUnidade, call.usuarioAutenticado().id)
                         call.respond(HttpStatusCode.NoContent)
                     }
                 }

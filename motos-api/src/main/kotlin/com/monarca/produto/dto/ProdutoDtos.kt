@@ -3,12 +3,12 @@ package com.monarca.produto.dto
 import com.monarca.common.enums.Status
 import com.monarca.pessoa.dto.FilialVinculoResponse
 import com.monarca.produto.domain.Moeda
+import com.monarca.produto.domain.SituacaoUnidade
 import com.monarca.produto.domain.TipoProduto
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class ProdutoMotoRequest(
-    val chassi: String? = null,
     val cor: String? = null,
     val potenciaMotorW: Int? = null,
     val autonomiaKm: Int? = null,
@@ -48,6 +48,7 @@ data class ProdutoRequest(
     val idModelo: Long,
     val descricao: String? = null,
     val tipo: TipoProduto,
+    val controlaChassi: Boolean? = null,
     val idFilialCadastro: Long? = null,
     val confirmarVinculoFilial: Boolean = false,
     val aliquotaIva: Int = 10,
@@ -58,6 +59,7 @@ data class ProdutoRequest(
     val moto: ProdutoMotoRequest? = null,
     val bicicleta: ProdutoBicicletaRequest? = null,
     val quantidadeInicial: Int = 0,
+    val numerosIniciais: List<String> = emptyList(),
 )
 
 @Serializable
@@ -66,8 +68,24 @@ data class ProdutoStatusRequest(
 )
 
 @Serializable
+data class ProdutoUnidadeResponse(
+    val id: Long,
+    val idProduto: Long,
+    val idEstoque: Long,
+    val estoqueNome: String,
+    val numero: String,
+    val situacao: SituacaoUnidade,
+    val idVendaItem: Long? = null,
+)
+
+@Serializable
+data class ProdutoUnidadeLoteRequest(
+    val numeros: List<String> = emptyList(),
+    val idEstoque: Long? = null,
+)
+
+@Serializable
 data class ProdutoMotoResponse(
-    val chassi: String? = null,
     val cor: String? = null,
     val potenciaMotorW: Int? = null,
     val autonomiaKm: Int? = null,
@@ -128,6 +146,7 @@ data class ProdutoResponse(
     val modelo: String,
     val descricao: String? = null,
     val tipo: TipoProduto,
+    val controlaChassi: Boolean,
     val idFilialCadastro: Long? = null,
     val filialNome: String? = null,
     val filiaisVinculadas: List<FilialVinculoResponse> = emptyList(),

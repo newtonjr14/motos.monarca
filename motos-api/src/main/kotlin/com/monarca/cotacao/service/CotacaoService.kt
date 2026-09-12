@@ -48,7 +48,7 @@ class CotacaoService(
         val existente = repository.buscarPorData(cotacao.data)
         val id = when {
             existente == null -> repository.inserir(cotacao)
-            existente.status == Status.DELETADO -> {
+            existente.status != Status.ATIVO -> {
                 repository.atualizar(existente.id, cotacao.copy(id = existente.id))
                 existente.id
             }
@@ -64,24 +64,16 @@ class CotacaoService(
     suspend fun atualizar(id: Long, request: CotacaoRequest): CotacaoResponse {
         val atual = repository.buscar(id) ?: throw RecursoNaoEncontrado("Cotação $id não encontrada")
         val cotacao = validar(request, id)
-        if (cotacao.data != atual.data) {
-            val outro = repository.buscarPorData(cotacao.data)
-            if (outro != null && outro.id != id && outro.status != Status.DELETADO) {
-                throw invalido(
-                    "COTACAO_DIA_DUPLICADA",
-                    "Já existe cotação para ${cotacao.data}",
-                    "data" to cotacao.data,
-                )
-            }
+        if (atual.data != dataHoje() || cotacao.data != atual.data) {
+            throw invalido("COTACAO_SO_HOJE", "Só é possível editar a cotação do dia")
         }
         repository.atualizar(id, cotacao)
         return buscar(id)
     }
 
     suspend fun excluir(id: Long) {
-        if (!repository.excluir(id)) {
-            throw RecursoNaoEncontrado("Cotação $id não encontrada")
-        }
+        repository.buscar(id) ?: throw RecursoNaoEncontrado("Cotação $id não encontrada")
+        throw invalido("COTACAO_NAO_EXCLUI", "Não é possível excluir cotações. O histórico é permanente.")
     }
 
     private fun validar(request: CotacaoRequest, id: Long): Cotacao {

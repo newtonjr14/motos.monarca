@@ -8,6 +8,8 @@ import com.monarca.produto.domain.ProdutoCompleto
 import com.monarca.produto.domain.ProdutoEstoqueSaldo
 import com.monarca.produto.domain.ProdutoMoto
 import com.monarca.produto.domain.ProdutoSaldoTotal
+import com.monarca.produto.domain.ProdutoUnidade
+import com.monarca.produto.domain.SituacaoUnidade
 import com.monarca.produto.domain.TipoProduto
 
 interface ProdutoRepository {
@@ -15,7 +17,7 @@ interface ProdutoRepository {
     suspend fun buscar(id: Long): ProdutoCompleto?
     suspend fun buscarPorCodigo(codigo: String): ProdutoCompleto?
     suspend fun existeCodigo(codigo: String, ignorarId: Long? = null): Boolean
-    suspend fun existeChassi(chassi: String, ignorarIdProduto: Long? = null): Boolean
+    suspend fun existeNumeroUnidade(numero: String, ignorarId: Long? = null): Boolean
     suspend fun existeNumeroSerieQuadro(serie: String, ignorarIdProduto: Long? = null): Boolean
     suspend fun inserir(
         produto: Produto,
@@ -23,6 +25,7 @@ interface ProdutoRepository {
         bicicleta: ProdutoBicicleta?,
         idFilial: Long,
         quantidadeInicial: Int = 0,
+        numerosIniciais: List<String> = emptyList(),
     ): Long
     suspend fun atualizar(id: Long, produto: Produto, moto: ProdutoMoto?, bicicleta: ProdutoBicicleta?): Boolean
     suspend fun atualizarStatus(id: Long, status: Status): Boolean
@@ -33,4 +36,9 @@ interface ProdutoRepository {
     suspend fun listarFiliais(idProduto: Long): List<FilialVinculo>
     suspend fun somarEstoquePorFilial(idFilial: Long): Map<Long, ProdutoSaldoTotal>
     suspend fun listarEstoqueDoProduto(idProduto: Long, idFilial: Long): List<ProdutoEstoqueSaldo>
+    suspend fun listarUnidades(idProduto: Long, idFilial: Long?, situacao: SituacaoUnidade?): List<ProdutoUnidade>
+    suspend fun buscarUnidadesPorIds(ids: List<Long>): List<ProdutoUnidade>
+    suspend fun inserirUnidades(idProduto: Long, idEstoque: Long, numeros: List<String>): List<Long>
+    suspend fun excluirUnidade(id: Long): Boolean
+    suspend fun produtoControlaChassi(id: Long): Boolean
 }

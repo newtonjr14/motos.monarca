@@ -16,5 +16,17 @@ class Produtos(
         @Serializable
         @Resource("status")
         class StatusPatch(val parent: Id)
+
+        @Serializable
+        @Resource("unidades")
+        class Unidades(
+            val parent: Id,
+            val idFilial: Long? = null,
+            val situacao: com.monarca.produto.domain.SituacaoUnidade? = null,
+        ) {
+            @Serializable
+            @Resource("{idUnidade}")
+            class IdUnidade(val parent: Unidades, val idUnidade: Long)
+        }
     }
 }

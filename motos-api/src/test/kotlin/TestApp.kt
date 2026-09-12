@@ -8,11 +8,14 @@ import io.ktor.server.testing.ApplicationTestBuilder
 private val coroutinesTestTimeout =
     System.setProperty("kotlinx.coroutines.test.default_timeout", "60s")
 
-fun ApplicationTestBuilder.configure(seedDemo: Boolean = true) {
+fun ApplicationTestBuilder.configure(seedDemo: Boolean = true, seedCidades: Boolean = false) {
     checkNotNull(coroutinesTestTimeout)
     environment {
         config = ApplicationConfig("application.yaml").mergeWith(
-            MapApplicationConfig("seed.demo" to seedDemo.toString()),
+            MapApplicationConfig(
+                "seed.demo" to seedDemo.toString(),
+                "seed.cidades" to seedCidades.toString(),
+            ),
         )
     }
 }

@@ -34,6 +34,15 @@ object VendaItensTable : LongIdTable("venda_item") {
     val totalPyg = double("total_pyg")
 }
 
+object VendaItemUnidadesTable : LongIdTable("venda_item_unidade") {
+    val idVendaItem = reference("id_venda_item", VendaItensTable)
+    val idProdutoUnidade = long("id_produto_unidade")
+
+    init {
+        uniqueIndex(idProdutoUnidade)
+    }
+}
+
 object VendaNegociacoesTable : LongIdTable("venda_negociacao") {
     val idVenda = reference("id_venda", VendasTable)
     val idFinalizador = reference("id_finalizador", FinalizadoresTable)

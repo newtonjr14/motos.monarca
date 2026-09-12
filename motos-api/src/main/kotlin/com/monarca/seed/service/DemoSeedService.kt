@@ -193,30 +193,30 @@ class DemoSeedService(
         val moto = produtoDemo(
             idUsuario, idFilial, idEstoquePrincipal, "DEMO-M01", marca.id, idModeloScooter, TipoProduto.MOTO,
             Moeda.USD, 1_200.0, 780.0, 5,
-            moto = ProdutoMotoRequest(chassi = "DEMOCHASSI001", cor = "Branca", anoFabricacao = ano, anoModelo = ano, assentos = 2),
+            moto = ProdutoMotoRequest(cor = "Branca", anoFabricacao = ano, anoModelo = ano, assentos = 2),
         )
         produtoDemo(
             idUsuario, idFilial, idEstoquePrincipal, "DEMO-M02", idHonda, idModeloCg, TipoProduto.MOTO,
             Moeda.USD, 2_450.0, 1_680.0, 4,
-            moto = ProdutoMotoRequest(chassi = "DEMOCHASSI002", cor = "Vermelha", anoFabricacao = ano, anoModelo = ano, tipoFreio = "Disco"),
+            moto = ProdutoMotoRequest(cor = "Vermelha", anoFabricacao = ano, anoModelo = ano, tipoFreio = "Disco"),
         )
         produtoDemo(
             idUsuario, idFilial, idEstoquePrincipal, "DEMO-M03", idHonda, idModeloPop, TipoProduto.MOTO,
             Moeda.PYG, 8_900_000.0, 6_200_000.0, 6,
-            moto = ProdutoMotoRequest(chassi = "DEMOCHASSI003", cor = "Azul", anoFabricacao = ano, anoModelo = ano, assentos = 2),
+            moto = ProdutoMotoRequest(cor = "Azul", anoFabricacao = ano, anoModelo = ano, assentos = 2),
         )
         produtoDemo(
             idUsuario, idFilial, idEstoquePrincipal, "DEMO-M04", idSoco, idModeloTc, TipoProduto.MOTO,
             Moeda.USD, 3_100.0, 2_050.0, 3,
             moto = ProdutoMotoRequest(
-                chassi = "DEMOCHASSI004", cor = "Preta", anoFabricacao = ano, anoModelo = ano,
+                cor = "Preta", anoFabricacao = ano, anoModelo = ano,
                 potenciaMotorW = 4000, autonomiaKm = 110, velocidadeMaxKmh = 95,
             ),
         )
         val motoCux = produtoDemo(
             idUsuario, idFilial, idEstoquePrincipal, "DEMO-M05", idSoco, idModeloCux, TipoProduto.MOTO,
             Moeda.BRL, 12_800.0, 8_400.0, 4,
-            moto = ProdutoMotoRequest(chassi = "DEMOCHASSI005", cor = "Cinza", anoFabricacao = ano, anoModelo = ano, autonomiaKm = 70),
+            moto = ProdutoMotoRequest(cor = "Cinza", anoFabricacao = ano, anoModelo = ano, autonomiaKm = 70),
         )
 
         val idPatio = garantirEstoque(idFilial, idUsuario, "DEMO Pátio")
@@ -411,23 +411,33 @@ class DemoSeedService(
         val cotacao = cotacaoService.buscarHoje()
         val precoOp = converterMoeda(preco, moeda, filial.moedaOperacao, cotacao.usdPyg, cotacao.brlPyg)
         val custoOp = converterMoeda(custo, moeda, filial.moedaOperacao, cotacao.usdPyg, cotacao.brlPyg)
+        val numeros = if (tipo == TipoProduto.MOTO && estoque > 0) {
+            (1..estoque).map { "$codigo-${it.toString().padStart(3, '0')}" }
+        } else {
+            emptyList()
+        }
         val produto = existente ?: produtoService.criar(
             ProdutoRequest(
                 codigo = codigo,
                 idMarca = idMarca,
                 idModelo = idModelo,
                 tipo = tipo,
+                controlaChassi = tipo == TipoProduto.MOTO,
                 idFilialCadastro = idFilial,
                 moedaPreco = filial.moedaOperacao,
                 precoLista = precoOp,
                 custo = custoOp,
                 moto = moto,
                 bicicleta = bicicleta,
+                numerosIniciais = numeros,
+                quantidadeInicial = if (tipo == TipoProduto.MOTO) 0 else estoque,
             ),
             idUsuario,
         )
         marcadores.marcar("produto", produto.id)
-        setEstoque(idEstoque, produto.id, estoque, idFilial, idUsuario)
+        if (!produto.controlaChassi) {
+            setEstoque(idEstoque, produto.id, estoque, idFilial, idUsuario)
+        }
         return produto.id
     }
 

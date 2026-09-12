@@ -61,7 +61,7 @@ export function CotacaoHojeProvider({ children }: { children: ReactNode }) {
   return <CotacaoHojeContext.Provider value={value}>{children}</CotacaoHojeContext.Provider>;
 }
 
-function useCotacaoHoje() {
+export function useCotacaoHoje() {
   const ctx = useContext(CotacaoHojeContext);
   if (!ctx) throw new Error("CotacaoHojeProvider");
   return ctx;

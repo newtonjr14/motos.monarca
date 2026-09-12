@@ -34,8 +34,15 @@ class VendaTest {
         withAuth { token ->
             val hojeRes = client.get("/cotacoes/hoje") { auth(token) }
             if (hojeRes.status == HttpStatusCode.OK) {
-                val idCotacao = Json.parseToJsonElement(hojeRes.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
-                client.delete("/cotacoes/$idCotacao") { auth(token) }
+                val atual = Json.parseToJsonElement(hojeRes.bodyAsText()).jsonObject
+                val idCotacao = atual["id"]!!.jsonPrimitive.long
+                client.put("/cotacoes/$idCotacao") {
+                    auth(token)
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        """{"data":"$hoje","usdPyg":${atual["usdPyg"]},"brlPyg":${atual["brlPyg"]},"status":"inativo"}""",
+                    )
+                }
             }
             val semCotacao = client.post("/vendas") {
                 auth(token)
@@ -235,6 +242,123 @@ class VendaTest {
                     it.jsonObject["moeda"]!!.jsonPrimitive.content == "usd" &&
                     it.jsonObject["valor"]!!.jsonPrimitive.double == 1.0
             })
+        }
+    }
+
+    @Test
+    fun `venda de moto exige chassi e marca unidade vendida`() = testApplication {
+        configure()
+        withAuth { token ->
+            val hojeRes = client.get("/cotacoes/hoje") { auth(token) }
+            if (hojeRes.status != HttpStatusCode.OK) {
+                val cotacao = client.post("/cotacoes") {
+                    auth(token)
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"data":"$hoje","usdPyg":7300,"brlPyg":1400}""")
+                }
+                assertEquals(HttpStatusCode.Created, cotacao.status, cotacao.bodyAsText())
+            }
+
+            val filialJson = Json.parseToJsonElement(client.get("/filiais/principal") { auth(token) }.bodyAsText()).jsonObject
+            val idFilial = filialJson["id"]!!.jsonPrimitive.long
+            val putFilial = client.put("/filiais/$idFilial") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"idEmpresa":${filialJson["idEmpresa"]!!.jsonPrimitive.long},"nome":${filialJson["nome"]},"moedaOperacao":"pyg","principal":${filialJson["principal"]}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.OK, putFilial.status, putFilial.bodyAsText())
+            val idEstoque = Json.parseToJsonElement(putFilial.bodyAsText()).jsonObject["idEstoquePadrao"]!!.jsonPrimitive.long
+
+            val nCaixa = System.nanoTime()
+            val caixaNovo = client.post("/caixas") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idFilial":$idFilial,"nome":"Caixa Moto $nCaixa"}""")
+            }
+            assertEquals(HttpStatusCode.Created, caixaNovo.status, caixaNovo.bodyAsText())
+            val idCaixa = Json.parseToJsonElement(caixaNovo.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+            val abertura = client.post("/caixa-sessoes") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idCaixa":$idCaixa,"conferencia":[]}""")
+            }
+            assertEquals(HttpStatusCode.Created, abertura.status, abertura.bodyAsText())
+            val idSessao = Json.parseToJsonElement(abertura.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+
+            val n = System.nanoTime()
+            val (idMarca, idModelo) = criarModelo(token, "moto", "Venda Moto $n")
+            val produto = client.post("/produtos") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"codigo":"VM-$n","idMarca":$idMarca,"idModelo":$idModelo,"tipo":"moto","precoLista":10000,"moedaPreco":"pyg","moto":{"anoFabricacao":2026,"anoModelo":2026},"numerosIniciais":["CHV${n}A","CHV${n}B"]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, produto.status, produto.bodyAsText())
+            val idProduto = Json.parseToJsonElement(produto.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+            assertEquals(2, Json.parseToJsonElement(produto.bodyAsText()).jsonObject["quantidadeDisponivel"]!!.jsonPrimitive.int)
+
+            val brasilId = client.paisId(token, "BR")
+            val cpfId = client.tipoId(token, brasilId, "CPF")
+            val cpf = cpfValidoAleatorio()
+            val cliente = client.post("/clientes") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"idFilialCadastro":$idFilial,"pessoa":{"nomeRazaoSocial":"Cliente moto $cpf","tipoPessoa":"fisica","documentos":[{"idPais":$brasilId,"idTipoDocumento":$cpfId,"numero":"$cpf"}]}}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, cliente.status, cliente.bodyAsText())
+            val idCliente = Json.parseToJsonElement(cliente.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.long
+
+            val fins = Json.parseToJsonElement(client.get("/finalizadores") { auth(token) }.bodyAsText()).jsonArray
+            val idDinheiro = fins.first { it.jsonObject["nome"]!!.jsonPrimitive.content == "Dinheiro" }
+                .jsonObject["id"]!!.jsonPrimitive.long
+
+            val semChassi = client.post("/vendas") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"idFilial":$idFilial,"idCliente":$idCliente,"idCaixaSessao":$idSessao,"itens":[{"idProduto":$idProduto,"idEstoque":$idEstoque,"quantidade":1}],"negociacao":[{"idFinalizador":$idDinheiro,"valor":10000}]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, semChassi.status)
+            assertEquals(
+                "UNIDADE_OBRIGATORIA",
+                Json.parseToJsonElement(semChassi.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
+            )
+
+            val unidades = Json.parseToJsonElement(client.get("/produtos/$idProduto/unidades") { auth(token) }.bodyAsText()).jsonArray
+            val idUnidade = unidades.first().jsonObject["id"]!!.jsonPrimitive.long
+            val numero = unidades.first().jsonObject["numero"]!!.jsonPrimitive.content
+
+            val venda = client.post("/vendas") {
+                auth(token)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """{"idFilial":$idFilial,"idCliente":$idCliente,"idCaixaSessao":$idSessao,"itens":[{"idProduto":$idProduto,"idEstoque":$idEstoque,"quantidade":1,"idsUnidades":[$idUnidade]}],"negociacao":[{"idFinalizador":$idDinheiro,"valor":10000}]}""",
+                )
+            }
+            assertEquals(HttpStatusCode.Created, venda.status, venda.bodyAsText())
+            val itemVenda = Json.parseToJsonElement(venda.bodyAsText()).jsonObject["itens"]!!.jsonArray.first().jsonObject
+            assertEquals(numero, itemVenda["chassis"]!!.jsonArray.first().jsonPrimitive.content)
+
+            val depois = Json.parseToJsonElement(client.get("/produtos/$idProduto/unidades") { auth(token) }.bodyAsText()).jsonArray
+            val vendida = depois.first { it.jsonObject["id"]!!.jsonPrimitive.long == idUnidade }.jsonObject
+            assertEquals("vendido", vendida["situacao"]!!.jsonPrimitive.content)
+            val ficha = Json.parseToJsonElement(
+                client.get("/produtos/$idProduto?idFilial=$idFilial") { auth(token) }.bodyAsText(),
+            ).jsonObject
+            assertEquals(1, ficha["quantidadeDisponivel"]!!.jsonPrimitive.int)
+
+            val excluir = client.delete("/produtos/$idProduto/unidades/$idUnidade") { auth(token) }
+            assertEquals(HttpStatusCode.BadRequest, excluir.status)
+            assertEquals(
+                "UNIDADE_VENDIDA",
+                Json.parseToJsonElement(excluir.bodyAsText()).jsonObject["codigo"]!!.jsonPrimitive.content,
+            )
         }
     }
 

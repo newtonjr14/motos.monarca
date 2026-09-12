@@ -12,6 +12,7 @@ data class Produto(
     val modeloNome: String = "",
     val descricao: String?,
     val tipo: TipoProduto,
+    val controlaChassi: Boolean,
     val idFilialCadastro: Long?,
     val aliquotaIva: Int,
     val moedaPreco: Moeda,

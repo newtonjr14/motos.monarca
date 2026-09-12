@@ -8,6 +8,9 @@ import com.monarca.localidade.service.acesso
 import com.monarca.localidade.service.invalido
 import com.monarca.pessoa.domain.FilialVinculo
 import com.monarca.pessoa.dto.FilialVinculoResponse
+import com.monarca.produto.ChassiIntervaloGrande
+import com.monarca.produto.ChassiIntervaloInvalido
+import com.monarca.produto.ChassiNumeros
 import com.monarca.produto.domain.Moeda
 import com.monarca.produto.domain.Produto
 import com.monarca.produto.domain.ProdutoBicicleta
@@ -15,6 +18,8 @@ import com.monarca.produto.domain.ProdutoCompleto
 import com.monarca.produto.domain.ProdutoEstoqueSaldo
 import com.monarca.produto.domain.ProdutoMoto
 import com.monarca.produto.domain.ProdutoSaldoTotal
+import com.monarca.produto.domain.ProdutoUnidade
+import com.monarca.produto.domain.SituacaoUnidade
 import com.monarca.produto.domain.TipoProduto
 import com.monarca.produto.dto.ProdutoBicicletaRequest
 import com.monarca.produto.dto.ProdutoBicicletaResponse
@@ -24,6 +29,8 @@ import com.monarca.produto.dto.ProdutoMotoResponse
 import com.monarca.produto.dto.ProdutoRequest
 import com.monarca.produto.dto.ProdutoResponse
 import com.monarca.produto.dto.ProdutoResumoResponse
+import com.monarca.produto.dto.ProdutoUnidadeLoteRequest
+import com.monarca.produto.dto.ProdutoUnidadeResponse
 import com.monarca.produto.dto.VinculoFilialProdutoConflitoResponse
 import com.monarca.produto.repository.MarcaRepository
 import com.monarca.produto.repository.ProdutoRepository
@@ -73,12 +80,23 @@ class ProdutoService(
         val produto = validarProduto(request, id = 0, moedaPreco = filialAlvo.moedaOperacao)
         val moto = if (produto.tipo == TipoProduto.MOTO) validarMoto(request.moto, 0, 0) else null
         val bicicleta = if (produto.tipo == TipoProduto.BICICLETA) validarBicicleta(request.bicicleta, 0, 0) else null
-        moto?.chassi?.let { exigirChassiLivre(it, null) }
-        bicicleta?.numeroSerieQuadro?.let { exigirSerieLivre(it, null) }
+        val numeros = if (produto.controlaChassi) parsearNumeros(request.numerosIniciais) else emptyList()
+        if (!produto.controlaChassi && request.numerosIniciais.any { it.isNotBlank() }) {
+            throw invalido("CHASSI_NAO_CONTROLADO", "Este produto não controla chassis")
+        }
+        if (numeros.size != numeros.distinct().size) {
+            throw invalido(
+                "CHASSI_DUPLICADO",
+                "Há chassis repetidos na lista",
+                "chassi" to numeros.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.first(),
+            )
+        }
+        for (numero in numeros) exigirNumeroLivre(numero)
 
         val existente = if (produto.codigo.isEmpty()) null else repository.buscarPorCodigo(produto.codigo)
+        val qtdInicial = if (produto.controlaChassi) numeros.size else request.quantidadeInicial
         val id = when {
-            existente == null -> inserirComCodigoUnico(produto, moto, bicicleta, idFilial, request.quantidadeInicial)
+            existente == null -> inserirComCodigoUnico(produto, moto, bicicleta, idFilial, qtdInicial, numeros)
             existente.produto.status == Status.DELETADO -> {
                 atualizarComCodigoUnico(existente.produto.id, produto.copy(id = existente.produto.id), moto, bicicleta)
                 vincular(existente, idFilial, request, filialAlvo.nome)
@@ -97,16 +115,23 @@ class ProdutoService(
         if (request.tipo != atual.produto.tipo) {
             throw invalido("PRODUTO_TIPO_IMUTAVEL", "Não é possível alterar o tipo do produto")
         }
+        if (request.controlaChassi != null && request.controlaChassi != atual.produto.controlaChassi) {
+            throw invalido("CONTROLA_CHASSI_IMUTAVEL", "Não é possível alterar o controle de chassis")
+        }
         val idFilialMoeda = request.idFilialCadastro ?: atual.produto.idFilialCadastro
             ?: throw RecursoNaoEncontrado("Filial do produto não encontrada")
         val moedaOperacao = empresaService.buscarFilial(idFilialMoeda).moedaOperacao
-        val produto = validarProduto(request, id, moedaPreco = moedaOperacao)
+        val produto = validarProduto(
+            request,
+            id,
+            moedaPreco = moedaOperacao,
+            controlaChassiFixo = atual.produto.controlaChassi,
+        )
         if (repository.existeCodigo(produto.codigo, ignorarId = id)) {
             throw codigoDuplicado(produto.codigo)
         }
         val moto = if (produto.tipo == TipoProduto.MOTO) validarMoto(request.moto, 0, id) else null
         val bicicleta = if (produto.tipo == TipoProduto.BICICLETA) validarBicicleta(request.bicicleta, 0, id) else null
-        moto?.chassi?.let { exigirChassiLivre(it, id) }
         bicicleta?.numeroSerieQuadro?.let { exigirSerieLivre(it, id) }
         atualizarComCodigoUnico(id, produto, moto, bicicleta)
         return buscar(id)
@@ -128,6 +153,62 @@ class ProdutoService(
         }
         if (!repository.excluir(id, idFilial)) {
             throw RecursoNaoEncontrado("Produto $id não encontrado")
+        }
+    }
+
+    suspend fun listarUnidades(
+        idProduto: Long,
+        idFilial: Long?,
+        situacao: SituacaoUnidade?,
+        idUsuario: Long,
+    ): List<ProdutoUnidadeResponse> {
+        repository.buscar(idProduto) ?: throw RecursoNaoEncontrado("Produto $idProduto não encontrado")
+        val filial = resolverFilialComAcesso(idUsuario, idFilial)
+        return repository.listarUnidades(idProduto, filial, situacao).map { it.toResponse() }
+    }
+
+    suspend fun adicionarUnidades(
+        idProduto: Long,
+        request: ProdutoUnidadeLoteRequest,
+        idUsuario: Long,
+    ): List<ProdutoUnidadeResponse> {
+        val detalhe = repository.buscar(idProduto) ?: throw RecursoNaoEncontrado("Produto $idProduto não encontrado")
+        if (!detalhe.produto.controlaChassi) {
+            throw invalido("CHASSI_NAO_CONTROLADO", "Este produto não controla chassis")
+        }
+        val idFilial = resolverFilialComAcesso(idUsuario, detalhe.produto.idFilialCadastro)
+        val numeros = parsearNumeros(request.numeros)
+        if (numeros.isEmpty()) {
+            throw invalido("CHASSI_OBRIGATORIO", "Informe ao menos um chassi")
+        }
+        if (numeros.size != numeros.distinct().size) {
+            throw invalido("CHASSI_DUPLICADO", "Há chassis repetidos na lista", "chassi" to numeros.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.first())
+        }
+        for (numero in numeros) exigirNumeroLivre(numero)
+        val saldos = repository.listarEstoqueDoProduto(idProduto, idFilial)
+        val padrao = saldos.find { it.padrao }
+            ?: throw invalido("ESTOQUE_INSUFICIENTE", "Sem estoque padrão na filial")
+        val idEstoque = request.idEstoque ?: padrao.idEstoque
+        if (saldos.none { it.idEstoque == idEstoque }) {
+            throw RecursoNaoEncontrado("Estoque $idEstoque não encontrado")
+        }
+        repository.inserirUnidades(idProduto, idEstoque, numeros)
+        return repository.listarUnidades(idProduto, idFilial, null).map { it.toResponse() }
+    }
+
+    suspend fun excluirUnidade(idProduto: Long, idUnidade: Long, idUsuario: Long) {
+        val detalhe = repository.buscar(idProduto) ?: throw RecursoNaoEncontrado("Produto $idProduto não encontrado")
+        resolverFilialComAcesso(idUsuario, detalhe.produto.idFilialCadastro)
+        val unidade = repository.buscarUnidadesPorIds(listOf(idUnidade)).firstOrNull()
+            ?: throw RecursoNaoEncontrado("Chassi $idUnidade não encontrado")
+        if (unidade.idProduto != idProduto) {
+            throw RecursoNaoEncontrado("Chassi $idUnidade não encontrado")
+        }
+        if (unidade.situacao == SituacaoUnidade.VENDIDO) {
+            throw invalido("UNIDADE_VENDIDA", "Não é possível excluir um chassi já vendido")
+        }
+        if (!repository.excluirUnidade(idUnidade)) {
+            throw RecursoNaoEncontrado("Chassi $idUnidade não encontrado")
         }
     }
 
@@ -169,7 +250,12 @@ class ProdutoService(
         repository.vincularFilial(existente.produto.id, idFilial)
     }
 
-    private suspend fun validarProduto(request: ProdutoRequest, id: Long, moedaPreco: Moeda): Produto {
+    private suspend fun validarProduto(
+        request: ProdutoRequest,
+        id: Long,
+        moedaPreco: Moeda,
+        controlaChassiFixo: Boolean? = null,
+    ): Produto {
         val codigo = request.codigo.trim().uppercase()
         if (codigo.isEmpty()) {
             if (id != 0L) throw invalido("PRODUTO_CODIGO_OBRIGATORIO", "Código do produto é obrigatório")
@@ -199,6 +285,9 @@ class ProdutoService(
             else -> composto
         }
         val status = validarStatus(request.status)
+        val controlaChassi = controlaChassiFixo
+            ?: request.controlaChassi
+            ?: (request.tipo == TipoProduto.MOTO)
         return Produto(
             id = id,
             codigo = codigo,
@@ -209,6 +298,7 @@ class ProdutoService(
             modeloNome = modelo.modelo.nome,
             descricao = request.descricao?.trim()?.takeIf { it.isNotEmpty() },
             tipo = request.tipo,
+            controlaChassi = controlaChassi,
             idFilialCadastro = request.idFilialCadastro,
             aliquotaIva = validarAliquota(request.aliquotaIva),
             moedaPreco = moedaPreco,
@@ -228,7 +318,6 @@ class ProdutoService(
         return ProdutoMoto(
             id = id,
             idProduto = idProduto,
-            chassi = req.chassi?.trim()?.uppercase()?.takeIf { it.isNotEmpty() },
             cor = textoOpcional(req.cor),
             potenciaMotorW = inteiroOpcional(req.potenciaMotorW, "Potência"),
             autonomiaKm = inteiroOpcional(req.autonomiaKm, "Autonomia"),
@@ -273,9 +362,21 @@ class ProdutoService(
         return ano
     }
 
-    private suspend fun exigirChassiLivre(chassi: String, ignorarIdProduto: Long?) {
-        if (repository.existeChassi(chassi, ignorarIdProduto)) {
-            throw invalido("CHASSI_DUPLICADO", "Já existe uma moto com o chassi $chassi", "chassi" to chassi)
+    private fun parsearNumeros(itens: List<String>): List<String> = try {
+        ChassiNumeros.expandirTexto(itens.joinToString("\n")).also { lista ->
+            if (lista.size > ChassiNumeros.MAXIMO) {
+                throw ChassiIntervaloGrande(ChassiNumeros.MAXIMO)
+            }
+        }
+    } catch (e: ChassiIntervaloInvalido) {
+        throw invalido("CHASSI_INTERVALO_INVALIDO", "Intervalo de chassi inválido")
+    } catch (e: ChassiIntervaloGrande) {
+        throw invalido("CHASSI_INTERVALO_GRANDE", "O intervalo não pode passar de ${e.maximo} chassis", "max" to e.maximo)
+    }
+
+    private suspend fun exigirNumeroLivre(numero: String) {
+        if (repository.existeNumeroUnidade(numero)) {
+            throw invalido("CHASSI_DUPLICADO", "Já existe uma moto com o chassi $numero", "chassi" to numero)
         }
     }
 
@@ -321,8 +422,9 @@ class ProdutoService(
         bicicleta: ProdutoBicicleta?,
         idFilial: Long,
         quantidadeInicial: Int,
+        numerosIniciais: List<String> = emptyList(),
     ): Long = try {
-        repository.inserir(produto, moto, bicicleta, idFilial, quantidadeInicial)
+        repository.inserir(produto, moto, bicicleta, idFilial, quantidadeInicial, numerosIniciais)
     } catch (e: Exception) {
         if (e.isViolacaoUnicaCodigo()) throw codigoDuplicado(produto.codigo) else throw e
     }
@@ -381,6 +483,7 @@ class ProdutoService(
             modelo = produto.modeloNome,
             descricao = produto.descricao,
             tipo = produto.tipo,
+            controlaChassi = produto.controlaChassi,
             idFilialCadastro = produto.idFilialCadastro,
             filialNome = filialNome,
             filiaisVinculadas = filiaisVinculadas.map { it.toResponse() },
@@ -408,7 +511,6 @@ class ProdutoService(
     )
 
     private fun ProdutoMoto.toResponse() = ProdutoMotoResponse(
-        chassi = chassi,
         cor = cor,
         potenciaMotorW = potenciaMotorW,
         autonomiaKm = autonomiaKm,
@@ -437,6 +539,16 @@ class ProdutoService(
         numeroMarchas = numeroMarchas,
         tipoFreio = tipoFreio,
         numeroSerieQuadro = numeroSerieQuadro,
+    )
+
+    private fun ProdutoUnidade.toResponse() = ProdutoUnidadeResponse(
+        id = id,
+        idProduto = idProduto,
+        idEstoque = idEstoque,
+        estoqueNome = estoqueNome,
+        numero = numero,
+        situacao = situacao,
+        idVendaItem = idVendaItem,
     )
 
     private fun FilialVinculo.toResponse() = FilialVinculoResponse(id = id, nome = nome)

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Field } from "@/components/crud/Field";
-import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
+import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useAlternarStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -71,6 +71,12 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
     }
   }
   useEffect(() => { void carregar(); }, [idFilial]);
+  const { statusBusyId, alternar } = useAlternarStatus(
+    setItens,
+    (item, proximo) => atualizarEstoque(item.id, { idFilial, nome: item.nome, status: proximo }),
+    (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
+    carregar,
+  );
   const filtered = itens.filter((e) =>
     passaFiltroStatus(e.status, filtroStatus) && e.nome.toLowerCase().includes(search.toLowerCase()));
   const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => k === "nome" ? e.nome : e.id);
@@ -152,12 +158,17 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
 
   const produtosDisponiveis = useMemo(() => {
     const ids = new Set(saldos.map((s) => s.idProduto));
-    return produtos.filter((p) => !ids.has(p.id));
+    return produtos.filter((p) => !ids.has(p.id) && !p.controlaChassi);
   }, [produtos, saldos]);
 
   async function salvarItem() {
     if (!aberto) return;
     setErro(null);
+    const idP = editandoItem?.idProduto ?? (idProduto === "" ? null : idProduto);
+    if (idP != null && produtos.find((p) => p.id === idP)?.controlaChassi) {
+      setErro(t("estoque.qtyChassisHint"));
+      return;
+    }
     const qtd = Number(quantidade);
     const res = Number(reservada);
     if (!Number.isInteger(qtd) || !Number.isInteger(res) || qtd < 0 || res < 0 || res > qtd) {
@@ -194,6 +205,10 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
     const qtdN = Number(quantidade);
     const resN = Number(reservada);
     const disponivel = Number.isInteger(qtdN) && Number.isInteger(resN) ? qtdN - resN : null;
+    const produtoControlaChassi = (() => {
+      const idP = editandoItem?.idProduto ?? (idProduto === "" ? null : idProduto);
+      return idP != null && Boolean(produtos.find((p) => p.id === idP)?.controlaChassi);
+    })();
     return (
       <div className="space-y-5 max-w-xl">
         <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
@@ -219,25 +234,33 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
               </select>
             )}
           </Field>
-          <Field label={t("estoque.qty")} required>
-            <input className="field font-mono" inputMode="numeric" autoFocus={Boolean(editandoItem)}
-              value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
-          </Field>
-          <Field label={t("estoque.reserved")} hint={t("estoque.reservedHint")}>
-            <input className="field font-mono" inputMode="numeric" value={reservada}
-              onChange={(e) => setReservada(e.target.value)} />
-          </Field>
-          {disponivel != null && (
-            <p className="text-sm font-mono" style={{ color: v("--gold") }}>
-              {t("estoque.available")}: {disponivel}
-            </p>
+          {produtoControlaChassi ? (
+            <p className="text-sm" style={{ color: v("--text-muted") }}>{t("estoque.qtyChassisHint")}</p>
+          ) : (
+            <>
+              <Field label={t("estoque.qty")} required>
+                <input className="field font-mono" inputMode="numeric" autoFocus={Boolean(editandoItem)}
+                  value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
+              </Field>
+              <Field label={t("estoque.reserved")} hint={t("estoque.reservedHint")}>
+                <input className="field font-mono" inputMode="numeric" value={reservada}
+                  onChange={(e) => setReservada(e.target.value)} />
+              </Field>
+              {disponivel != null && (
+                <p className="text-sm font-mono" style={{ color: v("--gold") }}>
+                  {t("estoque.available")}: {disponivel}
+                </p>
+              )}
+            </>
           )}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" className="btn-ghost px-4 py-2 text-sm"
               onClick={() => { setItemForm(false); setEditandoItem(null); }}>{t("common.cancel")}</button>
-            <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">
-              {salvando ? t("common.saving") : t("common.save")}
-            </button>
+            {!produtoControlaChassi && (
+              <button type="submit" disabled={salvando} className="btn-gold px-5 py-2 text-sm">
+                {salvando ? t("common.saving") : t("common.save")}
+              </button>
+            )}
           </div>
         </form>
       </div>
@@ -292,7 +315,7 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
           onNovo={() => abrirItem()}
         />
         {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-        <input value={buscaSaldo} onChange={(e) => setBuscaSaldo(e.target.value)} placeholder={t("common.search")}
+        <input value={buscaSaldo} onChange={(e) => setBuscaSaldo(e.target.value)} placeholder={t("estoque.itemSearchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: border1(), color: v("--text") }} />
         <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: border1() }}>
@@ -345,7 +368,7 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
       <CatalogHeader titulo={t("nav.estoques")} count={itens.length} novoLabel={t("estoque.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("estoque.searchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: border1(), color: v("--text") }} />
         <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
@@ -378,7 +401,13 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
                     </span>
                   )}
                 </td>
-                <td className="drive-td"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
+                <td className="drive-td drive-td-status" onClick={(ev) => ev.stopPropagation()}>
+                  <StatusBadge
+                    status={e.status === "inativo" ? "inativo" : "ativo"}
+                    disabled={statusBusyId === e.id || idEstoquePadrao === e.id}
+                    onToggle={idEstoquePadrao === e.id ? undefined : () => void alternar(e)}
+                  />
+                </td>
                 <td className="drive-td text-right">
                   <button type="button" className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }}
                     onClick={(ev) => { ev.stopPropagation(); void abrirItens(e); }}>{t("estoque.items")}</button>

@@ -201,17 +201,51 @@ export function cidadePorId(cidades: Cidade[], id: number | null): Cidade | unde
   return cidades.find((x) => x.id === id);
 }
 
+export function rotuloCidade(c: Cidade, curto = false): string {
+  const divisao = c.divisaoSigla ? c.divisaoSigla.toUpperCase() : c.divisaoNome;
+  const nucleo = c.tipo === "distrito" && c.municipioNome
+    ? `${c.nome} — ${c.municipioNome}`
+    : c.nome;
+  if (curto) return [nucleo, divisao, c.paisNome].filter(Boolean).join(" - ");
+  return `${nucleo} · ${divisao} · ${c.paisNome}`;
+}
+
 export function formatarCidade(cidades: Cidade[], id: number | null, curto = false): string {
   const c = cidadePorId(cidades, id);
   if (!c) return "—";
-  const divisao = c.divisaoSigla ? c.divisaoSigla.toUpperCase() : c.divisaoNome;
-  if (curto) return [c.nome, divisao, c.paisNome].filter(Boolean).join(" - ");
-  return `${c.nome} · ${c.divisaoSigla ?? c.divisaoNome} · ${c.paisNome}`;
+  return rotuloCidade(c, curto);
 }
 
 export function enderecoPrincipal(p: Pessoa): PessoaEndereco | undefined {
   const ativos = (p.enderecos ?? []).filter((e) => e.status !== "deletado");
   return ativos.find((e) => e.principal) ?? ativos[0];
+}
+
+/** Data de calendário `yyyy-mm-dd` → `dd/mm/aaaa` (Brasil e Paraguai). */
+export function formatarDataIso(valor: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(valor.trim());
+  if (!m) return valor;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+export function formatarDataEpoch(ms: number, timeZone = "America/Asuncion"): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(ms));
+}
+
+export function formatarDataHoraEpoch(ms: number, timeZone = "America/Asuncion"): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ms));
 }
 
 export function formatarEndereco(p: Pessoa, cidades: Cidade[]): string | null {
@@ -228,4 +262,69 @@ export function formatarEndereco(p: Pessoa, cidades: Cidade[]): string | null {
     cidade !== "—" ? cidade : null,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
+}
+
+export const CHASSI_MAXIMO = 500;
+
+export function normalizarChassi(valor: string): string {
+  return valor.trim().toUpperCase().replace(/ /g, "");
+}
+
+export type ChassiExpansaoErro = "CHASSI_INTERVALO_INVALIDO" | "CHASSI_INTERVALO_GRANDE";
+
+export type ChassiExpansao =
+  | { ok: true; numeros: string[] }
+  | { ok: false; codigo: ChassiExpansaoErro };
+
+function expandirIntervaloChassi(texto: string): string[] {
+  const i = texto.indexOf("~");
+  if (i < 0) {
+    const unico = normalizarChassi(texto);
+    return unico ? [unico] : [];
+  }
+  const inicio = normalizarChassi(texto.slice(0, i));
+  const fim = normalizarChassi(texto.slice(i + 1));
+  if (!inicio || !fim) throw new Error("CHASSI_INTERVALO_INVALIDO");
+  if (inicio === fim) return [inicio];
+  if (inicio.length !== fim.length) throw new Error("CHASSI_INTERVALO_INVALIDO");
+  let p = 0;
+  while (p < inicio.length && inicio[p] === fim[p]) p += 1;
+  const prefixo = inicio.slice(0, p);
+  const sufixoIni = inicio.slice(p);
+  const sufixoFim = fim.slice(p);
+  if (!sufixoIni || !/^\d+$/.test(sufixoIni) || !/^\d+$/.test(sufixoFim)) {
+    throw new Error("CHASSI_INTERVALO_INVALIDO");
+  }
+  const de = Number(sufixoIni);
+  const ate = Number(sufixoFim);
+  if (ate < de) throw new Error("CHASSI_INTERVALO_INVALIDO");
+  const qtd = ate - de + 1;
+  if (qtd > CHASSI_MAXIMO) throw new Error("CHASSI_INTERVALO_GRANDE");
+  const largura = sufixoIni.length;
+  const saida: string[] = [];
+  for (let n = de; n <= ate; n += 1) {
+    saida.push(prefixo + String(n).padStart(largura, "0"));
+  }
+  return saida;
+}
+
+export function expandirNumerosChassi(texto: string): ChassiExpansao {
+  try {
+    const saida: string[] = [];
+    for (const item of texto.split(/[\n\r,;]/)) {
+      const bruto = item.trim();
+      if (!bruto) continue;
+      if (bruto.includes("~")) saida.push(...expandirIntervaloChassi(bruto));
+      else {
+        const n = normalizarChassi(bruto);
+        if (n) saida.push(n);
+      }
+    }
+    return { ok: true, numeros: saida };
+  } catch (e) {
+    const codigo = e instanceof Error && e.message === "CHASSI_INTERVALO_GRANDE"
+      ? "CHASSI_INTERVALO_GRANDE"
+      : "CHASSI_INTERVALO_INVALIDO";
+    return { ok: false, codigo };
+  }
 }

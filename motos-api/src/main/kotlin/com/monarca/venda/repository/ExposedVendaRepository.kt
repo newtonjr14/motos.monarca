@@ -12,6 +12,8 @@ import com.monarca.estoque.repository.EstoqueProdutosTable
 import com.monarca.estoque.repository.EstoquesTable
 import com.monarca.pessoa.repository.ClientesTable
 import com.monarca.pessoa.repository.PessoasTable
+import com.monarca.produto.domain.SituacaoUnidade
+import com.monarca.produto.repository.ProdutoUnidadesTable
 import com.monarca.produto.repository.ProdutosTable
 import com.monarca.usuario.repository.UsuariosTable
 import com.monarca.localidade.service.invalido
@@ -24,6 +26,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.insert
@@ -76,7 +79,7 @@ class ExposedVendaRepository(
         }
         val idVenda = inserted[VendasTable.id].value
         for (item in itens) {
-            VendaItensTable.insert {
+            val insertedItem = VendaItensTable.insert {
                 it[VendaItensTable.idVenda] = idVenda
                 it[VendaItensTable.idProduto] = item.idProduto
                 it[VendaItensTable.idEstoque] = item.idEstoque
@@ -86,6 +89,23 @@ class ExposedVendaRepository(
                 it[VendaItensTable.precoLista] = item.precoLista
                 it[VendaItensTable.precoUnitarioPyg] = item.precoUnitarioPyg
                 it[VendaItensTable.totalPyg] = item.totalPyg
+            }
+            val idItem = insertedItem[VendaItensTable.id].value
+            for (idUnidade in item.idsUnidades) {
+                VendaItemUnidadesTable.insert {
+                    it[VendaItemUnidadesTable.idVendaItem] = idItem
+                    it[VendaItemUnidadesTable.idProdutoUnidade] = idUnidade
+                }
+                val n = ProdutoUnidadesTable.update({
+                    (ProdutoUnidadesTable.id eq idUnidade) and
+                        (ProdutoUnidadesTable.situacao eq SituacaoUnidade.DISPONIVEL.name.lowercase())
+                }) {
+                    it[situacao] = SituacaoUnidade.VENDIDO.name.lowercase()
+                    it[idVendaItem] = idItem
+                }
+                if (n == 0) {
+                    throw invalido("UNIDADE_INDISPONIVEL", "O chassi não está disponível")
+                }
             }
             val saldo = EstoqueProdutosTable.selectAll()
                 .where {
@@ -166,6 +186,18 @@ class ExposedVendaRepository(
                 )
             }
             .toList()
+        val chassisPorItem = if (itens.isEmpty()) {
+            emptyMap()
+        } else {
+            VendaItemUnidadesTable
+                .join(ProdutoUnidadesTable, JoinType.INNER, VendaItemUnidadesTable.idProdutoUnidade, ProdutoUnidadesTable.id)
+                .selectAll()
+                .where { VendaItemUnidadesTable.idVendaItem inList itens.map { it.id } }
+                .toList()
+                .groupBy { it[VendaItemUnidadesTable.idVendaItem].value }
+                .mapValues { (_, rows) -> rows.map { it[ProdutoUnidadesTable.numero] }.sorted() }
+        }
+        val itensComChassi = itens.map { it.copy(chassis = chassisPorItem[it.id].orEmpty()) }
         val negociacao = VendaNegociacoesTable
             .innerJoin(FinalizadoresTable)
             .selectAll()
@@ -195,7 +227,7 @@ class ExposedVendaRepository(
             observacao = row[VendasTable.observacao],
             criadoEm = row[VendasTable.criadoEm],
             status = row[VendasTable.status],
-            itens = itens,
+            itens = itensComChassi,
             negociacao = negociacao,
         )
     }

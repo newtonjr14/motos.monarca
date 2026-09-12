@@ -1,6 +1,7 @@
 import { atualizarPapel, excluirPapel, type Cidade, type Papel } from "@/api";
 import { useFilialId } from "@/auth/FilialContext";
 import { Section } from "@/components/crud/Field";
+import { StatusTexto } from "@/components/crud/ListUi";
 import { formatarDocumentoExibicao, formatarEndereco, formatarTelefoneExibicao } from "@/format";
 import { useI18n } from "@/i18n";
 import { pessoaParaAtualizacao } from "@/papelUtils";
@@ -24,23 +25,6 @@ function NavBtn({ label, disabled, onClick, children }: {
     >
       {children}
     </button>
-  );
-}
-
-function StatusBadge({ status }: { status: "ativo" | "inativo" }) {
-  const { t } = useI18n();
-  const ativo = status === "ativo";
-  return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border"
-      style={{
-        background: ativo ? "var(--success-bg)" : "var(--card2)",
-        borderColor: ativo ? "var(--success-border)" : "var(--border)",
-        color: ativo ? "var(--success)" : v("--text-muted"),
-      }}
-    >
-      {ativo ? t("common.active") : t("common.inactive")}
-    </span>
   );
 }
 
@@ -136,7 +120,7 @@ export default function PapelFicha({
       aria-labelledby="ficha-title"
     >
       <div
-        className="ficha-modal w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
+        className="ficha-modal ficha-modal-locked w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
         style={{ background: v("--card"), border: border1() }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -147,7 +131,7 @@ export default function PapelFicha({
               {p.nomeRazaoSocial}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={item.status} />
+              <StatusTexto status={item.status} />
               <span className="text-xs" style={{ color: v("--text-sub") }}>
                 {p.tipoPessoa === "fisica" ? t("tipoPessoa.fisica") : t("tipoPessoa.juridica")} · {singular}
               </span>

@@ -1,19 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/crud/Field";
-import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
+import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useAlternarStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
-import { tf } from "@/i18n/format";
 import {
   atualizarCotacao,
   avisarCotacaoMudou,
   criarCotacao,
-  excluirCotacao,
   listarCotacoes,
   type Cotacao,
 } from "@/api";
-import { slicePage } from "@/format";
+import { formatarDataIso, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
@@ -55,23 +53,45 @@ export default function CotacoesPage({ navReset }: { navReset: number }) {
       setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }
-  useEffect(() => { void carregar(); }, []);
+  useEffect(() => {
+    void carregar();
+    function onMudou() { void carregar(); }
+    window.addEventListener("monarca:cotacao-mudou", onMudou);
+    return () => window.removeEventListener("monarca:cotacao-mudou", onMudou);
+  }, []);
+  const { statusBusyId, alternar } = useAlternarStatus(
+    setItens,
+    (item, proximo) => atualizarCotacao(item.id, {
+      data: item.data,
+      usdPyg: item.usdPyg,
+      brlPyg: item.brlPyg,
+      status: proximo,
+    }),
+    (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
+    carregar,
+  );
   const filtered = itens.filter((e) =>
-    passaFiltroStatus(e.status, filtroStatus) && `${e.data} ${e.usdPyg} ${e.brlPyg}`.includes(search.toLowerCase()));
+    passaFiltroStatus(e.status, filtroStatus) &&
+    `${formatarDataIso(e.data)} ${e.data} ${e.usdPyg} ${e.brlPyg}`.toLowerCase().includes(search.toLowerCase()));
   const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => {
     if (k === "data") return e.data;
     if (k === "usdPyg") return e.usdPyg;
     if (k === "brlPyg") return e.brlPyg;
     return e.id;
-  });
+  }, "data", "desc");
   useEffect(() => { setPage(1); }, [search, filtroStatus, sortKey, sortDir]);
 
+  const hoje = hojeAsuncion();
+  const cotacaoHoje = itens.find((e) => e.data === hoje && e.status !== "deletado") ?? null;
+
   function abrir(item?: Cotacao) {
-    setEditando(item ?? null);
-    setData(item?.data ?? hojeAsuncion());
-    setUsdPyg(item ? String(item.usdPyg) : "");
-    setBrlPyg(item ? String(item.brlPyg) : "");
-    setStatus(item?.status === "inativo" ? "inativo" : "ativo");
+    const alvo = item ?? cotacaoHoje ?? undefined;
+    if (alvo && alvo.data !== hoje) return;
+    setEditando(alvo ?? null);
+    setData(hoje);
+    setUsdPyg(alvo ? String(alvo.usdPyg) : "");
+    setBrlPyg(alvo ? String(alvo.brlPyg) : "");
+    setStatus(alvo?.status === "inativo" ? "inativo" : "ativo");
     setErro(null);
     setFormAberto(true);
   }
@@ -80,17 +100,13 @@ export default function CotacoesPage({ navReset }: { navReset: number }) {
     setErro(null);
     const usd = Number(usdPyg.replace(",", "."));
     const brl = Number(brlPyg.replace(",", "."));
-    if (!data.trim()) {
-      setErro(t("cotacao.error.required"));
-      return;
-    }
     if (!Number.isFinite(usd) || usd <= 0 || !Number.isFinite(brl) || brl <= 0) {
       setErro(t("cotacao.error.rate"));
       return;
     }
     setSalvando(true);
     try {
-      const body = { data: data.trim(), usdPyg: usd, brlPyg: brl, status };
+      const body = { data: hoje, usdPyg: usd, brlPyg: brl, status };
       if (editando) await atualizarCotacao(editando.id, body);
       else await criarCotacao(body);
       avisarCotacaoMudou();
@@ -116,10 +132,10 @@ export default function CotacoesPage({ navReset }: { navReset: number }) {
           onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
           <Field label={t("cotacao.date")} required hint={t("cotacao.dateHint")}>
-            <input className="field font-mono" type="date" autoFocus readOnly={!!editando} value={data} onChange={(e) => setData(e.target.value)} />
+            <input className="field font-mono" type="date" autoFocus={false} readOnly value={data} />
           </Field>
           <Field label={t("cotacao.usdPyg")} required hint={t("cotacao.usdPygHint")}>
-            <input className="field font-mono" inputMode="decimal" value={usdPyg} onChange={(e) => setUsdPyg(e.target.value)} />
+            <input className="field font-mono" inputMode="decimal" autoFocus value={usdPyg} onChange={(e) => setUsdPyg(e.target.value)} />
           </Field>
           <Field label={t("cotacao.brlPyg")} required hint={t("cotacao.brlPygHint")}>
             <input className="field font-mono" inputMode="decimal" value={brlPyg} onChange={(e) => setBrlPyg(e.target.value)} />
@@ -145,10 +161,10 @@ export default function CotacoesPage({ navReset }: { navReset: number }) {
 
   return (
     <div className="space-y-5">
-      <CatalogHeader titulo={t("nav.cotacoes")} count={itens.length} novoLabel={t("cotacao.new")} onNovo={() => abrir()} />
+      <CatalogHeader titulo={t("nav.cotacoes")} novoLabel={t("cotacao.new")} onNovo={() => abrir()} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("common.search")}
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("cotacao.searchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
         <StatusFilter value={filtroStatus} onChange={setFiltroStatus} />
@@ -171,30 +187,34 @@ export default function CotacoesPage({ navReset }: { navReset: number }) {
             />
           </thead>
           <tbody>
-            {paged.slice.map((e) => (
-              <tr
-                key={e.id}
-                className="drive-row-clickable"
-                style={{ borderBottom: `1px solid ${v("--border")}` }}
-                onClick={() => abrir(e)}
-              >
-                <Td mono gold>{e.id}</Td>
-                <Td mono>{e.data}</Td>
-                <Td mono>{e.usdPyg}</Td>
-                <Td mono>{e.brlPyg}</Td>
-                <td className="drive-td"><StatusBadge status={e.status === "inativo" ? "inativo" : "ativo"} /></td>
-                <td className="drive-td text-right">
-                  <button className="text-xs cursor-pointer mr-3" style={{ color: v("--gold") }} onClick={(ev) => { ev.stopPropagation(); abrir(e); }}>{t("common.edit")}</button>
-                  <button className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
-                    onClick={async (ev) => {
-                      ev.stopPropagation();
-                      if (!confirm(tf(t, "common.confirmDelete", { name: e.data }))) return;
-                      try { await excluirCotacao(e.id); avisarCotacaoMudou(); await carregar(); }
-                      catch (err) { setErro(mensagemErroApi(err, t, "common.error.deleteFailed")); }
-                    }}>{t("common.delete")}</button>
-                </td>
-              </tr>
-            ))}
+            {paged.slice.map((e) => {
+              const doDia = e.data === hoje;
+              return (
+                <tr
+                  key={e.id}
+                  className={doDia ? "drive-row-clickable" : undefined}
+                  style={{ borderBottom: `1px solid ${v("--border")}` }}
+                  onClick={doDia ? () => abrir(e) : undefined}
+                >
+                  <Td mono gold>{e.id}</Td>
+                  <Td mono>{formatarDataIso(e.data)}</Td>
+                  <Td mono>{e.usdPyg}</Td>
+                  <Td mono>{e.brlPyg}</Td>
+                  <td className="drive-td drive-td-status" onClick={(ev) => ev.stopPropagation()}>
+                    <StatusBadge
+                      status={e.status === "inativo" ? "inativo" : "ativo"}
+                      disabled={!doDia || statusBusyId === e.id}
+                      onToggle={doDia ? () => void alternar(e) : undefined}
+                    />
+                  </td>
+                  <td className="drive-td text-right">
+                    {doDia && (
+                      <button className="text-xs cursor-pointer" style={{ color: v("--gold") }} onClick={(ev) => { ev.stopPropagation(); abrir(e); }}>{t("common.edit")}</button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {!filtered.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
