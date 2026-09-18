@@ -7,6 +7,8 @@ data class Finalizador(
     val id: Long,
     val nome: String,
     val tipo: TipoFinalizador,
+    val geraContasReceber: Boolean = false,
+    val geraContasPagar: Boolean = false,
     val status: Status,
 )
 

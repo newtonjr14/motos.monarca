@@ -93,3 +93,11 @@ fun ApplicationCall.podeOperarCaixa() {
 fun ApplicationCall.podeRegistrarVenda() {
     requirePermissao(Permissao.VENDA_REGISTRAR)
 }
+
+fun ApplicationCall.podeEmitirFactura() {
+    requirePermissao(Permissao.VENDA_REGISTRAR)
+}
+
+fun ApplicationCall.podeOperarFinanceiro() {
+    requireQualquerPermissao(Permissao.FINANCEIRO_OPERAR, Permissao.FINANCEIRO_ESTORNO)
+}

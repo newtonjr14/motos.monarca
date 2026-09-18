@@ -10,6 +10,7 @@ import com.monarca.common.http.respondNotFound
 import com.monarca.localidade.service.AcessoNegado
 import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.RequisicaoInvalida
+import com.monarca.factura.service.DocumentoEletronicoService
 import com.monarca.venda.dto.VendaRequest
 import com.monarca.venda.service.VendaService
 import io.ktor.http.HttpStatusCode
@@ -25,6 +26,7 @@ import org.koin.ktor.ext.get as koinGet
 
 fun Application.configureVenda() {
     val service = koinGet<VendaService>()
+    val documentoEletronico = koinGet<DocumentoEletronicoService>()
 
     routing {
         authenticate(JWT_AUTH) {
@@ -44,6 +46,14 @@ fun Application.configureVenda() {
                 call.handleVenda {
                     call.podeRegistrarVenda()
                     call.respond(service.buscar(resource.id, call.usuarioAutenticado().id))
+                }
+            }
+            get<Vendas.Id.DocumentoEletronico> { resource ->
+                call.handleVenda {
+                    call.podeRegistrarVenda()
+                    call.respond(
+                        documentoEletronico.montarDaVenda(resource.parent.id, call.usuarioAutenticado().id),
+                    )
                 }
             }
             post<Vendas> {

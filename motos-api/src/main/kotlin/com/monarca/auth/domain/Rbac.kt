@@ -41,6 +41,7 @@ object Rbac {
             Permissao.ESTOQUE_GERENCIAR,
             Permissao.COTACAO_CONSULTAR,
             Permissao.CAIXA_OPERAR,
+            Permissao.FINANCEIRO_OPERAR,
         ),
         com.monarca.usuario.domain.PerfilUsuario.VENDEDOR to setOf(
             Permissao.LOCALIDADE_CONSULTAR,
@@ -50,6 +51,7 @@ object Rbac {
             Permissao.ESTOQUE_CONSULTAR,
             Permissao.COTACAO_CONSULTAR,
             Permissao.CAIXA_OPERAR,
+            Permissao.FINANCEIRO_OPERAR,
         ),
     )
 

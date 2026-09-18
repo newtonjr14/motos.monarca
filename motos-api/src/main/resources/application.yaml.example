@@ -20,6 +20,9 @@ ktor:
       - com.monarca.cotacao.http.CotacaoRoutingKt.configureCotacao
       - com.monarca.caixa.http.CaixaRoutingKt.configureCaixa
       - com.monarca.venda.http.VendaRoutingKt.configureVenda
+      - com.monarca.titulo.http.TituloRoutingKt.configureTitulo
+      - com.monarca.entrada.http.EntradaRoutingKt.configureEntrada
+      - com.monarca.factura.http.FacturaRoutingKt.configureFactura
       - com.monarca.seed.http.SeedDemoRoutingKt.configureSeed
 
 database:
@@ -37,6 +40,13 @@ jwt:
 
 cotacao:
   exigirDoDia: true
+
+# SudTax — facturação eletrônica PY (contrato ERP 2026-09-17)
+# API key do painel SudTax → Claves de API (sk_test_… / sk_live_…)
+sudtax:
+  enabled: false
+  baseUrl: "http://localhost:8090"
+  apiKey: "sk_test_CHANGE_ME"
 
 seed:
   demo: false

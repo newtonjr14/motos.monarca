@@ -14,5 +14,9 @@ class Vendas(
 
     @Serializable
     @Resource("{id}")
-    class Id(val parent: Vendas = Vendas(), val id: Long)
+    class Id(val parent: Vendas = Vendas(), val id: Long) {
+        @Serializable
+        @Resource("documento-eletronico")
+        class DocumentoEletronico(val parent: Id)
+    }
 }

@@ -355,6 +355,16 @@ export type TranslationKey =
   | "api.COTACAO_TAXA_INVALIDA"
   | "api.COTACAO_SO_HOJE"
   | "api.COTACAO_NAO_EXCLUI"
+  | "api.SUDTAX_DESLIGADA"
+  | "api.SUDTAX_URL"
+  | "api.SUDTAX_API_KEY"
+  | "api.SUDTAX_ERRO"
+  | "api.SUDTAX_RESPOSTA"
+  | "api.FACTURA_NAO_PRONTA"
+  | "api.FACTURA_SEM_SUDTAX"
+  | "api.FACTURA_CANCELADA"
+  | "api.DOCUMENTO_REFERENCIA_DUPLICADA"
+  | "api.ID_VENDA"
   | "api.IVA_ALIQUOTA_INVALIDA"
   | "api.QTD_NEGATIVA"
   | "api.QTD_RESERVADA_NEGATIVA"
@@ -545,6 +555,36 @@ export type TranslationKey =
   | "nav.caixa"
   | "nav.vendas"
   | "nav.historico"
+  | "nav.contasReceber"
+  | "nav.contasPagar"
+  | "nav.entradaNota"
+  | "nav.facturas"
+  | "factura.emitir"
+  | "factura.escolherVenda"
+  | "factura.selecioneVenda"
+  | "factura.semVendasElegiveis"
+  | "factura.enviarAposCriar"
+  | "factura.searchPlaceholder"
+  | "factura.venda"
+  | "factura.cliente"
+  | "factura.estado"
+  | "factura.estado.pendente"
+  | "factura.estado.processando"
+  | "factura.estado.aprobado"
+  | "factura.estado.rechazado"
+  | "factura.estado.cancelado"
+  | "factura.cdc"
+  | "factura.total"
+  | "factura.data"
+  | "factura.fichaTitle"
+  | "factura.status"
+  | "factura.referencia"
+  | "factura.sudtaxId"
+  | "factura.atualizado"
+  | "factura.payload"
+  | "factura.enviar"
+  | "factura.consultar"
+  | "factura.error.vendaObrigatoria"
   | "finalizador.new"
   | "finalizador.edit"
   | "finalizador.type"
@@ -553,6 +593,10 @@ export type TranslationKey =
   | "finalizador.tipo.deposito"
   | "finalizador.tipo.cheque"
   | "finalizador.tipo.outro"
+  | "finalizador.geraReceber"
+  | "finalizador.geraReceberHint"
+  | "finalizador.geraPagar"
+  | "finalizador.geraPagarHint"
   | "finalizador.error.nameRequired"
   | "finalizador.searchPlaceholder"
   | "caixa.new"
@@ -587,6 +631,9 @@ export type TranslationKey =
   | "venda.view"
   | "venda.status.finalizada"
   | "venda.status.cancelada"
+  | "venda.documentoEletronico"
+  | "venda.montarJsonSudtax"
+  | "venda.copiarJsonSudtax"
   | "venda.client"
   | "venda.till"
   | "venda.tillHint"
@@ -617,6 +664,75 @@ export type TranslationKey =
   | "venda.error.client"
   | "venda.error.items"
   | "venda.error.pay"
+  | "venda.parcelas"
+  | "venda.qtdParcelas"
+  | "venda.modoVencimento"
+  | "venda.diaVencimento"
+  | "venda.modo.intervalo30"
+  | "venda.modo.diaFixo"
+  | "titulo.receber.new"
+  | "titulo.pagar.new"
+  | "titulo.moeda"
+  | "titulo.valor"
+  | "titulo.saldo"
+  | "titulo.vencimento"
+  | "titulo.baixar"
+  | "titulo.receberSelecionadas"
+  | "titulo.pagarSelecionadas"
+  | "titulo.selecionadas"
+  | "titulo.selecionarTodas"
+  | "titulo.cotacaoTravada"
+  | "titulo.fifoHint"
+  | "titulo.searchPlaceholder"
+  | "titulo.error.cliente"
+  | "titulo.error.fornecedor"
+  | "titulo.error.valor"
+  | "titulo.error.selecioneParcelas"
+  | "titulo.status.aberto"
+  | "titulo.status.parcial"
+  | "titulo.status.quitado"
+  | "titulo.status.cancelado"
+  | "titulo.parcela.aberta"
+  | "titulo.parcela.parcial"
+  | "titulo.parcela.paga"
+  | "titulo.parcela.cancelada"
+  | "entrada.new"
+  | "entrada.documento"
+  | "entrada.tipoDocumento"
+  | "entrada.tipo.py_factura"
+  | "entrada.tipo.exterior"
+  | "entrada.dataEmissao"
+  | "entrada.timbrado"
+  | "entrada.establecimiento"
+  | "entrada.punto"
+  | "entrada.numero"
+  | "entrada.cdc"
+  | "entrada.numeroDocumento"
+  | "entrada.incoterm"
+  | "entrada.itens"
+  | "entrada.addItem"
+  | "entrada.valorUnitario"
+  | "entrada.chassisHint"
+  | "entrada.prazo"
+  | "entrada.total"
+  | "entrada.tituloGerado"
+  | "entrada.searchPlaceholder"
+  | "entrada.error.itens"
+  | "entrada.error.pagamento"
+  | "api.VENDA_CREDITO_UNICO"
+  | "api.PARCELAS_QTD"
+  | "api.PARCELAS_OBRIGATORIAS"
+  | "api.FINALIZADOR_NAO_LIQUIDA"
+  | "api.BAIXA_SEM_PARCELA"
+  | "api.BAIXA_TITULO_MISTO"
+  | "api.BAIXA_CLIENTE_MISTO"
+  | "api.BAIXA_FORNECEDOR_MISTO"
+  | "api.BAIXA_MAIOR_SALDO"
+  | "api.PARCELA_JA_PAGA"
+  | "api.ENTRADA_PY_DUPLICADA"
+  | "api.ENTRADA_PY_CAMPOS"
+  | "api.ENTRADA_EXTERIOR_NUMERO"
+  | "api.ENTRADA_NEGOCIACAO_DIVERGENTE"
   | "venda.clientSearch"
   | "venda.clientSearchPlaceholder"
   | "venda.changeClient"
@@ -710,6 +826,36 @@ const pt: Record<TranslationKey, string> = {
   "nav.modelos": "Modelos",
   "nav.estoques": "Estoques",
   "nav.cotacoes": "Cotações",
+  "nav.contasReceber": "Contas a receber",
+  "nav.contasPagar": "Contas a pagar",
+  "nav.entradaNota": "Entrada de nota",
+  "nav.facturas": "Facturas",
+  "factura.emitir": "Emitir factura",
+  "factura.escolherVenda": "Venda",
+  "factura.selecioneVenda": "Selecione uma venda…",
+  "factura.semVendasElegiveis": "Não há vendas finalizadas sem factura nesta filial.",
+  "factura.enviarAposCriar": "Enviar à SET / simulador após criar",
+  "factura.searchPlaceholder": "Cliente, CDC, venda, estado…",
+  "factura.venda": "Venda",
+  "factura.cliente": "Cliente",
+  "factura.estado": "Estado",
+  "factura.estado.pendente": "Pendente",
+  "factura.estado.processando": "Processando",
+  "factura.estado.aprobado": "Aprovado",
+  "factura.estado.rechazado": "Rejeitado",
+  "factura.estado.cancelado": "Cancelado",
+  "factura.cdc": "CDC",
+  "factura.total": "Total",
+  "factura.data": "Data",
+  "factura.fichaTitle": "Factura eletrônica",
+  "factura.status": "Status SudTax",
+  "factura.referencia": "Referência",
+  "factura.sudtaxId": "ID SudTax",
+  "factura.atualizado": "Atualizado",
+  "factura.payload": "Payload enviado",
+  "factura.enviar": "Enviar à SET",
+  "factura.consultar": "Atualizar status",
+  "factura.error.vendaObrigatoria": "Selecione a venda",
   "nav.finalizadores": "Finalizadores",
   "nav.caixas": "Caixas",
   "nav.caixa": "Caixa do dia",
@@ -1051,6 +1197,16 @@ const pt: Record<TranslationKey, string> = {
   "api.COTACAO_TAXA_INVALIDA": "A taxa deve ser maior que zero",
   "api.COTACAO_SO_HOJE": "Só é possível editar a cotação do dia",
   "api.COTACAO_NAO_EXCLUI": "Não é possível excluir cotações. O histórico é permanente.",
+  "api.SUDTAX_DESLIGADA": "Integração SudTax desligada. Ative sudtax.enabled e configure a API key.",
+  "api.SUDTAX_URL": "Configure sudtax.baseUrl no application.yaml",
+  "api.SUDTAX_API_KEY": "Configure sudtax.apiKey (sk_test_… / sk_live_…)",
+  "api.SUDTAX_ERRO": "Erro ao chamar a SudTax",
+  "api.SUDTAX_RESPOSTA": "Resposta inválida da SudTax",
+  "api.FACTURA_NAO_PRONTA": "Venda não está pronta para facturar (verifique RUC do cliente e itens)",
+  "api.FACTURA_SEM_SUDTAX": "Factura sem vínculo SudTax",
+  "api.FACTURA_CANCELADA": "Factura cancelada não pode ser enviada",
+  "api.DOCUMENTO_REFERENCIA_DUPLICADA": "Já existe documento na SudTax com esta referência",
+  "api.ID_VENDA": "Informe a venda",
   "api.FINALIZADOR_NOME_DUPLICADO": "Já existe um finalizador com o nome {nome}",
   "api.FINALIZADOR_EM_USO": "Não é possível excluir um finalizador em uso",
   "api.FINALIZADOR_NOME_OBRIGATORIO": "O nome do finalizador é obrigatório",
@@ -1281,6 +1437,10 @@ const pt: Record<TranslationKey, string> = {
   "finalizador.tipo.deposito": "Depósito",
   "finalizador.tipo.cheque": "Cheque",
   "finalizador.tipo.outro": "Outro",
+  "finalizador.geraReceber": "Gera contas a receber",
+  "finalizador.geraReceberHint": "Na venda, esta forma abre o parcelamento e não entra no caixa na hora.",
+  "finalizador.geraPagar": "Gera contas a pagar",
+  "finalizador.geraPagarHint": "Para nota de entrada futura. Não use na liquidação de parcela.",
   "finalizador.error.nameRequired": "Informe o nome do finalizador",
   "finalizador.searchPlaceholder": "Nome...",
   "caixa.new": "Novo caixa",
@@ -1315,6 +1475,9 @@ const pt: Record<TranslationKey, string> = {
   "venda.view": "Venda",
   "venda.status.finalizada": "Finalizada",
   "venda.status.cancelada": "Cancelada",
+  "venda.documentoEletronico": "Documento eletrônico (SudTax)",
+  "venda.montarJsonSudtax": "Montar JSON",
+  "venda.copiarJsonSudtax": "Copiar JSON",
   "venda.client": "Cliente",
   "venda.till": "Caixa",
   "venda.tillHint": "Precisa estar aberto na filial atual",
@@ -1345,6 +1508,75 @@ const pt: Record<TranslationKey, string> = {
   "venda.error.client": "Selecione o cliente",
   "venda.error.items": "Adicione ao menos um item",
   "venda.error.pay": "Informe o pagamento",
+  "venda.parcelas": "Parcelas do crediário",
+  "venda.qtdParcelas": "Quantidade de parcelas",
+  "venda.modoVencimento": "Vencimentos",
+  "venda.diaVencimento": "Dia do mês",
+  "venda.modo.intervalo30": "A cada 30 dias",
+  "venda.modo.diaFixo": "Dia fixo do mês",
+  "titulo.receber.new": "Novo título a receber",
+  "titulo.pagar.new": "Novo título a pagar",
+  "titulo.moeda": "Moeda",
+  "titulo.valor": "Valor",
+  "titulo.saldo": "Saldo",
+  "titulo.vencimento": "Vencimento",
+  "titulo.baixar": "Baixar",
+  "titulo.receberSelecionadas": "Receber selecionadas",
+  "titulo.pagarSelecionadas": "Pagar selecionadas",
+  "titulo.selecionadas": "Selecionadas",
+  "titulo.selecionarTodas": "Selecionar todas as parcelas abertas",
+  "titulo.cotacaoTravada": "Cotação travada",
+  "titulo.fifoHint": "Se o valor for menor que o saldo, quita primeiro as parcelas com vencimento mais próximo.",
+  "titulo.searchPlaceholder": "Cliente, status...",
+  "titulo.error.cliente": "Selecione o cliente",
+  "titulo.error.fornecedor": "Selecione o fornecedor",
+  "titulo.error.valor": "Informe um valor válido",
+  "titulo.error.selecioneParcelas": "Selecione ao menos uma parcela",
+  "titulo.status.aberto": "Aberto",
+  "titulo.status.parcial": "Parcial",
+  "titulo.status.quitado": "Quitado",
+  "titulo.status.cancelado": "Cancelado",
+  "titulo.parcela.aberta": "Aberta",
+  "titulo.parcela.parcial": "Parcial",
+  "titulo.parcela.paga": "Paga",
+  "titulo.parcela.cancelada": "Cancelada",
+  "entrada.new": "Nova entrada de nota",
+  "entrada.documento": "Documento",
+  "entrada.tipoDocumento": "Tipo",
+  "entrada.tipo.py_factura": "Factura Paraguay",
+  "entrada.tipo.exterior": "Exterior / China",
+  "entrada.dataEmissao": "Data de emissão",
+  "entrada.timbrado": "Timbrado",
+  "entrada.establecimiento": "Establecimiento",
+  "entrada.punto": "Punto de expedición",
+  "entrada.numero": "Número",
+  "entrada.cdc": "CDC",
+  "entrada.numeroDocumento": "Nº invoice / packing list",
+  "entrada.incoterm": "Incoterm",
+  "entrada.itens": "Itens",
+  "entrada.addItem": "Adicionar item",
+  "entrada.valorUnitario": "Valor unitário",
+  "entrada.chassisHint": "Chassis (um por linha ou INICIO~FIM)",
+  "entrada.prazo": "prazo",
+  "entrada.total": "Total",
+  "entrada.tituloGerado": "Título a pagar",
+  "entrada.searchPlaceholder": "Fornecedor, documento...",
+  "entrada.error.itens": "Informe ao menos um item",
+  "entrada.error.pagamento": "Informe ao menos uma forma de pagamento",
+  "api.VENDA_CREDITO_UNICO": "Use só uma forma a prazo por venda",
+  "api.PARCELAS_QTD": "Informe entre 1 e 120 parcelas",
+  "api.PARCELAS_OBRIGATORIAS": "Informe as parcelas do crediário",
+  "api.FINALIZADOR_NAO_LIQUIDA": "Use uma forma de caixa para liquidar a parcela",
+  "api.BAIXA_SEM_PARCELA": "Selecione ao menos uma parcela",
+  "api.BAIXA_TITULO_MISTO": "Selecione parcelas do mesmo título",
+  "api.BAIXA_CLIENTE_MISTO": "Não é possível misturar clientes no mesmo recebimento",
+  "api.BAIXA_FORNECEDOR_MISTO": "Não é possível misturar fornecedores no mesmo pagamento",
+  "api.BAIXA_MAIOR_SALDO": "O valor não pode exceder o saldo das parcelas selecionadas",
+  "api.PARCELA_JA_PAGA": "A parcela já está quitada",
+  "api.ENTRADA_PY_DUPLICADA": "Esta factura já foi lançada para o fornecedor",
+  "api.ENTRADA_PY_CAMPOS": "Informe timbrado, establecimiento, punto e número",
+  "api.ENTRADA_EXTERIOR_NUMERO": "Informe o número do documento / packing list",
+  "api.ENTRADA_NEGOCIACAO_DIVERGENTE": "A soma das formas de pagamento deve igualar o total",
   "venda.clientSearch": "Buscar cliente",
   "venda.clientSearchPlaceholder": "Nome ou documento",
   "venda.changeClient": "Trocar",
@@ -1402,6 +1634,36 @@ const es: Record<TranslationKey, string> = {
   "nav.modelos": "Modelos",
   "nav.estoques": "Depósitos",
   "nav.cotacoes": "Cotizaciones",
+  "nav.contasReceber": "Cuentas por cobrar",
+  "nav.contasPagar": "Cuentas por pagar",
+  "nav.entradaNota": "Entrada de nota",
+  "nav.facturas": "Facturas",
+  "factura.emitir": "Emitir factura",
+  "factura.escolherVenda": "Venta",
+  "factura.selecioneVenda": "Seleccione una venta…",
+  "factura.semVendasElegiveis": "No hay ventas finalizadas sin factura en esta sucursal.",
+  "factura.enviarAposCriar": "Enviar a la SET / simulador después de crear",
+  "factura.searchPlaceholder": "Cliente, CDC, venta, estado…",
+  "factura.venda": "Venta",
+  "factura.cliente": "Cliente",
+  "factura.estado": "Estado",
+  "factura.estado.pendente": "Pendiente",
+  "factura.estado.processando": "Procesando",
+  "factura.estado.aprobado": "Aprobado",
+  "factura.estado.rechazado": "Rechazado",
+  "factura.estado.cancelado": "Cancelado",
+  "factura.cdc": "CDC",
+  "factura.total": "Total",
+  "factura.data": "Fecha",
+  "factura.fichaTitle": "Factura electrónica",
+  "factura.status": "Estado SudTax",
+  "factura.referencia": "Referencia",
+  "factura.sudtaxId": "ID SudTax",
+  "factura.atualizado": "Actualizado",
+  "factura.payload": "Payload enviado",
+  "factura.enviar": "Enviar a la SET",
+  "factura.consultar": "Actualizar estado",
+  "factura.error.vendaObrigatoria": "Seleccione la venta",
   "nav.finalizadores": "Finalizadores",
   "nav.caixas": "Cajas",
   "nav.caixa": "Caja del día",
@@ -1743,6 +2005,16 @@ const es: Record<TranslationKey, string> = {
   "api.COTACAO_TAXA_INVALIDA": "La tasa debe ser mayor que cero",
   "api.COTACAO_SO_HOJE": "Solo es posible editar la cotización del día",
   "api.COTACAO_NAO_EXCLUI": "No es posible eliminar cotizaciones. El historial es permanente.",
+  "api.SUDTAX_DESLIGADA": "Integración SudTax desactivada. Active sudtax.enabled y configure la API key.",
+  "api.SUDTAX_URL": "Configure sudtax.baseUrl en application.yaml",
+  "api.SUDTAX_API_KEY": "Configure sudtax.apiKey (sk_test_… / sk_live_…)",
+  "api.SUDTAX_ERRO": "Error al llamar a SudTax",
+  "api.SUDTAX_RESPOSTA": "Respuesta inválida de SudTax",
+  "api.FACTURA_NAO_PRONTA": "La venta no está lista para facturar (verifique RUC del cliente e ítems)",
+  "api.FACTURA_SEM_SUDTAX": "Factura sin vínculo SudTax",
+  "api.FACTURA_CANCELADA": "Factura cancelada no puede enviarse",
+  "api.DOCUMENTO_REFERENCIA_DUPLICADA": "Ya existe documento en SudTax con esta referencia",
+  "api.ID_VENDA": "Indique la venta",
   "api.FINALIZADOR_NOME_DUPLICADO": "Ya existe un finalizador con el nombre {nome}",
   "api.FINALIZADOR_EM_USO": "No es posible eliminar un finalizador en uso",
   "api.FINALIZADOR_NOME_OBRIGATORIO": "El nombre del finalizador es obligatorio",
@@ -1983,6 +2255,10 @@ const es: Record<TranslationKey, string> = {
   "finalizador.tipo.deposito": "Depósito",
   "finalizador.tipo.cheque": "Cheque",
   "finalizador.tipo.outro": "Otro",
+  "finalizador.geraReceber": "Genera cuentas por cobrar",
+  "finalizador.geraReceberHint": "En la venta, esta forma abre el plan de cuotas y no entra en caja al momento.",
+  "finalizador.geraPagar": "Genera cuentas por pagar",
+  "finalizador.geraPagarHint": "Para nota de entrada futura. No use al liquidar una cuota.",
   "finalizador.error.nameRequired": "Indique el nombre del finalizador",
   "finalizador.searchPlaceholder": "Nombre...",
   "caixa.new": "Nueva caja",
@@ -2017,6 +2293,9 @@ const es: Record<TranslationKey, string> = {
   "venda.view": "Venta",
   "venda.status.finalizada": "Finalizada",
   "venda.status.cancelada": "Cancelada",
+  "venda.documentoEletronico": "Documento electrónico (SudTax)",
+  "venda.montarJsonSudtax": "Armar JSON",
+  "venda.copiarJsonSudtax": "Copiar JSON",
   "venda.client": "Cliente",
   "venda.till": "Caja",
   "venda.tillHint": "Debe estar abierta en la sucursal actual",
@@ -2047,6 +2326,75 @@ const es: Record<TranslationKey, string> = {
   "venda.error.client": "Seleccione el cliente",
   "venda.error.items": "Agregue al menos un ítem",
   "venda.error.pay": "Indique el pago",
+  "venda.parcelas": "Cuotas del crédito",
+  "venda.qtdParcelas": "Cantidad de cuotas",
+  "venda.modoVencimento": "Vencimientos",
+  "venda.diaVencimento": "Día del mes",
+  "venda.modo.intervalo30": "Cada 30 días",
+  "venda.modo.diaFixo": "Día fijo del mes",
+  "titulo.receber.new": "Nuevo título por cobrar",
+  "titulo.pagar.new": "Nuevo título por pagar",
+  "titulo.moeda": "Moneda",
+  "titulo.valor": "Valor",
+  "titulo.saldo": "Saldo",
+  "titulo.vencimento": "Vencimiento",
+  "titulo.baixar": "Cobrar / pagar",
+  "titulo.receberSelecionadas": "Cobrar seleccionadas",
+  "titulo.pagarSelecionadas": "Pagar seleccionadas",
+  "titulo.selecionadas": "Seleccionadas",
+  "titulo.selecionarTodas": "Seleccionar todas las cuotas abiertas",
+  "titulo.cotacaoTravada": "Cotización fijada",
+  "titulo.fifoHint": "Si el valor es menor que el saldo, liquida primero las cuotas con vencimiento más próximo.",
+  "titulo.searchPlaceholder": "Cliente, estado...",
+  "titulo.error.cliente": "Seleccione el cliente",
+  "titulo.error.fornecedor": "Seleccione el proveedor",
+  "titulo.error.valor": "Indique un valor válido",
+  "titulo.error.selecioneParcelas": "Seleccione al menos una cuota",
+  "titulo.status.aberto": "Abierto",
+  "titulo.status.parcial": "Parcial",
+  "titulo.status.quitado": "Liquidado",
+  "titulo.status.cancelado": "Anulado",
+  "titulo.parcela.aberta": "Abierta",
+  "titulo.parcela.parcial": "Parcial",
+  "titulo.parcela.paga": "Pagada",
+  "titulo.parcela.cancelada": "Anulada",
+  "entrada.new": "Nueva entrada de nota",
+  "entrada.documento": "Documento",
+  "entrada.tipoDocumento": "Tipo",
+  "entrada.tipo.py_factura": "Factura Paraguay",
+  "entrada.tipo.exterior": "Exterior / China",
+  "entrada.dataEmissao": "Fecha de emisión",
+  "entrada.timbrado": "Timbrado",
+  "entrada.establecimiento": "Establecimiento",
+  "entrada.punto": "Punto de expedición",
+  "entrada.numero": "Número",
+  "entrada.cdc": "CDC",
+  "entrada.numeroDocumento": "Nº invoice / packing list",
+  "entrada.incoterm": "Incoterm",
+  "entrada.itens": "Ítems",
+  "entrada.addItem": "Agregar ítem",
+  "entrada.valorUnitario": "Valor unitario",
+  "entrada.chassisHint": "Chasis (uno por línea o INICIO~FIM)",
+  "entrada.prazo": "plazo",
+  "entrada.total": "Total",
+  "entrada.tituloGerado": "Título por pagar",
+  "entrada.searchPlaceholder": "Proveedor, documento...",
+  "entrada.error.itens": "Indique al menos un ítem",
+  "entrada.error.pagamento": "Indique al menos una forma de pago",
+  "api.VENDA_CREDITO_UNICO": "Use solo una forma a plazo por venta",
+  "api.PARCELAS_QTD": "Indique entre 1 y 120 cuotas",
+  "api.PARCELAS_OBRIGATORIAS": "Indique las cuotas del crédito",
+  "api.FINALIZADOR_NAO_LIQUIDA": "Use una forma de caja para liquidar la cuota",
+  "api.BAIXA_SEM_PARCELA": "Seleccione al menos una cuota",
+  "api.BAIXA_TITULO_MISTO": "Seleccione cuotas del mismo título",
+  "api.BAIXA_CLIENTE_MISTO": "No se pueden mezclar clientes en el mismo cobro",
+  "api.BAIXA_FORNECEDOR_MISTO": "No se pueden mezclar proveedores en el mismo pago",
+  "api.BAIXA_MAIOR_SALDO": "El valor no puede superar el saldo de las cuotas seleccionadas",
+  "api.PARCELA_JA_PAGA": "La cuota ya está liquidada",
+  "api.ENTRADA_PY_DUPLICADA": "Esta factura ya fue registrada para el proveedor",
+  "api.ENTRADA_PY_CAMPOS": "Indique timbrado, establecimiento, punto y número",
+  "api.ENTRADA_EXTERIOR_NUMERO": "Indique el número del documento / packing list",
+  "api.ENTRADA_NEGOCIACAO_DIVERGENTE": "La suma de las formas de pago debe igualar el total",
   "venda.clientSearch": "Buscar cliente",
   "venda.clientSearchPlaceholder": "Nombre o documento",
   "venda.changeClient": "Cambiar",

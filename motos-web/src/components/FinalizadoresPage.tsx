@@ -30,6 +30,8 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
   const [editando, setEditando] = useState<Finalizador | null>(null);
   const [nome, setNome] = useState("");
   const [tipo, setTipo] = useState<TipoFinalizador>("dinheiro");
+  const [geraReceber, setGeraReceber] = useState(false);
+  const [geraPagar, setGeraPagar] = useState(false);
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [salvando, setSalvando] = useState(false);
 
@@ -50,7 +52,13 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
   useEffect(() => { void carregar(); }, []);
   const { statusBusyId, alternar } = useAlternarStatus(
     setItens,
-    (item, proximo) => atualizarFinalizador(item.id, { nome: item.nome, tipo: item.tipo, status: proximo }),
+    (item, proximo) => atualizarFinalizador(item.id, {
+      nome: item.nome,
+      tipo: item.tipo,
+      geraContasReceber: item.geraContasReceber ?? false,
+      geraContasPagar: item.geraContasPagar ?? false,
+      status: proximo,
+    }),
     (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
     carregar,
   );
@@ -67,6 +75,8 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
     setEditando(item ?? null);
     setNome(item?.nome ?? "");
     setTipo(item?.tipo ?? "dinheiro");
+    setGeraReceber(item?.geraContasReceber ?? false);
+    setGeraPagar(item?.geraContasPagar ?? false);
     setStatus(item?.status === "inativo" ? "inativo" : "ativo");
     setErro(null);
     setFormAberto(true);
@@ -80,7 +90,13 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
     }
     setSalvando(true);
     try {
-      const body = { nome: toTitleCase(nome), tipo, status };
+      const body = {
+        nome: toTitleCase(nome),
+        tipo,
+        geraContasReceber: geraReceber,
+        geraContasPagar: geraPagar,
+        status,
+      };
       if (editando) await atualizarFinalizador(editando.id, body);
       else await criarFinalizador(body);
       setFormAberto(false);
@@ -112,6 +128,18 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
             <select className="field" value={tipo} onChange={(e) => setTipo(e.target.value as TipoFinalizador)}>
               {TIPOS.map((tp) => <option key={tp} value={tp}>{t(`finalizador.tipo.${tp}` as TranslationKey)}</option>)}
             </select>
+          </Field>
+          <Field label={t("finalizador.geraReceber")} hint={t("finalizador.geraReceberHint")}>
+            <label className="field flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={geraReceber} onChange={(e) => setGeraReceber(e.target.checked)} />
+              <span className="text-sm" style={{ color: v("--text") }}>{geraReceber ? t("common.yes") : t("common.no")}</span>
+            </label>
+          </Field>
+          <Field label={t("finalizador.geraPagar")} hint={t("finalizador.geraPagarHint")}>
+            <label className="field flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={geraPagar} onChange={(e) => setGeraPagar(e.target.checked)} />
+              <span className="text-sm" style={{ color: v("--text") }}>{geraPagar ? t("common.yes") : t("common.no")}</span>
+            </label>
           </Field>
           {editando && (
             <Field label={t("common.status")}>

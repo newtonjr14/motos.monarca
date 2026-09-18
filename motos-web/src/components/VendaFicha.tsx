@@ -1,9 +1,11 @@
-import { type Venda } from "@/api";
+import { buscarFacturaPorVenda, emitirFactura, previewDocumentoEletronico, type Factura, type Venda } from "@/api";
 import { Section } from "@/components/crud/Field";
 import { Td } from "@/components/crud/ListUi";
 import { formatarDataHoraEpoch, formatMoeda, formatPyg } from "@/format";
 import { useI18n } from "@/i18n";
-import { useEffect, type ReactNode } from "react";
+import type { TranslationKey } from "@/i18n";
+import { mensagemErroApi } from "@/i18n/apiMessages";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const v = (name: string) => `var(${name})`;
@@ -44,6 +46,10 @@ function StatusVendaTexto({ status }: { status: string }) {
   );
 }
 
+function estadoFacturaKey(estado: string): TranslationKey {
+  return `factura.estado.${estado}` as TranslationKey;
+}
+
 export default function VendaFicha({
   item,
   nav,
@@ -54,6 +60,12 @@ export default function VendaFicha({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const [jsonSudtax, setJsonSudtax] = useState<string | null>(null);
+  const [avisosDoc, setAvisosDoc] = useState<string[]>([]);
+  const [erroDoc, setErroDoc] = useState<string | null>(null);
+  const [carregandoDoc, setCarregandoDoc] = useState(false);
+  const [factura, setFactura] = useState<Factura | null | undefined>(undefined);
+  const [emitindo, setEmitindo] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -78,6 +90,61 @@ export default function VendaFicha({
     };
   }, [onClose, nav]);
 
+  useEffect(() => {
+    setJsonSudtax(null);
+    setAvisosDoc([]);
+    setErroDoc(null);
+    setFactura(undefined);
+    void (async () => {
+      try {
+        const f = await buscarFacturaPorVenda(item.id);
+        setFactura(f ?? null);
+      } catch {
+        setFactura(null);
+      }
+    })();
+  }, [item.id]);
+
+  async function montarJsonSudtax() {
+    setCarregandoDoc(true);
+    setErroDoc(null);
+    try {
+      const preview = await previewDocumentoEletronico(item.id);
+      if (!preview.pronto) {
+        setAvisosDoc(preview.avisos);
+        setJsonSudtax(null);
+        return;
+      }
+      setAvisosDoc([]);
+      setJsonSudtax(JSON.stringify(preview.documento ?? preview.payload, null, 2));
+    } catch (e) {
+      setErroDoc(mensagemErroApi(e, t, "common.error.loadFailed"));
+    } finally {
+      setCarregandoDoc(false);
+    }
+  }
+
+  async function emitir() {
+    setEmitindo(true);
+    setErroDoc(null);
+    try {
+      const f = await emitirFactura({ idVenda: item.id, enviar: true });
+      setFactura(f);
+    } catch (e) {
+      setErroDoc(mensagemErroApi(e, t, "common.error.saveFailed"));
+    } finally {
+      setEmitindo(false);
+    }
+  }
+
+  async function copiarJson() {
+    if (!jsonSudtax) return;
+    try {
+      await navigator.clipboard.writeText(jsonSudtax);
+    } catch {
+      /* ignore */
+    }
+  }
   return createPortal(
     <div
       className="ficha-modal-overlay fixed inset-0 z-[200] flex items-start justify-center p-4 sm:p-6 overflow-y-auto"
@@ -196,6 +263,48 @@ export default function VendaFicha({
               <p className="text-sm leading-relaxed break-words" style={{ color: v("--text") }}>{item.observacao}</p>
             </Section>
           )}
+
+          <Section title={t("venda.documentoEletronico")}>
+            <div className="space-y-2">
+              {factura && (
+                <div className="text-sm space-y-1" style={{ color: v("--text") }}>
+                  <p>{t("factura.estado")}: {t(estadoFacturaKey(factura.estado))}</p>
+                  {factura.cdc && (
+                    <p className="font-mono text-xs break-all" style={{ color: v("--text-sub") }}>
+                      CDC: {factura.cdcFormatado || factura.cdc}
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {!factura && item.status === "finalizada" && (
+                  <button type="button" className="btn-gold px-3 py-1.5 text-sm" disabled={emitindo} onClick={() => void emitir()}>
+                    {emitindo ? t("common.loading") : t("factura.emitir")}
+                  </button>
+                )}
+                <button type="button" className="btn-ghost px-3 py-1.5 text-sm" disabled={carregandoDoc} onClick={() => void montarJsonSudtax()}>
+                  {carregandoDoc ? t("common.loading") : t("venda.montarJsonSudtax")}
+                </button>
+                {jsonSudtax && (
+                  <button type="button" className="btn-ghost px-3 py-1.5 text-sm" onClick={() => void copiarJson()}>
+                    {t("venda.copiarJsonSudtax")}
+                  </button>
+                )}
+              </div>
+              {erroDoc && <p className="text-sm" style={{ color: "#ef4444" }}>{erroDoc}</p>}
+              {avisosDoc.length > 0 && (
+                <ul className="text-xs space-y-1" style={{ color: v("--text-muted") }}>
+                  {avisosDoc.map((a) => <li key={a}>• {a}</li>)}
+                </ul>
+              )}
+              {jsonSudtax && (
+                <pre className="text-[11px] font-mono p-3 rounded-md overflow-auto max-h-64 whitespace-pre-wrap break-all"
+                  style={{ background: v("--card2"), border: border1(), color: v("--text-sub") }}>
+                  {jsonSudtax}
+                </pre>
+              )}
+            </div>
+          </Section>
         </div>
 
         <div className="ficha-modal-actions px-6 py-3 shrink-0" style={{ borderTop: border1(), background: v("--card2") }}>

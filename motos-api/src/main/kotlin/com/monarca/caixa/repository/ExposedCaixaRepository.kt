@@ -68,6 +68,8 @@ class ExposedCaixaRepository(
         val inserted = FinalizadoresTable.insert {
             it[nome] = item.nome
             it[tipo] = item.tipo.name.lowercase()
+            it[geraContasReceber] = item.geraContasReceber
+            it[geraContasPagar] = item.geraContasPagar
             it[status] = item.status.name.lowercase()
         }
         val id = inserted[FinalizadoresTable.id].value
@@ -81,6 +83,8 @@ class ExposedCaixaRepository(
         }) {
             it[nome] = item.nome
             it[tipo] = item.tipo.name.lowercase()
+            it[geraContasReceber] = item.geraContasReceber
+            it[geraContasPagar] = item.geraContasPagar
             it[status] = item.status.name.lowercase()
         } > 0
     }
@@ -513,7 +517,12 @@ class ExposedCaixaRepository(
             val idMov = linha[CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao].value
             val tipo = tipoPorId[idMov] ?: continue
             if (tipo == TipoMovimentacaoCaixa.FECHAMENTO.name.lowercase()) continue
-            val sinal = if (tipo == TipoMovimentacaoCaixa.TRANSFERENCIA_SAIDA.name.lowercase()) -1.0 else 1.0
+            val sinal = when (tipo) {
+                TipoMovimentacaoCaixa.TRANSFERENCIA_SAIDA.name.lowercase(),
+                TipoMovimentacaoCaixa.PAGAMENTO.name.lowercase(),
+                -> -1.0
+                else -> 1.0
+            }
             val idFin = linha[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value
             val moeda = Moeda.valueOf(linha[CaixaMovimentacaoFinalizadoresTable.moeda].uppercase())
             val chave = idFin to moeda
@@ -535,6 +544,8 @@ class ExposedCaixaRepository(
         id = this[FinalizadoresTable.id].value,
         nome = this[FinalizadoresTable.nome],
         tipo = TipoFinalizador.valueOf(this[FinalizadoresTable.tipo].uppercase()),
+        geraContasReceber = this[FinalizadoresTable.geraContasReceber],
+        geraContasPagar = this[FinalizadoresTable.geraContasPagar],
         status = Status.valueOf(this[FinalizadoresTable.status].uppercase()),
     )
 

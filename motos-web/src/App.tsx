@@ -4,6 +4,10 @@ import monarcaLogo from "@/imports/Monarca.png";
 import { useAuth } from "@/auth/AuthContext";
 import LoginPage, { LanguageSelector, ThemeToggle, UserMenu } from "@/components/AuthUi";
 import CotacoesPage from "@/components/CotacoesPage";
+import ContasPagarPage from "@/components/ContasPagarPage";
+import ContasReceberPage from "@/components/ContasReceberPage";
+import EntradaNotaPage from "@/components/EntradaNotaPage";
+import FacturasPage from "@/components/FacturasPage";
 import FinalizadoresPage from "@/components/FinalizadoresPage";
 import CaixasPage from "@/components/CaixasPage";
 import CaixaOperacaoPage from "@/components/CaixaOperacaoPage";
@@ -211,7 +215,7 @@ const Icon = {
   more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "vendas" | "historico" | "caixa" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "vendas" | "historico" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: string };
 
@@ -219,7 +223,11 @@ const navOperacao: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard", permissao: Permissao.DASHBOARD_CONSULTAR },
   { id: "vendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
   { id: "historico", label: "Histórico", icon: "historico", permissao: Permissao.VENDA_REGISTRAR },
+  { id: "facturas", label: "Facturas", icon: "historico", permissao: Permissao.VENDA_REGISTRAR },
   { id: "caixa", label: "Caixa", icon: "caixa", permissao: Permissao.CAIXA_OPERAR },
+  { id: "contasReceber", label: "Contas a receber", icon: "finalizadores", permissao: Permissao.FINANCEIRO_OPERAR },
+  { id: "contasPagar", label: "Contas a pagar", icon: "finalizadores", permissao: Permissao.FINANCEIRO_OPERAR },
+  { id: "entradaNota", label: "Entrada de nota", icon: "historico", permissao: Permissao.FINANCEIRO_OPERAR },
   { id: "clientes", label: "Clientes", icon: "clientes", permissao: Permissao.PESSOA_GERENCIAR },
   { id: "fornecedores", label: "Fornecedores", icon: "fornecedores", permissao: Permissao.PESSOA_GERENCIAR },
   { id: "produtos", label: "Produtos", icon: "produtos", permissao: Permissao.PRODUTO_GERENCIAR },
@@ -2523,6 +2531,10 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
     dashboard: t("nav.dashboard"),
     vendas: t("nav.vendas"),
     historico: t("nav.historico"),
+    contasReceber: t("nav.contasReceber"),
+    contasPagar: t("nav.contasPagar"),
+    entradaNota: t("nav.entradaNota"),
+    facturas: t("nav.facturas"),
     caixa: t("nav.caixa"),
     clientes: t("nav.clientes"),
     fornecedores: t("nav.fornecedores"),
@@ -2573,6 +2585,10 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
           {view === "dashboard" && <Dashboard clientes={clientes} fornecedores={fornecedores} systemOnline={systemOnline} />}
           {view === "vendas" && <VendasPage navReset={navReset} />}
           {view === "historico" && <HistoricoVendasPage navReset={navReset} />}
+          {view === "contasReceber" && <ContasReceberPage navReset={navReset} />}
+          {view === "contasPagar" && <ContasPagarPage navReset={navReset} />}
+          {view === "entradaNota" && <EntradaNotaPage navReset={navReset} />}
+          {view === "facturas" && <FacturasPage navReset={navReset} />}
           {view === "caixa" && <CaixaOperacaoPage navReset={navReset} />}
           {view === "clientes" && <PapelPage recurso="clientes" titulo={t("nav.clientes")} singular={t("entity.cliente")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
           {view === "fornecedores" && <PapelPage recurso="fornecedores" titulo={t("nav.fornecedores")} singular={t("entity.fornecedor")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}

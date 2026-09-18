@@ -11,6 +11,10 @@ import com.monarca.localidade.service.localidadeModule
 import com.monarca.pessoa.service.pessoaModule
 import com.monarca.produto.service.produtoModule
 import com.monarca.seed.service.seedModule
+import com.monarca.entrada.service.entradaModule
+import com.monarca.factura.service.facturaModule
+import com.monarca.factura.service.sudtaxConfig
+import com.monarca.titulo.service.tituloModule
 import com.monarca.usuario.service.usuarioModule
 import com.monarca.venda.service.vendaModule
 import io.ktor.server.application.Application
@@ -30,6 +34,7 @@ fun Application.configureKoin() {
     migrateDatabase(jdbcUrl, databaseUser, databasePassword)
 
     val jwt = jwtConfig()
+    val sudtax = sudtaxConfig()
     val seedCidades = environment.config.propertyOrNull("seed.cidades")?.getString()?.toBooleanStrictOrNull() ?: true
 
     install(Koin) {
@@ -44,6 +49,7 @@ fun Application.configureKoin() {
                     )
                 }
                 single { jwt }
+                single { sudtax }
                 single { JdbcCredenciais(jdbcUrl, databaseUser, databasePassword, seedCidades) }
             },
             auditModule,
@@ -57,6 +63,9 @@ fun Application.configureKoin() {
             cotacaoModule,
             caixaModule,
             vendaModule,
+            tituloModule,
+            entradaModule,
+            facturaModule,
             seedModule,
         )
     }

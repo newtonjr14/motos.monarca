@@ -22,6 +22,9 @@ ktor:
       - com.monarca.cotacao.http.CotacaoRoutingKt.configureCotacao
       - com.monarca.caixa.http.CaixaRoutingKt.configureCaixa
       - com.monarca.venda.http.VendaRoutingKt.configureVenda
+      - com.monarca.titulo.http.TituloRoutingKt.configureTitulo
+      - com.monarca.entrada.http.EntradaRoutingKt.configureEntrada
+      - com.monarca.factura.http.FacturaRoutingKt.configureFactura
       - com.monarca.seed.http.SeedDemoRoutingKt.configureSeed
 
 database:
@@ -39,6 +42,11 @@ jwt:
 
 cotacao:
   exigirDoDia: false
+
+sudtax:
+  enabled: false
+  baseUrl: "http://localhost:8090"
+  apiKey: "sk_test_disabled"
 
 seed:
   demo: true

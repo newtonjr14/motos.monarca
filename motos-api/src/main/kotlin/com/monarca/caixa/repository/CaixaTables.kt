@@ -8,6 +8,8 @@ import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
 object FinalizadoresTable : LongIdTable("finalizador") {
     val nome = varchar("nome", 80)
     val tipo = varchar("tipo", 20)
+    val geraContasReceber = bool("gera_contas_receber").default(false)
+    val geraContasPagar = bool("gera_contas_pagar").default(false)
     val status = varchar("status", 20).default("ativo")
 }
 
@@ -45,6 +47,9 @@ object CaixaMovimentacoesTable : LongIdTable("caixa_movimentacao") {
     val tipo = varchar("tipo", 30)
     val idUsuario = reference("id_usuario", UsuariosTable)
     val idVenda = optReference("id_venda", VendasTable)
+    val idBaixaReceber = long("id_baixa_receber").nullable()
+    val idBaixaPagar = long("id_baixa_pagar").nullable()
+    val idEntrada = long("id_entrada").nullable()
     val idMovimentacaoPar = long("id_movimentacao_par").nullable()
     val criadoEm = long("criado_em")
     val observacao = varchar("observacao", 500).nullable()

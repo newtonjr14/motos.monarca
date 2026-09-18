@@ -1,5 +1,7 @@
 package com.monarca.venda.repository
 
+import com.monarca.titulo.repository.TituloReceberNovo
+
 data class VendaItemPersistencia(
     val id: Long = 0,
     val idProduto: Long,
@@ -57,6 +59,8 @@ interface VendaRepository {
         observacao: String?,
         itens: List<VendaItemPersistencia>,
         negociacao: List<VendaNegociacaoPersistencia>,
+        negociacaoCaixa: List<VendaNegociacaoPersistencia>,
+        tituloReceber: TituloReceberNovo?,
         idUsuario: Long,
     ): Long
 }

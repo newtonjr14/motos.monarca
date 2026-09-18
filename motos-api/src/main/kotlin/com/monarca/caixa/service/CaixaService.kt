@@ -321,7 +321,7 @@ class CaixaService(
         val nome = Texto.titleCase(request.nome.trim())
         if (nome.isEmpty()) throw invalido("FINALIZADOR_NOME_OBRIGATORIO", "O nome do finalizador é obrigatório")
         if (request.status == Status.DELETADO) throw invalido("USE_DELETE", "Use DELETE para marcar como deletado")
-        return Finalizador(id = id, nome = nome, tipo = request.tipo, status = request.status)
+        return Finalizador(id = id, nome = nome, tipo = request.tipo, geraContasReceber = request.geraContasReceber, geraContasPagar = request.geraContasPagar, status = request.status)
     }
 
     private fun validarCaixa(request: CaixaRequest, id: Long, idFilial: Long): Caixa {
@@ -379,7 +379,14 @@ class CaixaService(
     private suspend fun nomesFinalizadores(): Map<Long, String> =
         repository.listarFinalizadores().associate { it.id to it.nome }
 
-    private fun Finalizador.toResponse() = FinalizadorResponse(id = id, nome = nome, tipo = tipo, status = status)
+    private fun Finalizador.toResponse() = FinalizadorResponse(
+        id = id,
+        nome = nome,
+        tipo = tipo,
+        geraContasReceber = geraContasReceber,
+        geraContasPagar = geraContasPagar,
+        status = status,
+    )
 
     private fun SessaoDetalhe.toResponse(nomes: Map<Long, String>) = CaixaSessaoResponse(
             id = sessao.id,

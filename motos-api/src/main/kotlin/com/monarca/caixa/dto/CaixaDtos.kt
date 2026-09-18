@@ -11,6 +11,8 @@ import kotlinx.serialization.Serializable
 data class FinalizadorRequest(
     val nome: String,
     val tipo: TipoFinalizador,
+    val geraContasReceber: Boolean = false,
+    val geraContasPagar: Boolean = false,
     val status: Status = Status.ATIVO,
 )
 
@@ -19,6 +21,8 @@ data class FinalizadorResponse(
     val id: Long,
     val nome: String,
     val tipo: TipoFinalizador,
+    val geraContasReceber: Boolean = false,
+    val geraContasPagar: Boolean = false,
     val status: Status,
 )
 

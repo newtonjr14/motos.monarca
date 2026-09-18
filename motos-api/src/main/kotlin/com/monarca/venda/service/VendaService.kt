@@ -11,6 +11,9 @@ import com.monarca.localidade.service.invalido
 import com.monarca.pessoa.service.PapelService
 import com.monarca.produto.domain.Moeda
 import com.monarca.produto.repository.ProdutoRepository
+import com.monarca.titulo.domain.OrigemTitulo
+import com.monarca.titulo.repository.TituloReceberNovo
+import com.monarca.titulo.service.TituloService
 import com.monarca.usuario.SystemUser
 import com.monarca.usuario.repository.UsuarioRepository
 import com.monarca.venda.domain.StatusVenda
@@ -24,6 +27,8 @@ import com.monarca.venda.repository.VendaCompleta
 import com.monarca.venda.repository.VendaItemPersistencia
 import com.monarca.venda.repository.VendaNegociacaoPersistencia
 import com.monarca.venda.repository.VendaRepository
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlin.math.abs
 import kotlin.math.round
 
@@ -35,6 +40,8 @@ class VendaService(
     private val usuarioRepository: UsuarioRepository,
     private val produtoRepository: ProdutoRepository,
     private val papelService: PapelService,
+    private val tituloService: TituloService,
+    private val zoneId: ZoneId = ZoneId.of("America/Asuncion"),
 ) {
 
     suspend fun listar(idFilial: Long?, idUsuario: Long): List<VendaResponse> {
@@ -76,6 +83,48 @@ class VendaService(
             throw invalido("VENDA_TOTAL_INVALIDO", "O total da venda deve ser maior que zero")
         }
         val negociacao = montarNegociacao(request.negociacao, totalPyg, cotacao)
+        val finais = caixaService.listarFinalizadores().associateBy { it.id }
+        val credito = negociacao.filter { finais[it.idFinalizador]?.geraContasReceber == true }
+        val vista = negociacao.filter { finais[it.idFinalizador]?.geraContasReceber != true }
+        if (credito.size > 1) {
+            throw invalido("VENDA_CREDITO_UNICO", "Use só uma forma a prazo por venda")
+        }
+        if (credito.isNotEmpty() && credito.map { it.moeda }.distinct().size > 1) {
+            throw invalido("VENDA_CREDITO_MOEDA", "O crediário deve estar em uma única moeda")
+        }
+        val tituloReceber = if (credito.isNotEmpty()) {
+            val cfg = request.parcelas
+                ?: throw invalido("PARCELAS_OBRIGATORIAS", "Informe as parcelas do crediário")
+            val linha = credito.first()
+            val valor = credito.sumOf { it.valor }
+            val valorPyg = credito.sumOf { it.valorPyg }
+            val parcelas = tituloService.montarParcelas(
+                cfg,
+                valor,
+                valorPyg,
+                Moeda.valueOf(linha.moeda.uppercase()),
+                LocalDate.now(zoneId),
+            )
+            TituloReceberNovo(
+                idFilial = idFilial,
+                idCliente = request.idCliente,
+                origem = OrigemTitulo.VENDA,
+                idVenda = null,
+                moeda = Moeda.valueOf(linha.moeda.uppercase()),
+                valor = valor,
+                valorPyg = valorPyg,
+                idCotacao = cotacao.id,
+                usdPyg = cotacao.usdPyg,
+                brlPyg = cotacao.brlPyg,
+                observacao = request.observacao?.trim()?.ifBlank { null },
+                parcelas = parcelas,
+            )
+        } else {
+            if (request.parcelas != null) {
+                throw invalido("PARCELAS_SEM_CREDITO", "Parcelas só se aplicam a finalizador a prazo")
+            }
+            null
+        }
         val idVendedor = resolverVendedor(request.idVendedor, idUsuario, idFilial)
         val id = repository.inserir(
             idFilial = idFilial,
@@ -87,6 +136,8 @@ class VendaService(
             observacao = request.observacao?.trim()?.ifBlank { null },
             itens = itens,
             negociacao = negociacao,
+            negociacaoCaixa = vista,
+            tituloReceber = tituloReceber,
             idUsuario = idUsuario,
         )
         return buscar(id, idUsuario)

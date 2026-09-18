@@ -8,7 +8,7 @@ export function tf(
   let text = t(key);
   if (vars) {
     for (const [name, value] of Object.entries(vars)) {
-      text = text.replaceAll(`{${name}}`, value);
+      text = text.split(`{${name}}`).join(value);
     }
   }
   return text;

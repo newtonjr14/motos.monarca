@@ -6,5 +6,5 @@ import org.koin.dsl.module
 
 val vendaModule = module {
     single<VendaRepository> { ExposedVendaRepository(get()) }
-    single { VendaService(get(), get(), get(), get(), get(), get(), get()) }
+    single { VendaService(get(), get(), get(), get(), get(), get(), get(), get()) }
 }

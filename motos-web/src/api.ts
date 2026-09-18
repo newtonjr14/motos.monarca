@@ -27,6 +27,7 @@ export const Permissao = {
   COTACAO_GERENCIAR: "cotacao:gerenciar",
   CAIXA_GERENCIAR: "caixa:gerenciar",
   CAIXA_OPERAR: "caixa:operar",
+  FINANCEIRO_OPERAR: "financeiro:operar",
 } as const;
 
 export interface TokenResponse {
@@ -677,6 +678,8 @@ export type TipoMovimentacaoCaixa =
   | "abertura"
   | "fechamento"
   | "venda"
+  | "recebimento"
+  | "pagamento"
   | "transferencia_saida"
   | "transferencia_entrada";
 export type StatusSessaoCaixa = "aberto" | "fechado";
@@ -686,6 +689,8 @@ export interface Finalizador {
   id: number;
   nome: string;
   tipo: TipoFinalizador;
+  geraContasReceber?: boolean;
+  geraContasPagar?: boolean;
   status: Status;
 }
 
@@ -830,6 +835,245 @@ export const listarVendedoresVenda = (idFilial?: number) => {
 export const buscarVenda = (id: number) => api<Venda>(`/vendas/${id}`);
 export const criarVenda = (body: unknown) =>
   api<Venda>("/vendas", { method: "POST", body: JSON.stringify(body) });
+
+export interface DocumentoEletronicoPreview {
+  idVenda: number;
+  pronto: boolean;
+  avisos: string[];
+  documento?: unknown;
+  payload?: unknown;
+}
+
+export const previewDocumentoEletronico = (idVenda: number) =>
+  api<DocumentoEletronicoPreview>(`/vendas/${idVenda}/documento-eletronico`);
+
+export type EstadoFactura = "pendente" | "processando" | "aprobado" | "rechazado" | "cancelado";
+
+export interface FacturaResumo {
+  id: number;
+  idFilial: number;
+  idVenda: number;
+  referencia: string;
+  sudtaxId: number | null;
+  cdc: string | null;
+  cdcFormatado: string | null;
+  estado: EstadoFactura | string;
+  mensagem: string | null;
+  protocoloLote: string | null;
+  codigoSifen: string | null;
+  estabelecimento: string | null;
+  pontoExpedicao: string | null;
+  clienteNome: string;
+  totalPyg: number;
+  criadoEm: number;
+  atualizadoEm: number;
+}
+
+export interface Factura extends FacturaResumo {
+  payloadEnvio: string | null;
+}
+
+export interface VendaElegivelFactura {
+  id: number;
+  clienteNome: string;
+  totalPyg: number;
+  criadoEm: number;
+}
+
+export const listarFacturas = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<FacturaResumo[]>(`/facturas${q}`);
+};
+export const listarVendasElegiveisFactura = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<VendaElegivelFactura[]>(`/facturas/vendas-elegiveis${q}`);
+};
+export const buscarFactura = (id: number) => api<Factura>(`/facturas/${id}`);
+export const buscarFacturaPorVenda = (idVenda: number) =>
+  api<Factura | undefined>(`/facturas/por-venda?idVenda=${idVenda}`);
+export const emitirFactura = (body: { idVenda: number; enviar?: boolean }) =>
+  api<Factura>("/facturas", { method: "POST", body: JSON.stringify(body) });
+export const enviarFactura = (id: number) =>
+  api<Factura>(`/facturas/${id}/enviar`, { method: "POST", body: "{}" });
+export const consultarFactura = (id: number) =>
+  api<Factura>(`/facturas/${id}/consultar`, { method: "POST", body: "{}" });
+
+export type ModoVencimento = "intervalo_30" | "dia_fixo";
+export type OrigemTitulo = "venda" | "manual" | "compra";
+export type StatusTitulo = "aberto" | "parcial" | "quitado" | "cancelado";
+export type StatusParcela = "aberta" | "parcial" | "paga" | "cancelada";
+
+export interface ParcelasConfig {
+  quantidade: number;
+  modoVencimento: ModoVencimento;
+  diaVencimento?: number | null;
+}
+
+export interface ParcelaTitulo {
+  id: number;
+  numero: number;
+  vencimento: string;
+  valor: number;
+  valorPyg: number;
+  saldo: number;
+  status: StatusParcela;
+}
+
+export interface BaixaTitulo {
+  id: number;
+  idParcela: number;
+  idFinalizador: number;
+  finalizadorNome: string;
+  idCaixaSessao: number;
+  moeda: Moeda;
+  valor: number;
+  valorPyg: number;
+  criadoEm: number;
+  observacao?: string | null;
+}
+
+export interface TituloReceberResumo {
+  id: number;
+  idFilial: number;
+  idCliente: number;
+  clienteNome: string;
+  origem: OrigemTitulo;
+  idVenda?: number | null;
+  moeda: Moeda;
+  valor: number;
+  valorPyg: number;
+  saldoPyg: number;
+  criadoEm: number;
+  status: StatusTitulo;
+  proximoVencimento?: string | null;
+}
+
+export interface TituloPagarResumo {
+  id: number;
+  idFilial: number;
+  idFornecedor: number;
+  fornecedorNome: string;
+  origem: OrigemTitulo;
+  moeda: Moeda;
+  valor: number;
+  valorPyg: number;
+  saldoPyg: number;
+  criadoEm: number;
+  status: StatusTitulo;
+  proximoVencimento?: string | null;
+}
+
+export interface TituloReceber extends TituloReceberResumo {
+  filialNome: string;
+  idCotacao: number;
+  usdPyg: number;
+  brlPyg: number;
+  observacao?: string | null;
+  parcelas: ParcelaTitulo[];
+  baixas: BaixaTitulo[];
+}
+
+export interface TituloPagar extends TituloPagarResumo {
+  filialNome: string;
+  idCotacao: number;
+  usdPyg: number;
+  brlPyg: number;
+  observacao?: string | null;
+  parcelas: ParcelaTitulo[];
+  baixas: BaixaTitulo[];
+}
+
+export const listarTitulosReceber = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<TituloReceberResumo[]>(`/titulos-receber${q}`);
+};
+export const buscarTituloReceber = (id: number) => api<TituloReceber>(`/titulos-receber/${id}`);
+export const criarTituloReceber = (body: unknown) =>
+  api<TituloReceber>("/titulos-receber", { method: "POST", body: JSON.stringify(body) });
+export const baixarRecebimento = (body: unknown) =>
+  api<TituloReceber>("/recebimentos", { method: "POST", body: JSON.stringify(body) });
+
+export const listarTitulosPagar = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<TituloPagarResumo[]>(`/titulos-pagar${q}`);
+};
+export const buscarTituloPagar = (id: number) => api<TituloPagar>(`/titulos-pagar/${id}`);
+export const criarTituloPagar = (body: unknown) =>
+  api<TituloPagar>("/titulos-pagar", { method: "POST", body: JSON.stringify(body) });
+export const baixarPagamento = (body: unknown) =>
+  api<TituloPagar>("/pagamentos", { method: "POST", body: JSON.stringify(body) });
+
+export type TipoDocumentoEntrada = "py_factura" | "exterior";
+export type CondicionEntrada = "contado" | "credito";
+export type StatusEntrada = "finalizada" | "cancelada";
+
+export interface EntradaResumo {
+  id: number;
+  idFilial: number;
+  idFornecedor: number;
+  fornecedorNome: string;
+  tipoDocumento: TipoDocumentoEntrada;
+  dataEmissao: string;
+  moeda: Moeda;
+  valor: number;
+  valorPyg: number;
+  documentoLabel: string;
+  criadoEm: number;
+  status: StatusEntrada;
+}
+
+export interface EntradaItem {
+  id: number;
+  idProduto: number;
+  produtoCodigo: string;
+  produtoNome: string;
+  idEstoque: number;
+  estoqueNome: string;
+  quantidade: number;
+  aliquotaIva: number;
+  moeda: Moeda;
+  valorUnitario: number;
+  valor: number;
+  valorPyg: number;
+  chassis: string[];
+}
+
+export interface EntradaNegociacao {
+  id: number;
+  idFinalizador: number;
+  finalizadorNome: string;
+  moeda: Moeda;
+  valor: number;
+  valorPyg: number;
+}
+
+export interface Entrada extends EntradaResumo {
+  filialNome: string;
+  idCotacao: number;
+  usdPyg: number;
+  brlPyg: number;
+  timbrado?: string | null;
+  establecimiento?: string | null;
+  puntoExpedicion?: string | null;
+  numero?: string | null;
+  cdc?: string | null;
+  condicion?: CondicionEntrada | null;
+  numeroDocumento?: string | null;
+  incoterm?: string | null;
+  idCaixaSessao?: number | null;
+  idTituloPagar?: number | null;
+  observacao?: string | null;
+  itens: EntradaItem[];
+  negociacao: EntradaNegociacao[];
+}
+
+export const listarEntradas = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<EntradaResumo[]>(`/entradas${q}`);
+};
+export const buscarEntrada = (id: number) => api<Entrada>(`/entradas/${id}`);
+export const criarEntrada = (body: unknown) =>
+  api<Entrada>("/entradas", { method: "POST", body: JSON.stringify(body) });
 
 export interface SeedDemoStatus {
   habilitado?: boolean;

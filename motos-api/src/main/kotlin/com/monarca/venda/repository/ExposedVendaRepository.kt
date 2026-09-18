@@ -17,6 +17,11 @@ import com.monarca.produto.repository.ProdutoUnidadesTable
 import com.monarca.produto.repository.ProdutosTable
 import com.monarca.usuario.repository.UsuariosTable
 import com.monarca.localidade.service.invalido
+import com.monarca.titulo.domain.StatusParcela
+import com.monarca.titulo.domain.StatusTitulo
+import com.monarca.titulo.repository.ParcelasReceberTable
+import com.monarca.titulo.repository.TituloReceberNovo
+import com.monarca.titulo.repository.TitulosReceberTable
 import com.monarca.venda.domain.StatusVenda
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.singleOrNull
@@ -63,6 +68,8 @@ class ExposedVendaRepository(
         observacao: String?,
         itens: List<VendaItemPersistencia>,
         negociacao: List<VendaNegociacaoPersistencia>,
+        negociacaoCaixa: List<VendaNegociacaoPersistencia>,
+        tituloReceber: com.monarca.titulo.repository.TituloReceberNovo?,
         idUsuario: Long,
     ): Long = suspendTransaction(database) {
         val agora = System.currentTimeMillis()
@@ -133,23 +140,55 @@ class ExposedVendaRepository(
                 it[VendaNegociacoesTable.valorPyg] = linha.valorPyg
             }
         }
-        val mov = CaixaMovimentacoesTable.insert {
-            it[CaixaMovimentacoesTable.idCaixaSessao] = idCaixaSessao
-            it[CaixaMovimentacoesTable.tipo] = TipoMovimentacaoCaixa.VENDA.name.lowercase()
-            it[CaixaMovimentacoesTable.idUsuario] = idUsuario
-            it[CaixaMovimentacoesTable.idVenda] = idVenda
-            it[CaixaMovimentacoesTable.criadoEm] = agora
-            it[CaixaMovimentacoesTable.status] = Status.ATIVO.name.lowercase()
-        }
-        val idMov = mov[CaixaMovimentacoesTable.id].value
-        for (linha in negociacao) {
-            CaixaMovimentacaoFinalizadoresTable.insert {
-                it[CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao] = idMov
-                it[CaixaMovimentacaoFinalizadoresTable.idFinalizador] = linha.idFinalizador
-                it[CaixaMovimentacaoFinalizadoresTable.moeda] = linha.moeda
-                it[CaixaMovimentacaoFinalizadoresTable.valor] = linha.valor
-                it[CaixaMovimentacaoFinalizadoresTable.valorPyg] = linha.valorPyg
+        if (negociacaoCaixa.isNotEmpty()) {
+            val mov = CaixaMovimentacoesTable.insert {
+                it[CaixaMovimentacoesTable.idCaixaSessao] = idCaixaSessao
+                it[CaixaMovimentacoesTable.tipo] = TipoMovimentacaoCaixa.VENDA.name.lowercase()
+                it[CaixaMovimentacoesTable.idUsuario] = idUsuario
+                it[CaixaMovimentacoesTable.idVenda] = idVenda
+                it[CaixaMovimentacoesTable.criadoEm] = agora
+                it[CaixaMovimentacoesTable.status] = Status.ATIVO.name.lowercase()
             }
+            val idMov = mov[CaixaMovimentacoesTable.id].value
+            for (linha in negociacaoCaixa) {
+                CaixaMovimentacaoFinalizadoresTable.insert {
+                    it[CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao] = idMov
+                    it[CaixaMovimentacaoFinalizadoresTable.idFinalizador] = linha.idFinalizador
+                    it[CaixaMovimentacaoFinalizadoresTable.moeda] = linha.moeda
+                    it[CaixaMovimentacaoFinalizadoresTable.valor] = linha.valor
+                    it[CaixaMovimentacaoFinalizadoresTable.valorPyg] = linha.valorPyg
+                }
+            }
+        }
+        if (tituloReceber != null) {
+            val insertedTitulo = TitulosReceberTable.insert {
+                it[TitulosReceberTable.idFilial] = tituloReceber.idFilial
+                it[TitulosReceberTable.idCliente] = tituloReceber.idCliente
+                it[TitulosReceberTable.origem] = tituloReceber.origem.name.lowercase()
+                it[TitulosReceberTable.idVenda] = idVenda
+                it[TitulosReceberTable.moeda] = tituloReceber.moeda.name.lowercase()
+                it[TitulosReceberTable.valor] = tituloReceber.valor
+                it[TitulosReceberTable.valorPyg] = tituloReceber.valorPyg
+                it[TitulosReceberTable.idCotacao] = tituloReceber.idCotacao
+                it[TitulosReceberTable.usdPyg] = tituloReceber.usdPyg
+                it[TitulosReceberTable.brlPyg] = tituloReceber.brlPyg
+                it[TitulosReceberTable.observacao] = tituloReceber.observacao
+                it[TitulosReceberTable.criadoEm] = agora
+                it[TitulosReceberTable.status] = StatusTitulo.ABERTO.name.lowercase()
+            }
+            val idTitulo = insertedTitulo[TitulosReceberTable.id].value
+            for (p in tituloReceber.parcelas) {
+                ParcelasReceberTable.insert {
+                    it[ParcelasReceberTable.idTitulo] = idTitulo
+                    it[ParcelasReceberTable.numero] = p.numero
+                    it[ParcelasReceberTable.vencimento] = p.vencimento
+                    it[ParcelasReceberTable.valor] = p.valor
+                    it[ParcelasReceberTable.valorPyg] = p.valorPyg
+                    it[ParcelasReceberTable.saldo] = p.valor
+                    it[ParcelasReceberTable.status] = StatusParcela.ABERTA.name.lowercase()
+                }
+            }
+            gravarAuditLog("titulo_receber", idTitulo.toString(), AuditAction.INSERT, newValues = """{"idVenda":$idVenda}""")
         }
         gravarAuditLog("venda", idVenda.toString(), AuditAction.INSERT, newValues = """{"totalPyg":$totalPyg}""")
         idVenda

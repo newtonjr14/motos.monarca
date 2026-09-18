@@ -1,6 +1,7 @@
 package com.monarca.venda.dto
 
 import com.monarca.produto.domain.Moeda
+import com.monarca.titulo.dto.ParcelasConfigRequest
 import com.monarca.venda.domain.StatusVenda
 import kotlinx.serialization.Serializable
 
@@ -27,6 +28,7 @@ data class VendaRequest(
     val idCaixaSessao: Long? = null,
     val itens: List<VendaItemRequest>,
     val negociacao: List<VendaNegociacaoRequest>,
+    val parcelas: ParcelasConfigRequest? = null,
     val observacao: String? = null,
 )
 

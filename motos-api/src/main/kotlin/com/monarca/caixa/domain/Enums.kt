@@ -32,6 +32,12 @@ enum class TipoMovimentacaoCaixa {
     @SerialName("venda")
     VENDA,
 
+    @SerialName("recebimento")
+    RECEBIMENTO,
+
+    @SerialName("pagamento")
+    PAGAMENTO,
+
     @SerialName("transferencia_saida")
     TRANSFERENCIA_SAIDA,
 

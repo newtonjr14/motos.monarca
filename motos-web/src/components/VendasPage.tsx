@@ -148,7 +148,11 @@ function VendaForm({
   const [vendedores, setVendedores] = useState<VendedorOpcao[]>([]);
   const [idSessao, setIdSessao] = useState<number | "">("");
   const [linhas, setLinhas] = useState<ItemDraft[]>([]);
+  type ModoVencimento = "intervalo_30" | "dia_fixo";
   const [pagamentos, setPagamentos] = useState<PagDraft[]>([]);
+  const [qtdParcelas, setQtdParcelas] = useState("3");
+  const [modoVencimento, setModoVencimento] = useState<ModoVencimento>("intervalo_30");
+  const [diaVencimento, setDiaVencimento] = useState("10");
   const [observacao, setObservacao] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -179,6 +183,9 @@ function VendaForm({
   const limparCarrinho = useCallback(() => {
     setLinhas([]);
     setPagamentos([]);
+    setQtdParcelas("3");
+    setModoVencimento("intervalo_30");
+    setDiaVencimento("10");
     setObservacao("");
     setErro(null);
     setBuscaProduto("");
@@ -472,9 +479,19 @@ function VendaForm({
       setErro(t("venda.error.pay"));
       return;
     }
+    const credito = negociacao.filter((p) => finalizadores.find((f) => f.id === p.idFinalizador)?.geraContasReceber);
+    if (credito.length > 1) {
+      setErro(t("api.VENDA_CREDITO_UNICO"));
+      return;
+    }
     const pagoPyg = negociacao.reduce((a, p) => a + paraPyg(p.valor, p.moeda, cotacao), 0);
     if (Math.abs(pagoPyg - totalPyg) > 1) {
       setErro(t("api.VENDA_NEGOCIACAO_DIVERGENTE"));
+      return;
+    }
+    const qtd = Number.parseInt(qtdParcelas, 10) || 0;
+    if (credito.length > 0 && (qtd < 1 || qtd > 120)) {
+      setErro(t("api.PARCELAS_QTD"));
       return;
     }
     setSalvando(true);
@@ -490,6 +507,13 @@ function VendaForm({
           idsUnidades: l.unidades.map((u) => u.id),
         })),
         negociacao,
+        parcelas: credito.length > 0
+          ? {
+              quantidade: qtd,
+              modoVencimento,
+              diaVencimento: modoVencimento === "dia_fixo" ? (Number.parseInt(diaVencimento, 10) || 10) : null,
+            }
+          : null,
         observacao: observacao.trim() || null,
       });
       limparCarrinho();
@@ -895,6 +919,28 @@ function VendaForm({
                     </div>
                   );
                 })}
+                {pagamentos.some((p) => finalizadores.find((f) => f.id === p.idFinalizador)?.geraContasReceber) && (
+                  <div className="space-y-2 rounded-md p-3" style={{ background: v("--card2"), border: border1() }}>
+                    <p className="text-xs font-medium" style={{ color: v("--text") }}>{t("venda.parcelas")}</p>
+                    <Field label={t("venda.qtdParcelas")}>
+                      <input className="field" inputMode="numeric" value={qtdParcelas}
+                        onChange={(e) => setQtdParcelas(e.target.value.replace(/\D/g, ""))} />
+                    </Field>
+                    <Field label={t("venda.modoVencimento")}>
+                      <select className="field" value={modoVencimento}
+                        onChange={(e) => setModoVencimento(e.target.value as "intervalo_30" | "dia_fixo")}>
+                        <option value="intervalo_30">{t("venda.modo.intervalo30")}</option>
+                        <option value="dia_fixo">{t("venda.modo.diaFixo")}</option>
+                      </select>
+                    </Field>
+                    {modoVencimento === "dia_fixo" && (
+                      <Field label={t("venda.diaVencimento")}>
+                        <input className="field" inputMode="numeric" value={diaVencimento}
+                          onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, "").slice(0, 2))} />
+                      </Field>
+                    )}
+                  </div>
+                )}
                 <Field label={t("caixa.note")}>
                   <input className="field" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
                 </Field>
