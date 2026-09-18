@@ -11,6 +11,8 @@ data class VendaItemRequest(
     val idEstoque: Long? = null,
     val quantidade: Int,
     val idsUnidades: List<Long> = emptyList(),
+    /** Percentual 0–100. Exige permissão venda:desconto se > 0. */
+    val descontoPct: Double = 0.0,
 )
 
 @Serializable
@@ -51,6 +53,8 @@ data class VendaItemResponse(
     val moedaPreco: String,
     val precoLista: Double,
     val precoUnitarioPyg: Double,
+    val descontoPct: Double = 0.0,
+    val descontoPyg: Double = 0.0,
     val totalPyg: Double,
     val chassis: List<String> = emptyList(),
 )

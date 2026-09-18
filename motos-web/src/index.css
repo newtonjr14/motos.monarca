@@ -901,3 +901,30 @@ select.field:disabled {
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .recibo-overlay,
+  .recibo-overlay * {
+    visibility: visible !important;
+  }
+  .recibo-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    background: #fff !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .recibo-overlay .ficha-modal {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+  }
+  .recibo-actions {
+    display: none !important;
+  }
+}

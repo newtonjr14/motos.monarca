@@ -203,9 +203,13 @@ const Icon = {
   estoques: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>,
   cotacoes: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
   vendas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>,
-  historico: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>,
+  historico: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  facturas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></svg>,
+  entradaNota: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>,
+  contas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/></svg>,
   caixa: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M12 14h.01"/></svg>,
   finalizadores: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>,
+  chevron: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
   search: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   sun: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
   moon: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>,
@@ -218,37 +222,105 @@ const Icon = {
 type View = "dashboard" | "vendas" | "historico" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: string };
+type NavGrupoId = "vendas" | "financeiro" | "catalogo" | "pessoas" | "configuracao" | "localidade";
+type NavGrupo = { id: NavGrupoId; items: NavItem[] };
 
-const navOperacao: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: "dashboard", permissao: Permissao.DASHBOARD_CONSULTAR },
-  { id: "vendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
-  { id: "historico", label: "Histórico", icon: "historico", permissao: Permissao.VENDA_REGISTRAR },
-  { id: "facturas", label: "Facturas", icon: "historico", permissao: Permissao.VENDA_REGISTRAR },
-  { id: "caixa", label: "Caixa", icon: "caixa", permissao: Permissao.CAIXA_OPERAR },
-  { id: "contasReceber", label: "Contas a receber", icon: "finalizadores", permissao: Permissao.FINANCEIRO_OPERAR },
-  { id: "contasPagar", label: "Contas a pagar", icon: "finalizadores", permissao: Permissao.FINANCEIRO_OPERAR },
-  { id: "entradaNota", label: "Entrada de nota", icon: "historico", permissao: Permissao.FINANCEIRO_OPERAR },
-  { id: "clientes", label: "Clientes", icon: "clientes", permissao: Permissao.PESSOA_GERENCIAR },
-  { id: "fornecedores", label: "Fornecedores", icon: "fornecedores", permissao: Permissao.PESSOA_GERENCIAR },
-  { id: "produtos", label: "Produtos", icon: "produtos", permissao: Permissao.PRODUTO_GERENCIAR },
-  { id: "marcas", label: "Marcas", icon: "marcas", permissao: Permissao.PRODUTO_GERENCIAR },
-  { id: "modelos", label: "Modelos", icon: "modelos", permissao: Permissao.PRODUTO_GERENCIAR },
-  { id: "estoques", label: "Estoques", icon: "estoques", permissao: Permissao.ESTOQUE_GERENCIAR },
-  { id: "cotacoes", label: "Cotações", icon: "cotacoes", permissao: Permissao.COTACAO_GERENCIAR },
+const NAV_GRUPOS_STORAGE_KEY = "monarca.nav.grupos";
+
+function padraoAbertos(): Record<NavGrupoId, boolean> {
+  return {
+    vendas: false,
+    financeiro: false,
+    catalogo: false,
+    pessoas: false,
+    configuracao: false,
+    localidade: false,
+  };
+}
+
+function lerAbertosSalvos(): Record<NavGrupoId, boolean> {
+  const base = padraoAbertos();
+  try {
+    const raw = localStorage.getItem(NAV_GRUPOS_STORAGE_KEY);
+    if (!raw) return base;
+    const parsed = JSON.parse(raw) as Partial<Record<NavGrupoId, boolean>>;
+    for (const id of Object.keys(base) as NavGrupoId[]) {
+      if (typeof parsed[id] === "boolean") base[id] = parsed[id]!;
+    }
+  } catch {
+    /* ignore */
+  }
+  return base;
+}
+
+function salvarAbertos(abertos: Record<NavGrupoId, boolean>) {
+  try {
+    localStorage.setItem(NAV_GRUPOS_STORAGE_KEY, JSON.stringify(abertos));
+  } catch {
+    /* ignore */
+  }
+}
+
+const navDashboard: NavItem = {
+  id: "dashboard", label: "Dashboard", icon: "dashboard", permissao: Permissao.DASHBOARD_CONSULTAR,
+};
+
+const navGrupos: NavGrupo[] = [
+  {
+    id: "vendas",
+    items: [
+      { id: "vendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
+      { id: "historico", label: "Histórico", icon: "historico", permissao: Permissao.VENDA_REGISTRAR },
+      { id: "facturas", label: "Faturas", icon: "facturas", permissao: Permissao.VENDA_REGISTRAR },
+    ],
+  },
+  {
+    id: "financeiro",
+    items: [
+      { id: "caixa", label: "Caixa", icon: "caixa", permissao: Permissao.CAIXA_OPERAR },
+      { id: "contasReceber", label: "Contas a receber", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
+      { id: "contasPagar", label: "Contas a pagar", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
+      { id: "entradaNota", label: "Entrada de nota", icon: "entradaNota", permissao: Permissao.FINANCEIRO_OPERAR },
+    ],
+  },
+  {
+    id: "catalogo",
+    items: [
+      { id: "produtos", label: "Produtos", icon: "produtos", permissao: Permissao.PRODUTO_GERENCIAR },
+      { id: "marcas", label: "Marcas", icon: "marcas", permissao: Permissao.PRODUTO_GERENCIAR },
+      { id: "modelos", label: "Modelos", icon: "modelos", permissao: Permissao.PRODUTO_GERENCIAR },
+      { id: "estoques", label: "Estoques", icon: "estoques", permissao: Permissao.ESTOQUE_GERENCIAR },
+      { id: "cotacoes", label: "Cotações", icon: "cotacoes", permissao: Permissao.COTACAO_GERENCIAR },
+    ],
+  },
+  {
+    id: "pessoas",
+    items: [
+      { id: "clientes", label: "Clientes", icon: "clientes", permissao: Permissao.PESSOA_GERENCIAR },
+      { id: "fornecedores", label: "Fornecedores", icon: "fornecedores", permissao: Permissao.PESSOA_GERENCIAR },
+    ],
+  },
+  {
+    id: "configuracao",
+    items: [
+      { id: "empresa", label: "Empresa", icon: "empresa", permissao: Permissao.CONFIGURACAO },
+      { id: "usuarios", label: "Usuários", icon: "usuarios", permissao: Permissao.USUARIO_LISTAR },
+      { id: "caixas", label: "Caixas", icon: "caixa", permissao: Permissao.CAIXA_GERENCIAR },
+      { id: "finalizadores", label: "Finalizadores", icon: "finalizadores", permissao: Permissao.CAIXA_GERENCIAR },
+    ],
+  },
+  {
+    id: "localidade",
+    items: [
+      { id: "paises", label: "Países", icon: "paises", permissao: Permissao.LOCALIDADE_GERENCIAR },
+      { id: "divisoes", label: "UFs / Departamentos", icon: "divisoes", permissao: Permissao.LOCALIDADE_GERENCIAR },
+      { id: "cidades", label: "Cidades", icon: "cidades", permissao: Permissao.LOCALIDADE_GERENCIAR },
+      { id: "documentos", label: "Tipos de documento", icon: "divisoes", permissao: Permissao.DOCUMENTO_GERENCIAR },
+    ],
+  },
 ];
 
-const navCadastros: NavItem[] = [
-  { id: "empresa", label: "Empresa", icon: "empresa", permissao: Permissao.CONFIGURACAO },
-  { id: "usuarios", label: "Usuários", icon: "usuarios", permissao: Permissao.USUARIO_LISTAR },
-  { id: "finalizadores", label: "Finalizadores", icon: "finalizadores", permissao: Permissao.CAIXA_GERENCIAR },
-  { id: "caixas", label: "Caixas", icon: "caixa", permissao: Permissao.CAIXA_GERENCIAR },
-  { id: "paises", label: "Países", icon: "paises", permissao: Permissao.LOCALIDADE_GERENCIAR },
-  { id: "documentos", label: "Tipos de documento", icon: "divisoes", permissao: Permissao.DOCUMENTO_GERENCIAR },
-  { id: "divisoes", label: "UFs / Departamentos", icon: "divisoes", permissao: Permissao.LOCALIDADE_GERENCIAR },
-  { id: "cidades", label: "Cidades", icon: "cidades", permissao: Permissao.LOCALIDADE_GERENCIAR },
-];
-
-const navTodas = [...navOperacao, ...navCadastros];
+const navTodas: NavItem[] = [navDashboard, ...navGrupos.flatMap((g) => g.items)];
 
 function NavButton({ id, label, icon, active, onClick }: {
   id: View; label: string; icon: keyof typeof Icon; active: boolean; onClick: (v: View) => void;
@@ -272,12 +344,41 @@ function Sidebar({ view, onNavigate, systemStatus }: {
 }) {
   const { t } = useI18n();
   const { hasPermission } = useAuth();
-  const navOperacaoI18n = navOperacao
-    .filter((item) => hasPermission(item.permissao))
-    .map((item) => ({ ...item, label: t(`nav.${item.id}` as const) }));
-  const navCadastrosI18n = navCadastros
-    .filter((item) => hasPermission(item.permissao))
-    .map((item) => ({ ...item, label: t(`nav.${item.id}` as const) }));
+  const [abertos, setAbertos] = useState<Record<NavGrupoId, boolean>>(lerAbertosSalvos);
+
+  const dashboardOk = hasPermission(navDashboard.permissao)
+    ? { ...navDashboard, label: t("nav.dashboard") }
+    : null;
+
+  const gruposVisiveis = navGrupos
+    .map((g) => ({
+      ...g,
+      items: g.items
+        .filter((item) => hasPermission(item.permissao))
+        .map((item) => ({ ...item, label: t(`nav.${item.id}` as const) })),
+    }))
+    .filter((g) => g.items.length > 0);
+
+  useEffect(() => {
+    if (!view) return;
+    const grupo = navGrupos.find((g) => g.items.some((i) => i.id === view));
+    if (!grupo) return;
+    setAbertos((atual) => {
+      if (atual[grupo.id]) return atual;
+      const proximo = { ...atual, [grupo.id]: true };
+      salvarAbertos(proximo);
+      return proximo;
+    });
+  }, [view]);
+
+  function alternarGrupo(id: NavGrupoId) {
+    setAbertos((atual) => {
+      const proximo = { ...atual, [id]: !atual[id] };
+      salvarAbertos(proximo);
+      return proximo;
+    });
+  }
+
   return (
     <aside className="flex flex-col w-56 shrink-0 h-screen sticky top-0 overflow-y-auto"
       style={{ background: v("--bg-sidebar"), borderRight: `1px solid ${v("--border")}` }}>
@@ -292,23 +393,38 @@ function Sidebar({ view, onNavigate, systemStatus }: {
 
       <div className="mx-4 mb-4" style={{ height: 1, background: v("--border") }} />
 
-      <nav className="flex-1 px-3">
-        {navOperacaoI18n.length > 0 && (
-          <>
-            <p className="px-2 mb-2 text-xs font-medium tracking-widest uppercase" style={{ color: v("--text-muted") }}>{t("nav.menu")}</p>
-            {navOperacaoI18n.map((item) => (
-              <NavButton key={item.id} {...item} active={view === item.id} onClick={onNavigate} />
-            ))}
-          </>
+      <nav className="flex-1 px-3 pb-2">
+        {dashboardOk && (
+          <NavButton {...dashboardOk} active={view === "dashboard"} onClick={onNavigate} />
         )}
-        {navCadastrosI18n.length > 0 && (
-          <>
-            <p className={`px-2 mb-2 text-xs font-medium tracking-widest uppercase ${navOperacaoI18n.length > 0 ? "mt-4" : ""}`} style={{ color: v("--text-muted") }}>{t("nav.cadastros")}</p>
-            {navCadastrosI18n.map((item) => (
-              <NavButton key={item.id} {...item} active={view === item.id} onClick={onNavigate} />
-            ))}
-          </>
-        )}
+        {gruposVisiveis.map((grupo) => {
+          const aberto = abertos[grupo.id] ?? false;
+          const temAtivo = grupo.items.some((i) => i.id === view);
+          return (
+            <div key={grupo.id} className={dashboardOk || gruposVisiveis[0]?.id !== grupo.id ? "mt-3" : "mt-2"}>
+              <button
+                type="button"
+                onClick={() => alternarGrupo(grupo.id)}
+                className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md cursor-pointer"
+                style={{ color: temAtivo ? v("--gold") : v("--text-muted") }}
+                aria-expanded={aberto}
+              >
+                <span className="text-[11px] font-medium tracking-widest uppercase text-left">
+                  {t(`nav.group.${grupo.id}` as const)}
+                </span>
+                <span
+                  className="shrink-0 transition-transform duration-150"
+                  style={{ transform: aberto ? "rotate(0deg)" : "rotate(-90deg)", opacity: 0.7 }}
+                >
+                  <Icon.chevron />
+                </span>
+              </button>
+              {aberto && grupo.items.map((item) => (
+                <NavButton key={item.id} {...item} active={view === item.id} onClick={onNavigate} />
+              ))}
+            </div>
+          );
+        })}
       </nav>
 
       <div className="p-3 mx-3 mb-3 rounded-md" style={{ background: v("--card2"), border: `1px solid ${v("--border")}` }}>

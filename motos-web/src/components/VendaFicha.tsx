@@ -231,6 +231,9 @@ export default function VendaFicha({
                       <Td mono>{i.produtoCodigo}</Td>
                       <td className="drive-td">
                         <p className="text-xs font-medium" style={{ color: v("--text") }}>{i.produtoNome}</p>
+                        {(i.descontoPct ?? 0) > 0 && (
+                          <p className="text-[11px]" style={{ color: v("--text-muted") }}>−{i.descontoPct}%</p>
+                        )}
                         {i.chassis && i.chassis.length > 0 && (
                           <p className="text-[11px] font-mono break-all" style={{ color: v("--text-muted") }}>{i.chassis.join(" · ")}</p>
                         )}

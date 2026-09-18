@@ -14,6 +14,8 @@ data class VendaItemPersistencia(
     val moedaPreco: String,
     val precoLista: Double,
     val precoUnitarioPyg: Double,
+    val descontoPct: Double = 0.0,
+    val descontoPyg: Double = 0.0,
     val totalPyg: Double,
     val idsUnidades: List<Long> = emptyList(),
     val chassis: List<String> = emptyList(),

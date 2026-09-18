@@ -1,5 +1,7 @@
 package com.monarca.venda.service
 
+import com.monarca.auth.domain.Permissao
+import com.monarca.auth.domain.Rbac
 import com.monarca.caixa.service.CaixaService
 import com.monarca.common.enums.Status
 import com.monarca.cotacao.dto.CotacaoResponse
@@ -77,7 +79,9 @@ class VendaService(
         if (request.itens.isEmpty()) {
             throw invalido("VENDA_ITENS_OBRIGATORIOS", "Informe ao menos um item")
         }
-        val itens = montarItens(request, idFilial, cotacao)
+        val operador = usuarioRepository.buscar(idUsuario)
+            ?: throw RecursoNaoEncontrado("Usuário $idUsuario não encontrado")
+        val itens = montarItens(request, idFilial, cotacao, operador.perfil)
         val totalPyg = itens.sumOf { it.totalPyg }
         if (totalPyg <= 0) {
             throw invalido("VENDA_TOTAL_INVALIDO", "O total da venda deve ser maior que zero")
@@ -163,24 +167,40 @@ class VendaService(
         request: VendaRequest,
         idFilial: Long,
         cotacao: CotacaoResponse,
+        perfil: com.monarca.usuario.domain.PerfilUsuario,
     ): List<VendaItemPersistencia> {
-        val agrupado = linkedMapOf<Pair<Long, Long?>, Pair<Int, MutableList<Long>>>()
+        val podeDesconto = Rbac.possui(perfil, Permissao.VENDA_DESCONTO)
+        data class Acc(val quantidade: Int, val idsUnidades: MutableList<Long>, val descontoPct: Double)
+        val agrupado = linkedMapOf<Triple<Long, Long?, Double>, Acc>()
         for (item in request.itens) {
             if (item.quantidade <= 0) {
                 throw invalido("VENDA_QTD_INVALIDA", "A quantidade deve ser maior que zero")
             }
-            val chave = item.idProduto to item.idEstoque
+            val pct = round(item.descontoPct * 100.0) / 100.0
+            if (pct < 0.0 || pct > 100.0) {
+                throw invalido("VENDA_DESCONTO_INVALIDO", "O desconto deve estar entre 0 e 100%")
+            }
+            if (pct > 0.0 && !podeDesconto) {
+                throw acesso(
+                    "PERMISSAO_INSUFICIENTE",
+                    "Permissão insuficiente: ${Permissao.VENDA_DESCONTO.codigo}",
+                    "permissao" to Permissao.VENDA_DESCONTO.codigo,
+                )
+            }
+            val chave = Triple(item.idProduto, item.idEstoque, pct)
             val atual = agrupado[chave]
             if (atual == null) {
-                agrupado[chave] = item.quantidade to item.idsUnidades.toMutableList()
+                agrupado[chave] = Acc(item.quantidade, item.idsUnidades.toMutableList(), pct)
             } else {
-                atual.second += item.idsUnidades
-                agrupado[chave] = (atual.first + item.quantidade) to atual.second
+                atual.idsUnidades += item.idsUnidades
+                agrupado[chave] = Acc(atual.quantidade + item.quantidade, atual.idsUnidades, pct)
             }
         }
         return agrupado.map { (chave, acc) ->
-            val (idProduto, idEstoquePedido) = chave
-            val (quantidade, idsUnidades) = acc
+            val (idProduto, idEstoquePedido, _) = chave
+            val quantidade = acc.quantidade
+            val idsUnidades = acc.idsUnidades
+            val descontoPct = acc.descontoPct
             val completo = produtoRepository.buscar(idProduto)
                 ?: throw RecursoNaoEncontrado("Produto $idProduto não encontrado")
             val produto = completo.produto
@@ -213,6 +233,9 @@ class VendaService(
                 throw invalido("ESTOQUE_INSUFICIENTE", "Saldo insuficiente para vender ${produto.codigo}")
             }
             val unitario = paraPyg(produto.precoLista, produto.moedaPreco, cotacao)
+            val bruto = unitario * quantidade
+            val descontoPyg = round(bruto * descontoPct / 100.0)
+            val totalLinha = (bruto - descontoPyg).coerceAtLeast(0.0)
             VendaItemPersistencia(
                 idProduto = idProduto,
                 produtoCodigo = produto.codigo,
@@ -224,7 +247,9 @@ class VendaService(
                 moedaPreco = produto.moedaPreco.name.lowercase(),
                 precoLista = produto.precoLista,
                 precoUnitarioPyg = unitario,
-                totalPyg = unitario * quantidade,
+                descontoPct = descontoPct,
+                descontoPyg = descontoPyg,
+                totalPyg = totalLinha,
                 idsUnidades = unidades.map { it.id },
                 chassis = unidades.map { it.numero },
             )
@@ -354,6 +379,8 @@ class VendaService(
                 moedaPreco = it.moedaPreco,
                 precoLista = it.precoLista,
                 precoUnitarioPyg = it.precoUnitarioPyg,
+                descontoPct = it.descontoPct,
+                descontoPyg = it.descontoPyg,
                 totalPyg = it.totalPyg,
                 chassis = it.chassis,
             )

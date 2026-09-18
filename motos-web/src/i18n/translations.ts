@@ -9,8 +9,12 @@ export type TranslationKey =
   | "login.error"
   | "login.showPassword"
   | "login.hidePassword"
-  | "nav.menu"
-  | "nav.cadastros"
+  | "nav.group.vendas"
+  | "nav.group.financeiro"
+  | "nav.group.catalogo"
+  | "nav.group.pessoas"
+  | "nav.group.configuracao"
+  | "nav.group.localidade"
   | "nav.dashboard"
   | "nav.clientes"
   | "nav.fornecedores"
@@ -746,6 +750,13 @@ export type TranslationKey =
   | "venda.unit"
   | "venda.itemsCount"
   | "venda.clear"
+  | "venda.clienteRapido.title"
+  | "venda.clienteRapido.hint"
+  | "venda.clienteRapido.new"
+  | "venda.hold"
+  | "venda.heldCount"
+  | "venda.heldNoClient"
+  | "venda.discardConfirm"
   | "venda.emptyHint"
   | "venda.filter.all"
   | "venda.units"
@@ -757,6 +768,10 @@ export type TranslationKey =
   | "venda.error.chassisRequired"
   | "venda.chassisMore"
   | "venda.chassisInCart"
+  | "venda.discount"
+  | "venda.recibo.title"
+  | "venda.recibo.print"
+  | "venda.recibo.footer"
   | "usuario.caixas"
   | "usuario.caixaPadrao"
   | "api.FINALIZADOR_NOME_DUPLICADO"
@@ -789,6 +804,7 @@ export type TranslationKey =
   | "api.VENDA_NEGOCIACAO_OBRIGATORIA"
   | "api.VENDA_VALOR_INVALIDO"
   | "api.VENDA_NEGOCIACAO_DIVERGENTE"
+  | "api.VENDA_DESCONTO_INVALIDO"
   | "api.VENDEDOR_INATIVO"
   | "api.VENDEDOR_FILIAL"
   | "api.VENDEDOR_INVALIDO"
@@ -816,8 +832,12 @@ const pt: Record<TranslationKey, string> = {
   "login.error": "Login ou senha inválidos",
   "login.showPassword": "Mostrar senha",
   "login.hidePassword": "Ocultar senha",
-  "nav.menu": "Menu",
-  "nav.cadastros": "Cadastros",
+  "nav.group.vendas": "Vendas",
+  "nav.group.financeiro": "Caixa e financeiro",
+  "nav.group.catalogo": "Catálogo",
+  "nav.group.pessoas": "Pessoas",
+  "nav.group.configuracao": "Configuração",
+  "nav.group.localidade": "Localidade",
   "nav.dashboard": "Dashboard",
   "nav.clientes": "Clientes",
   "nav.fornecedores": "Fornecedores",
@@ -829,11 +849,11 @@ const pt: Record<TranslationKey, string> = {
   "nav.contasReceber": "Contas a receber",
   "nav.contasPagar": "Contas a pagar",
   "nav.entradaNota": "Entrada de nota",
-  "nav.facturas": "Facturas",
-  "factura.emitir": "Emitir factura",
+  "nav.facturas": "Faturas",
+  "factura.emitir": "Emitir fatura",
   "factura.escolherVenda": "Venda",
   "factura.selecioneVenda": "Selecione uma venda…",
-  "factura.semVendasElegiveis": "Não há vendas finalizadas sem factura nesta filial.",
+  "factura.semVendasElegiveis": "Não há vendas finalizadas sem fatura nesta filial.",
   "factura.enviarAposCriar": "Enviar à SET / simulador após criar",
   "factura.searchPlaceholder": "Cliente, CDC, venda, estado…",
   "factura.venda": "Venda",
@@ -847,7 +867,7 @@ const pt: Record<TranslationKey, string> = {
   "factura.cdc": "CDC",
   "factura.total": "Total",
   "factura.data": "Data",
-  "factura.fichaTitle": "Factura eletrônica",
+  "factura.fichaTitle": "Fatura eletrônica",
   "factura.status": "Status SudTax",
   "factura.referencia": "Referência",
   "factura.sudtaxId": "ID SudTax",
@@ -1190,7 +1210,7 @@ const pt: Record<TranslationKey, string> = {
   "api.ESTOQUE_PADRAO_INATIVO": "O estoque padrão da venda precisa estar ativo",
   "api.ESTOQUE_PADRAO_FILIAL": "O estoque padrão deve pertencer a esta filial",
   "api.ESTOQUE_NAO_PADRAO": "A venda usa só o estoque padrão da filial",
-  "api.COTACAO_DIA_AUSENTE": "Informe a cotação do dia para vender, receber, pagar ou emitir factura",
+  "api.COTACAO_DIA_AUSENTE": "Informe a cotação do dia para vender, receber, pagar ou emitir fatura",
   "api.COTACAO_DIA_DUPLICADA": "Já existe cotação para {data}",
   "api.COTACAO_DATA_INVALIDA": "Data inválida. Use AAAA-MM-DD",
   "api.COTACAO_DATA_FUTURA": "Não é possível informar cotação de data futura",
@@ -1202,9 +1222,9 @@ const pt: Record<TranslationKey, string> = {
   "api.SUDTAX_API_KEY": "Configure sudtax.apiKey (sk_test_… / sk_live_…)",
   "api.SUDTAX_ERRO": "Erro ao chamar a SudTax",
   "api.SUDTAX_RESPOSTA": "Resposta inválida da SudTax",
-  "api.FACTURA_NAO_PRONTA": "Venda não está pronta para facturar (verifique RUC do cliente e itens)",
-  "api.FACTURA_SEM_SUDTAX": "Factura sem vínculo SudTax",
-  "api.FACTURA_CANCELADA": "Factura cancelada não pode ser enviada",
+  "api.FACTURA_NAO_PRONTA": "Venda não está pronta para faturar (verifique RUC do cliente e itens)",
+  "api.FACTURA_SEM_SUDTAX": "Fatura sem vínculo SudTax",
+  "api.FACTURA_CANCELADA": "Fatura cancelada não pode ser enviada",
   "api.DOCUMENTO_REFERENCIA_DUPLICADA": "Já existe documento na SudTax com esta referência",
   "api.ID_VENDA": "Informe a venda",
   "api.FINALIZADOR_NOME_DUPLICADO": "Já existe um finalizador com o nome {nome}",
@@ -1237,6 +1257,7 @@ const pt: Record<TranslationKey, string> = {
   "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Informe ao menos uma forma de pagamento",
   "api.VENDA_VALOR_INVALIDO": "O valor do pagamento deve ser maior que zero",
   "api.VENDA_NEGOCIACAO_DIVERGENTE": "A soma das formas de pagamento deve igualar o total",
+  "api.VENDA_DESCONTO_INVALIDO": "O desconto deve estar entre 0 e 100%",
   "api.VENDEDOR_INATIVO": "O vendedor não está ativo",
   "api.VENDEDOR_FILIAL": "O vendedor não tem acesso a esta filial",
   "api.VENDEDOR_INVALIDO": "Este usuário não pode ser vendedor da venda",
@@ -1309,7 +1330,7 @@ const pt: Record<TranslationKey, string> = {
   "empresa.section.fiscal": "Fiscal",
   "empresa.perfilFiscal": "Perfil fiscal",
   "empresa.perfilFiscal.py_iva": "IVA Paraguai",
-  "empresa.perfilFiscal.hint": "Define o motor da factura desta sucursal. Hoje só IVA paraguaio (0 / 5 / 10 %).",
+  "empresa.perfilFiscal.hint": "Define o motor da fatura desta sucursal. Hoje só IVA paraguaio (0 / 5 / 10 %).",
   "empresa.error.required": "Preencha razão social, nome fantasia e RUC",
   "empresa.error.loadFailed": "Não foi possível carregar empresa e filiais",
   "empresa.error.saveFailed": "Não foi possível salvar",
@@ -1425,8 +1446,8 @@ const pt: Record<TranslationKey, string> = {
   "cotacao.error.required": "Informe a data da cotação",
   "cotacao.error.rate": "Informe as duas taxas, maiores que zero",
   "cotacao.searchPlaceholder": "Data...",
-  "cotacao.banner.missing": "Sem cotação do dia. Vendas, recebimentos, pagamentos e facturas eletrônicas ficam bloqueados.",
-  "cotacao.banner.wait": "Sem cotação do dia. Aguarde um administrador ou gestor informar as taxas para liberar vendas e facturas.",
+  "cotacao.banner.missing": "Sem cotação do dia. Vendas, recebimentos, pagamentos e faturas eletrônicas ficam bloqueados.",
+  "cotacao.banner.wait": "Sem cotação do dia. Aguarde um administrador ou gestor informar as taxas para liberar vendas e faturas.",
   "cotacao.banner.save": "Informar",
   "cotacao.banner.rates": "Cotação do dia",
   "finalizador.new": "Novo finalizador",
@@ -1543,7 +1564,7 @@ const pt: Record<TranslationKey, string> = {
   "entrada.new": "Nova entrada de nota",
   "entrada.documento": "Documento",
   "entrada.tipoDocumento": "Tipo",
-  "entrada.tipo.py_factura": "Factura Paraguay",
+  "entrada.tipo.py_factura": "Fatura Paraguai",
   "entrada.tipo.exterior": "Exterior / China",
   "entrada.dataEmissao": "Data de emissão",
   "entrada.timbrado": "Timbrado",
@@ -1573,7 +1594,7 @@ const pt: Record<TranslationKey, string> = {
   "api.BAIXA_FORNECEDOR_MISTO": "Não é possível misturar fornecedores no mesmo pagamento",
   "api.BAIXA_MAIOR_SALDO": "O valor não pode exceder o saldo das parcelas selecionadas",
   "api.PARCELA_JA_PAGA": "A parcela já está quitada",
-  "api.ENTRADA_PY_DUPLICADA": "Esta factura já foi lançada para o fornecedor",
+  "api.ENTRADA_PY_DUPLICADA": "Esta fatura já foi lançada para o fornecedor",
   "api.ENTRADA_PY_CAMPOS": "Informe timbrado, establecimiento, punto e número",
   "api.ENTRADA_EXTERIOR_NUMERO": "Informe o número do documento / packing list",
   "api.ENTRADA_NEGOCIACAO_DIVERGENTE": "A soma das formas de pagamento deve igualar o total",
@@ -1585,6 +1606,13 @@ const pt: Record<TranslationKey, string> = {
   "venda.emptyCart": "Sua venda está vazia",
   "venda.emptyHint": "Clique em um produto ou busque pelo código. Na moto, escolha o chassi.",
   "venda.clear": "Limpar venda",
+  "venda.clienteRapido.title": "Novo cliente",
+  "venda.clienteRapido.hint": "Cadastro rápido para concluir a venda sem sair do PDV",
+  "venda.clienteRapido.new": "Cadastrar novo cliente",
+  "venda.hold": "Segurar",
+  "venda.heldCount": "{n} em espera",
+  "venda.heldNoClient": "Sem cliente",
+  "venda.discardConfirm": "Há uma venda em andamento. Deseja descartá-la?",
   "venda.filter.all": "Todos",
   "venda.units": "{n} un.",
   "venda.vitrineMore": "Mostrando {n} de {total}. Busque pelo código ou nome.",
@@ -1595,6 +1623,10 @@ const pt: Record<TranslationKey, string> = {
   "venda.error.chassisRequired": "Escolha o chassi da moto",
   "venda.chassisMore": "+{n}",
   "venda.chassisInCart": "{n} no carrinho",
+  "venda.discount": "Desconto %",
+  "venda.recibo.title": "Recibo de venda",
+  "venda.recibo.print": "Imprimir",
+  "venda.recibo.footer": "Documento não fiscal — comprovante interno",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pago",
   "venda.remaining": "Falta",
@@ -1624,8 +1656,12 @@ const es: Record<TranslationKey, string> = {
   "login.error": "Usuario o contraseña inválidos",
   "login.showPassword": "Mostrar contraseña",
   "login.hidePassword": "Ocultar contraseña",
-  "nav.menu": "Menú",
-  "nav.cadastros": "Registros",
+  "nav.group.vendas": "Ventas",
+  "nav.group.financeiro": "Caja y finanzas",
+  "nav.group.catalogo": "Catálogo",
+  "nav.group.pessoas": "Personas",
+  "nav.group.configuracao": "Configuración",
+  "nav.group.localidade": "Localidad",
   "nav.dashboard": "Panel",
   "nav.clientes": "Clientes",
   "nav.fornecedores": "Proveedores",
@@ -2045,6 +2081,7 @@ const es: Record<TranslationKey, string> = {
   "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Indique al menos una forma de pago",
   "api.VENDA_VALOR_INVALIDO": "El valor del pago debe ser mayor que cero",
   "api.VENDA_NEGOCIACAO_DIVERGENTE": "La suma de las formas de pago debe igualar el total",
+  "api.VENDA_DESCONTO_INVALIDO": "El descuento debe estar entre 0 y 100%",
   "api.VENDEDOR_INATIVO": "El vendedor no está activo",
   "api.VENDEDOR_FILIAL": "El vendedor no tiene acceso a esta sucursal",
   "api.VENDEDOR_INVALIDO": "Este usuario no puede ser vendedor de la venta",
@@ -2403,6 +2440,13 @@ const es: Record<TranslationKey, string> = {
   "venda.emptyCart": "La venta está vacía",
   "venda.emptyHint": "Haga clic en un producto o busque por código. En la moto, elija el chasis.",
   "venda.clear": "Limpiar venta",
+  "venda.clienteRapido.title": "Nuevo cliente",
+  "venda.clienteRapido.hint": "Alta rápida para cerrar la venta sin salir del PDV",
+  "venda.clienteRapido.new": "Registrar nuevo cliente",
+  "venda.hold": "Retener",
+  "venda.heldCount": "{n} en espera",
+  "venda.heldNoClient": "Sin cliente",
+  "venda.discardConfirm": "Hay una venta en curso. ¿Desea descartarla?",
   "venda.filter.all": "Todos",
   "venda.units": "{n} un.",
   "venda.vitrineMore": "Mostrando {n} de {total}. Busque por código o nombre.",
@@ -2413,6 +2457,10 @@ const es: Record<TranslationKey, string> = {
   "venda.error.chassisRequired": "Elija el chasis de la moto",
   "venda.chassisMore": "+{n}",
   "venda.chassisInCart": "{n} en el carrito",
+  "venda.discount": "Descuento %",
+  "venda.recibo.title": "Recibo de venta",
+  "venda.recibo.print": "Imprimir",
+  "venda.recibo.footer": "Documento no fiscal — comprobante interno",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pagado",
   "venda.remaining": "Falta",

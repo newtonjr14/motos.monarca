@@ -69,11 +69,16 @@ class DocumentoEletronicoService(
         val condicion = if (temCredito) "credito" else "contado"
 
         val itens = venda.itens.map { item ->
+            val unitarioEfetivo = if (item.quantidade > 0) {
+                item.totalPyg / item.quantidade
+            } else {
+                item.precoUnitarioPyg
+            }
             SudtaxItem(
                 codigo = item.produtoCodigo.ifBlank { "P-${item.idProduto}" },
                 descripcion = item.produtoNome.ifBlank { item.produtoCodigo }.ifBlank { "Item" },
                 cantidad = item.quantidade,
-                precioUnitario = item.precoUnitarioPyg.roundToLong(),
+                precioUnitario = unitarioEfetivo.roundToLong(),
                 iva = normalizarIva(item.aliquotaIva),
             )
         }

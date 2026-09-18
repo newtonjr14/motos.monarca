@@ -1,12 +1,3 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import EquivalentesMoeda from "@/components/EquivalentesMoeda";
-import { Field } from "@/components/crud/Field";
-import { useCrudReset } from "@/hooks/useCrudReset";
-import { useI18n } from "@/i18n";
-import { mensagemErroApi } from "@/i18n/apiMessages";
-import { tf } from "@/i18n/format";
-import { useAuth } from "@/auth/AuthContext";
-import { useFilial, useFilialId } from "@/auth/FilialContext";
 import {
   buscarCotacaoHoje,
   criarVenda,
@@ -16,6 +7,7 @@ import {
   listarProdutos,
   listarUnidades,
   listarVendedoresVenda,
+  Permissao,
   type Caixa,
   type Cotacao,
   type Finalizador,
@@ -24,8 +16,20 @@ import {
   type Produto,
   type ProdutoUnidade,
   type TipoProduto,
+  type Venda,
   type VendedorOpcao,
 } from "@/api";
+import ClienteRapidoModal from "@/components/ClienteRapidoModal";
+import EquivalentesMoeda from "@/components/EquivalentesMoeda";
+import ReciboVenda from "@/components/ReciboVenda";
+import { Field } from "@/components/crud/Field";
+import { useCrudReset } from "@/hooks/useCrudReset";
+import { useI18n } from "@/i18n";
+import { mensagemErroApi } from "@/i18n/apiMessages";
+import { tf } from "@/i18n/format";
+import { useAuth } from "@/auth/AuthContext";
+import { useFilial, useFilialId } from "@/auth/FilialContext";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   converterMoeda,
   formatarDocumentoExibicao,
@@ -41,9 +45,18 @@ const v = (name: string) => `var(${name})`;
 const border1 = () => `1px solid ${v("--border")}`;
 
 type UnidadeDraft = { id: number; numero: string };
-type ItemDraft = { idProduto: number; quantidade: number; unidades: UnidadeDraft[] };
+type ItemDraft = { idProduto: number; quantidade: number; unidades: UnidadeDraft[]; descontoPct: number };
 type PagDraft = { idFinalizador: number; moeda: Moeda; valor: string };
 type FiltroTipo = "todos" | TipoProduto;
+/** Vendas em espera só na memória da aba — some ao fechar o navegador. */
+type VendaEmEspera = {
+  id: number;
+  rotulo: string;
+  idCliente: number | "";
+  idVendedor: number | "";
+  linhas: ItemDraft[];
+  observacao: string;
+};
 const MOEDAS: Moeda[] = ["pyg", "usd", "brl"];
 const VITRINE_LIMITE = 24;
 const VITRINE_BUSCA = 48;
@@ -139,9 +152,10 @@ function VendaForm({
   onSaved: () => Promise<void>;
 }) {
   const { t } = useI18n();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { filial } = useFilial();
   const moedaOp = moedaOperacaoDe(filial?.moedaOperacao);
+  const podeDesconto = hasPermission(Permissao.VENDA_DESCONTO);
   const caixasAbertos = caixas.filter((c) => c.sessaoAbertaId);
   const [idCliente, setIdCliente] = useState<number | "">("");
   const [idVendedor, setIdVendedor] = useState<number | "">(user?.id ?? "");
@@ -156,6 +170,7 @@ function VendaForm({
   const [observacao, setObservacao] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [recibo, setRecibo] = useState<Venda | null>(null);
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>("todos");
   const [passo, setPasso] = useState<"itens" | "pagamento">("itens");
 
@@ -172,6 +187,9 @@ function VendaForm({
   const [unidadesDisp, setUnidadesDisp] = useState<ProdutoUnidade[]>([]);
   const [buscaChassi, setBuscaChassi] = useState("");
   const [carregandoChassi, setCarregandoChassi] = useState(false);
+  const [modalCliente, setModalCliente] = useState(false);
+  const [esperas, setEsperas] = useState<VendaEmEspera[]>([]);
+  const [listaEspera, setListaEspera] = useState(false);
 
   const cliente = idCliente === "" ? undefined : clientes.find((c) => c.id === idCliente);
   const vendedor = idVendedor === ""
@@ -195,7 +213,23 @@ function VendaForm({
     setBuscaChassi("");
     produtoRef.current?.focus();
   }, []);
-  useCrudReset(navReset, limparCarrinho);
+
+  const pedirDescartar = useCallback(() => {
+    if (linhas.length > 0 && !window.confirm(t("venda.discardConfirm"))) return;
+    limparCarrinho();
+  }, [linhas.length, limparCarrinho, t]);
+
+  useCrudReset(navReset, pedirDescartar);
+
+  useEffect(() => {
+    if (linhas.length === 0) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [linhas.length]);
 
   useEffect(() => {
     void listarVendedoresVenda(idFilial)
@@ -215,7 +249,9 @@ function VendaForm({
   const totalPyg = useMemo(() => linhas.reduce((acc, linha) => {
     const p = produtos.find((x) => x.id === linha.idProduto);
     if (!p) return acc;
-    return acc + paraPyg(p.precoLista, p.moedaPreco, cotacao) * linha.quantidade;
+    const bruto = paraPyg(p.precoLista, p.moedaPreco, cotacao) * linha.quantidade;
+    const desc = bruto * ((linha.descontoPct || 0) / 100);
+    return acc + Math.max(0, Math.round(bruto - desc));
   }, 0), [linhas, produtos, cotacao]);
 
   const pago = pagamentos.reduce((acc, p) => acc + paraPyg(parseGs(p.valor), p.moeda, cotacao), 0);
@@ -309,7 +345,7 @@ function VendaForm({
         const unidades = [...linha.unidades, nova];
         return [{ ...linha, unidades, quantidade: unidades.length }, ...lista.filter((_, idx) => idx !== i)];
       }
-      return [{ idProduto: u.idProduto, quantidade: 1, unidades: [nova] }, ...lista];
+      return [{ idProduto: u.idProduto, quantidade: 1, unidades: [nova], descontoPct: 0 }, ...lista];
     });
     setBuscaChassi("");
     setErro(null);
@@ -362,7 +398,7 @@ function VendaForm({
         const linha = { ...lista[i]!, quantidade: next };
         return [linha, ...lista.filter((_, idx) => idx !== i)];
       }
-      return [{ idProduto: id, quantidade: 1, unidades: [] }, ...lista];
+      return [{ idProduto: id, quantidade: 1, unidades: [], descontoPct: 0 }, ...lista];
     });
     setBuscaProduto("");
     setErro(null);
@@ -446,6 +482,46 @@ function VendaForm({
     setIdCliente(id);
     setListaCliente(false);
     setBuscaCliente("");
+    setModalCliente(false);
+    produtoRef.current?.focus();
+  }
+
+  async function clienteRapidoCriado(id: number) {
+    setModalCliente(false);
+    await onSaved();
+    escolherCliente(id);
+  }
+
+  function segurarVenda() {
+    if (linhas.length === 0) return;
+    const rotulo = cliente?.pessoa.nomeRazaoSocial
+      ?? (buscaCliente.trim() || t("venda.heldNoClient"));
+    setEsperas((atual) => [
+      ...atual,
+      {
+        id: Date.now(),
+        rotulo,
+        idCliente,
+        idVendedor,
+        linhas: linhas.map((l) => ({ ...l, unidades: [...l.unidades] })),
+        observacao,
+      },
+    ]);
+    limparCarrinho();
+  }
+
+  function retomarEspera(id: number) {
+    const item = esperas.find((e) => e.id === id);
+    if (!item) return;
+    if (linhas.length > 0 && !window.confirm(t("venda.discardConfirm"))) return;
+    setIdCliente(item.idCliente);
+    setIdVendedor(item.idVendedor);
+    setLinhas(item.linhas.map((l) => ({ ...l, unidades: [...l.unidades] })));
+    setObservacao(item.observacao);
+    setPagamentos([]);
+    setPasso("itens");
+    setEsperas((atual) => atual.filter((e) => e.id !== id));
+    setListaEspera(false);
     produtoRef.current?.focus();
   }
 
@@ -496,7 +572,7 @@ function VendaForm({
     }
     setSalvando(true);
     try {
-      await criarVenda({
+      const venda = await criarVenda({
         idFilial,
         idCliente,
         idVendedor,
@@ -505,6 +581,7 @@ function VendaForm({
           idProduto: l.idProduto,
           quantidade: l.quantidade,
           idsUnidades: l.unidades.map((u) => u.id),
+          descontoPct: l.descontoPct || 0,
         })),
         negociacao,
         parcelas: credito.length > 0
@@ -517,6 +594,7 @@ function VendaForm({
         observacao: observacao.trim() || null,
       });
       limparCarrinho();
+      setRecibo(venda);
       await onSaved();
       produtoRef.current?.focus();
     } catch (e) {
@@ -605,7 +683,17 @@ function VendaForm({
                       </li>
                     ))}
                     {clientesFiltrados.length === 0 && (
-                      <li className="px-3 py-2 text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</li>
+                      <li className="px-3 py-2 space-y-2">
+                        <p className="text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</p>
+                        <button
+                          type="button"
+                          className="text-sm font-medium cursor-pointer"
+                          style={{ color: v("--gold") }}
+                          onClick={() => { setListaCliente(false); setModalCliente(true); }}
+                        >
+                          + {t("venda.clienteRapido.new")}
+                        </button>
+                      </li>
                     )}
                   </ul>
                 </>
@@ -837,10 +925,45 @@ function VendaForm({
                 {t("venda.backItems")}
               </button>
             ) : (
-              <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
-                onClick={limparCarrinho}>
-                {t("venda.clear")}
-              </button>
+              <div className="flex items-center gap-3">
+                {esperas.length > 0 && (
+                  <div className="relative">
+                    <button type="button" className="text-xs cursor-pointer" style={{ color: v("--gold") }}
+                      onClick={() => setListaEspera((x) => !x)}>
+                      {tf(t, "venda.heldCount", { n: String(esperas.length) })}
+                    </button>
+                    {listaEspera && (
+                      <>
+                        <div className="fixed inset-0 z-20" onClick={() => setListaEspera(false)} />
+                        <ul className="absolute right-0 mt-1 z-30 rounded-md shadow-lg overflow-hidden min-w-[12rem] max-h-48 overflow-y-auto"
+                          style={{ background: v("--card"), border: border1() }}>
+                          {esperas.map((e) => (
+                            <li key={e.id}>
+                              <button type="button" className="w-full text-left px-3 py-2 cursor-pointer"
+                                onClick={() => retomarEspera(e.id)}>
+                                <span className="block text-sm" style={{ color: v("--text") }}>{e.rotulo}</span>
+                                <span className="block text-xs" style={{ color: v("--text-muted") }}>
+                                  {tf(t, "venda.itemsCount", { n: String(e.linhas.reduce((a, l) => a + l.quantidade, 0)) })}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
+                {linhas.length > 0 && (
+                  <button type="button" className="text-xs cursor-pointer" style={{ color: v("--gold") }}
+                    onClick={segurarVenda}>
+                    {t("venda.hold")}
+                  </button>
+                )}
+                <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
+                  onClick={pedirDescartar}>
+                  {t("venda.clear")}
+                </button>
+              </div>
             )}
           </div>
 
@@ -956,7 +1079,11 @@ function VendaForm({
                   const p = produtos.find((x) => x.id === l.idProduto);
                   const unit = p ? paraPyg(p.precoLista, p.moedaPreco, cotacao) : 0;
                   const unitOp = converterMoeda(unit, "pyg", moedaOp, cotacao);
-                  const linhaOp = converterMoeda(unit * l.quantidade, "pyg", moedaOp, cotacao);
+                  const bruto = unit * l.quantidade;
+                  const descPct = l.descontoPct || 0;
+                  const liquido = Math.max(0, Math.round(bruto - bruto * descPct / 100));
+                  const linhaOp = converterMoeda(liquido, "pyg", moedaOp, cotacao);
+                  const brutoOp = converterMoeda(bruto, "pyg", moedaOp, cotacao);
                   return (
                     <div key={l.idProduto} className="pdv-cart-item">
                       <div className="min-w-0 flex-1">
@@ -979,13 +1106,37 @@ function VendaForm({
                               : `${l.unidades[0]?.numero} · ${l.unidades[1]?.numero} · ${tf(t, "venda.chassisMore", { n: String(l.unidades.length - 2) })}`}
                           </p>
                         )}
-                        <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center justify-between mt-2 gap-2">
                           <div className="flex items-center gap-1">
                             <button type="button" className="pdv-qty" onClick={() => alterarQtd(l.idProduto, -1)}>−</button>
                             <span className="font-mono text-sm w-7 text-center" style={{ color: v("--text") }}>{l.quantidade}</span>
                             <button type="button" className="pdv-qty" onClick={() => alterarQtd(l.idProduto, 1)}>+</button>
                           </div>
-                          <span className="text-sm font-mono" style={{ color: v("--gold") }}>{formatMoeda(linhaOp, moedaOp)}</span>
+                          {podeDesconto && (
+                            <label className="flex items-center gap-1 shrink-0" title={t("venda.discount")}>
+                              <input
+                                className="field font-mono text-xs w-12 px-1 py-0.5 text-right"
+                                inputMode="decimal"
+                                value={descPct === 0 ? "" : String(descPct)}
+                                placeholder="%"
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(",", ".").replace(/[^\d.]/g, "");
+                                  const n = Number.parseFloat(raw);
+                                  const pct = !Number.isFinite(n) || raw === "" ? 0 : Math.min(100, Math.max(0, Math.round(n * 100) / 100));
+                                  setLinhas((atual) => atual.map((x) => x.idProduto === l.idProduto ? { ...x, descontoPct: pct } : x));
+                                }}
+                              />
+                              <span className="text-[11px]" style={{ color: v("--text-muted") }}>%</span>
+                            </label>
+                          )}
+                          <span className="text-sm font-mono text-right" style={{ color: v("--gold") }}>
+                            {descPct > 0 && (
+                              <span className="block text-[11px] line-through" style={{ color: v("--text-muted") }}>
+                                {formatMoeda(brutoOp, moedaOp)}
+                              </span>
+                            )}
+                            {formatMoeda(linhaOp, moedaOp)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1031,6 +1182,17 @@ function VendaForm({
           </div>
         </aside>
       </form>
+
+      {modalCliente && (
+        <ClienteRapidoModal
+          nomeInicial={buscaCliente}
+          onClose={() => setModalCliente(false)}
+          onCriado={(id) => void clienteRapidoCriado(id)}
+        />
+      )}
+      {recibo && (
+        <ReciboVenda venda={recibo} onClose={() => setRecibo(null)} />
+      )}
     </div>
   );
 }

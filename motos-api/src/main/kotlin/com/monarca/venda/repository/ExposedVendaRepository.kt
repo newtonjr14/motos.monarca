@@ -95,6 +95,8 @@ class ExposedVendaRepository(
                 it[VendaItensTable.moedaPreco] = item.moedaPreco
                 it[VendaItensTable.precoLista] = item.precoLista
                 it[VendaItensTable.precoUnitarioPyg] = item.precoUnitarioPyg
+                it[VendaItensTable.descontoPct] = item.descontoPct
+                it[VendaItensTable.descontoPyg] = item.descontoPyg
                 it[VendaItensTable.totalPyg] = item.totalPyg
             }
             val idItem = insertedItem[VendaItensTable.id].value
@@ -221,6 +223,8 @@ class ExposedVendaRepository(
                     moedaPreco = it[VendaItensTable.moedaPreco],
                     precoLista = it[VendaItensTable.precoLista],
                     precoUnitarioPyg = it[VendaItensTable.precoUnitarioPyg],
+                    descontoPct = it[VendaItensTable.descontoPct],
+                    descontoPyg = it[VendaItensTable.descontoPyg],
                     totalPyg = it[VendaItensTable.totalPyg],
                 )
             }

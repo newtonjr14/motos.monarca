@@ -31,6 +31,8 @@ object VendaItensTable : LongIdTable("venda_item") {
     val moedaPreco = varchar("moeda_preco", 3)
     val precoLista = double("preco_lista")
     val precoUnitarioPyg = double("preco_unitario_pyg")
+    val descontoPct = double("desconto_pct").default(0.0)
+    val descontoPyg = double("desconto_pyg").default(0.0)
     val totalPyg = double("total_pyg")
 }
 

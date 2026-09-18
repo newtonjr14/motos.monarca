@@ -19,6 +19,7 @@ export const Permissao = {
   DOCUMENTO_GERENCIAR: "documento:gerenciar",
   PESSOA_GERENCIAR: "pessoa:gerenciar",
   VENDA_REGISTRAR: "venda:registrar",
+  VENDA_DESCONTO: "venda:desconto",
   DASHBOARD_CONSULTAR: "dashboard:consultar",
   CONFIGURACAO: "configuracao:gerenciar",
   PRODUTO_GERENCIAR: "produto:gerenciar",
@@ -753,6 +754,8 @@ export interface VendaItem {
   moedaPreco: string;
   precoLista: number;
   precoUnitarioPyg: number;
+  descontoPct?: number;
+  descontoPyg?: number;
   totalPyg: number;
   chassis?: string[];
 }
