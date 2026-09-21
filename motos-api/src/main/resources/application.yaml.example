@@ -8,6 +8,8 @@ ktor:
       - com.monarca.SerializationKt.configureSerialization
       - com.monarca.StatusPagesKt.configureStatusPages
       - com.monarca.KoinKt.configureKoin
+      - com.monarca.ResourcesKt.configureResources
+      - com.monarca.HealthKt.configureHealth
       - com.monarca.auth.AuthKt.configureAuthentication
       - com.monarca.auth.http.AuthRoutingKt.configureAuthRoutes
       - com.monarca.localidade.http.LocalidadeRoutingKt.configureLocalidade
@@ -38,16 +40,30 @@ jwt:
   accessExpirationMinutes: 60
   refreshExpirationDays: 7
 
+# Senha só na 1ª criação do usuário system. Depois troque pela tela de perfil.
+system:
+  initialPassword: "CHANGE_ME_SystemInitial"
+
+# Origens do front (sem * em produção). Ex.: localhost:8443 e o domínio HTTPS.
+cors:
+  hosts:
+    - "http://localhost:8443"
+    - "http://localhost:5173"
+
+auth:
+  loginMaxAttempts: 20
+  loginWindowSeconds: 60
+
 cotacao:
   exigirDoDia: true
 
-# SudTax — facturação eletrônica PY (contrato ERP 2026-09-17)
-# API key do painel SudTax → Claves de API (sk_test_… / sk_live_…)
+# SudTax — ligar depois com key real (fora deste pacote de fechamento).
 sudtax:
   enabled: false
   baseUrl: "http://localhost:8090"
   apiKey: "sk_test_CHANGE_ME"
 
 seed:
+  # Em produção: false. true só em homologação/dev para o botão em Empresa.
   demo: false
   cidades: true

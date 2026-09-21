@@ -58,6 +58,8 @@ import {
   listarUsuarios,
   listarFiliais,
   listarCaixas,
+  listarProdutos,
+  listarVendas,
   criarTipoDocumento,
   atualizarTipoDocumento,
   excluirTipoDocumento,
@@ -89,6 +91,7 @@ import {
   rotuloCidade,
   formatarDocumentoEntrada,
   formatarDocumentoExibicao,
+  formatPyg,
   normalizarCep,
   placeholderDocumento,
   toTitleCase,
@@ -461,8 +464,79 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub: st
   );
 }
 
-function Dashboard({ clientes, fornecedores, systemOnline }: { clientes: Papel[]; fornecedores: Papel[]; systemOnline: boolean }) {
+function Dashboard({
+  clientes,
+  fornecedores,
+  systemOnline,
+  onNavigate,
+}: {
+  clientes: Papel[];
+  fornecedores: Papel[];
+  systemOnline: boolean;
+  onNavigate: (v: View) => void;
+}) {
   const { t } = useI18n();
+  const { hasPermission } = useAuth();
+  const idFilial = useFilialId();
+  const [vendasHoje, setVendasHoje] = useState(0);
+  const [totalHoje, setTotalHoje] = useState(0);
+  const [produtos, setProdutos] = useState(0);
+  const [caixasAbertos, setCaixasAbertos] = useState(0);
+  const [carregando, setCarregando] = useState(false);
+
+  useEffect(() => {
+    if (!systemOnline || idFilial == null) return;
+    let cancel = false;
+    setCarregando(true);
+    void (async () => {
+      try {
+        const tarefas: Promise<void>[] = [];
+        if (hasPermission(Permissao.VENDA_REGISTRAR)) {
+          tarefas.push(
+            listarVendas(idFilial).then((vendas) => {
+              if (cancel) return;
+              const parts = new Intl.DateTimeFormat("en-CA", {
+                timeZone: "America/Asuncion",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              }).formatToParts(new Date());
+              const y = parts.find((p) => p.type === "year")?.value;
+              const m = parts.find((p) => p.type === "month")?.value;
+              const d = parts.find((p) => p.type === "day")?.value;
+              const inicio = Date.parse(`${y}-${m}-${d}T04:00:00.000Z`);
+              const doDia = vendas.filter((venda) => venda.criadoEm >= inicio);
+              setVendasHoje(doDia.length);
+              setTotalHoje(doDia.reduce((a, venda) => a + venda.totalPyg, 0));
+            }),
+          );
+        }
+        if (hasPermission(Permissao.PRODUTO_GERENCIAR)) {
+          tarefas.push(
+            listarProdutos(idFilial).then((lista) => {
+              if (!cancel) setProdutos(lista.filter((p) => p.status === "ativo").length);
+            }),
+          );
+        }
+        if (hasPermission(Permissao.CAIXA_OPERAR) || hasPermission(Permissao.CAIXA_GERENCIAR)) {
+          tarefas.push(
+            listarCaixas(idFilial, true).then((lista) => {
+              if (!cancel) setCaixasAbertos(lista.filter((c) => c.sessaoAbertaId).length);
+            }),
+          );
+        }
+        await Promise.all(tarefas);
+      } catch {
+        /* mantém últimos valores */
+      } finally {
+        if (!cancel) setCarregando(false);
+      }
+    })();
+    return () => { cancel = true; };
+  }, [systemOnline, idFilial, hasPermission]);
+
+  const dash = (n: number | string) => (!systemOnline || carregando ? "—" : String(n));
+
   return (
     <div className="space-y-6">
       <div>
@@ -470,16 +544,35 @@ function Dashboard({ clientes, fornecedores, systemOnline }: { clientes: Papel[]
         <p className="text-sm mt-0.5" style={{ color: v("--text-muted") }}>{tf(t, "dashboard.subtitle", { app: t("app.name") })}</p>
       </div>
 
-      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-        <StatCard label={t("dashboard.stat.clientes")} value={!systemOnline ? "—" : String(clientes.length)} sub={t("dashboard.stat.clientesSub")} />
-        <StatCard label={t("dashboard.stat.fornecedores")} value={!systemOnline ? "—" : String(fornecedores.length)} sub={t("dashboard.stat.fornecedoresSub")} />
-        <StatCard label={t("dashboard.stat.estoque")} value="—" sub={t("dashboard.stat.estoqueSub")} />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <StatCard
+          label={t("dashboard.stat.vendasHoje")}
+          value={dash(vendasHoje)}
+          sub={systemOnline && !carregando ? `Gs. ${formatPyg(totalHoje)}` : t("dashboard.stat.vendasHojeSub")}
+        />
+        <StatCard label={t("dashboard.stat.clientes")} value={dash(clientes.length)} sub={t("dashboard.stat.clientesSub")} />
+        <StatCard label={t("dashboard.stat.fornecedores")} value={dash(fornecedores.length)} sub={t("dashboard.stat.fornecedoresSub")} />
+        <StatCard label={t("dashboard.stat.produtos")} value={dash(produtos)} sub={t("dashboard.stat.produtosSub")} />
+        <StatCard label={t("dashboard.stat.caixas")} value={dash(caixasAbertos)} sub={t("dashboard.stat.caixasSub")} />
+        <StatCard label={t("dashboard.stat.estoque")} value={dash(produtos)} sub={t("dashboard.stat.estoqueSub")} />
       </div>
 
-      <div className="rounded-lg p-8 text-center" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
-        <p className="text-sm" style={{ color: v("--text-sub") }}>
-          {t("dashboard.placeholder")}
-        </p>
+      <div className="rounded-lg p-5 flex flex-wrap gap-2" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
+        {hasPermission(Permissao.VENDA_REGISTRAR) && (
+          <button type="button" className="btn-gold px-4 py-2 text-sm" onClick={() => onNavigate("vendas")}>
+            {t("dashboard.go.vendas")}
+          </button>
+        )}
+        {(hasPermission(Permissao.CAIXA_OPERAR) || hasPermission(Permissao.CAIXA_GERENCIAR)) && (
+          <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => onNavigate("caixa")}>
+            {t("dashboard.go.caixa")}
+          </button>
+        )}
+        {hasPermission(Permissao.VENDA_REGISTRAR) && (
+          <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => onNavigate("historico")}>
+            {t("dashboard.go.historico")}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -2698,7 +2791,14 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
         </div>
         <div className="px-8 py-6" key={filial?.id ?? "filial"}>
           {view === null && <VendasEmBreve />}
-          {view === "dashboard" && <Dashboard clientes={clientes} fornecedores={fornecedores} systemOnline={systemOnline} />}
+          {view === "dashboard" && (
+            <Dashboard
+              clientes={clientes}
+              fornecedores={fornecedores}
+              systemOnline={systemOnline}
+              onNavigate={navigateTo}
+            />
+          )}
           {view === "vendas" && <VendasPage navReset={navReset} />}
           {view === "historico" && <HistoricoVendasPage navReset={navReset} />}
           {view === "contasReceber" && <ContasReceberPage navReset={navReset} />}

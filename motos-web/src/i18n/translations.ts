@@ -218,6 +218,15 @@ export type TranslationKey =
   | "dashboard.stat.fornecedoresSub"
   | "dashboard.stat.estoque"
   | "dashboard.stat.estoqueSub"
+  | "dashboard.stat.vendasHoje"
+  | "dashboard.stat.vendasHojeSub"
+  | "dashboard.stat.produtos"
+  | "dashboard.stat.produtosSub"
+  | "dashboard.stat.caixas"
+  | "dashboard.stat.caixasSub"
+  | "dashboard.go.vendas"
+  | "dashboard.go.caixa"
+  | "dashboard.go.historico"
   | "dashboard.placeholder"
   | "common.error.loadFailed"
   | "common.error.saveFailed"
@@ -294,6 +303,7 @@ export type TranslationKey =
   | "api.VALOR_NEGATIVO"
   | "api.SENHA_OBRIGATORIA"
   | "api.LOGIN_SENHA_INVALIDOS"
+  | "api.LOGIN_RATE_LIMIT"
   | "api.USUARIO_INATIVO"
   | "api.REFRESH_OBRIGATORIO"
   | "api.REFRESH_INVALIDO"
@@ -1069,13 +1079,22 @@ const pt: Record<TranslationKey, string> = {
   "col.division": "Divisão",
   "col.divisionRegion": "UF / departamento",
   "col.searchDocTypes": "Buscar código, nome, país...",
-  "dashboard.subtitle": "O que já está no sistema · {app}",
+  "dashboard.subtitle": "Resumo da filial · {app}",
   "dashboard.stat.clientes": "Clientes",
   "dashboard.stat.clientesSub": "Papel cliente ativo",
   "dashboard.stat.fornecedores": "Fornecedores",
   "dashboard.stat.fornecedoresSub": "Papel fornecedor ativo",
-  "dashboard.stat.estoque": "Estoque e vendas",
-  "dashboard.stat.estoqueSub": "Produtos e depósitos da filial",
+  "dashboard.stat.estoque": "Produtos ativos",
+  "dashboard.stat.estoqueSub": "Cadastro na filial",
+  "dashboard.stat.vendasHoje": "Vendas hoje",
+  "dashboard.stat.vendasHojeSub": "Total do dia",
+  "dashboard.stat.produtos": "Produtos",
+  "dashboard.stat.produtosSub": "Ativos na filial",
+  "dashboard.stat.caixas": "Caixas abertos",
+  "dashboard.stat.caixasSub": "Sessões em andamento",
+  "dashboard.go.vendas": "Ir para vendas",
+  "dashboard.go.caixa": "Ir para caixa",
+  "dashboard.go.historico": "Histórico de vendas",
   "dashboard.placeholder": "Motos, vendas e parcelas entram no menu quando o cadastro existir. Por enquanto só o que a API já faz.",
   "common.error.loadFailed": "Falha ao carregar",
   "common.error.saveFailed": "Falha ao salvar",
@@ -1152,6 +1171,7 @@ const pt: Record<TranslationKey, string> = {
   "api.VALOR_NEGATIVO": "O valor não pode ser negativo",
   "api.SENHA_OBRIGATORIA": "A senha é obrigatória",
   "api.LOGIN_SENHA_INVALIDOS": "Login ou senha inválidos",
+  "api.LOGIN_RATE_LIMIT": "Muitas tentativas de login. Aguarde um minuto.",
   "api.USUARIO_INATIVO": "Usuário inativo",
   "api.REFRESH_OBRIGATORIO": "O token de renovação é obrigatório",
   "api.REFRESH_INVALIDO": "Token de renovação inválido",
@@ -1893,13 +1913,22 @@ const es: Record<TranslationKey, string> = {
   "col.division": "División",
   "col.divisionRegion": "UF / departamento",
   "col.searchDocTypes": "Buscar código, nombre, país...",
-  "dashboard.subtitle": "Lo que ya está en el sistema · {app}",
+  "dashboard.subtitle": "Resumen de la sucursal · {app}",
   "dashboard.stat.clientes": "Clientes",
   "dashboard.stat.clientesSub": "Rol cliente activo",
   "dashboard.stat.fornecedores": "Proveedores",
   "dashboard.stat.fornecedoresSub": "Rol proveedor activo",
-  "dashboard.stat.estoque": "Stock y ventas",
-  "dashboard.stat.estoqueSub": "Productos y depósitos de la sucursal",
+  "dashboard.stat.estoque": "Productos activos",
+  "dashboard.stat.estoqueSub": "Registro en la sucursal",
+  "dashboard.stat.vendasHoje": "Ventas hoy",
+  "dashboard.stat.vendasHojeSub": "Total del día",
+  "dashboard.stat.produtos": "Productos",
+  "dashboard.stat.produtosSub": "Activos en la sucursal",
+  "dashboard.stat.caixas": "Cajas abiertas",
+  "dashboard.stat.caixasSub": "Sesiones en curso",
+  "dashboard.go.vendas": "Ir a ventas",
+  "dashboard.go.caixa": "Ir a caja",
+  "dashboard.go.historico": "Historial de ventas",
   "dashboard.placeholder": "Motos, ventas y cuotas entrarán en el menú cuando exista el registro. Por ahora solo lo que ya hace la API.",
   "common.error.loadFailed": "Error al cargar",
   "common.error.saveFailed": "Error al guardar",
@@ -1976,6 +2005,7 @@ const es: Record<TranslationKey, string> = {
   "api.VALOR_NEGATIVO": "El valor no puede ser negativo",
   "api.SENHA_OBRIGATORIA": "La contraseña es obligatoria",
   "api.LOGIN_SENHA_INVALIDOS": "Usuario o contraseña inválidos",
+  "api.LOGIN_RATE_LIMIT": "Demasiados intentos de acceso. Espere un minuto.",
   "api.USUARIO_INATIVO": "Usuario inactivo",
   "api.REFRESH_OBRIGATORIO": "El token de renovación es obligatorio",
   "api.REFRESH_INVALIDO": "Token de renovación inválido",

@@ -1,6 +1,7 @@
 package com.monarca
 
 import com.monarca.audit.service.auditModule
+import com.monarca.auth.LoginRateLimiter
 import com.monarca.auth.jwtConfig
 import com.monarca.auth.service.authModule
 import com.monarca.caixa.service.caixaModule
@@ -15,6 +16,8 @@ import com.monarca.entrada.service.entradaModule
 import com.monarca.factura.service.facturaModule
 import com.monarca.factura.service.sudtaxConfig
 import com.monarca.titulo.service.tituloModule
+import com.monarca.usuario.SystemBootstrapConfig
+import com.monarca.usuario.SystemUser
 import com.monarca.usuario.service.usuarioModule
 import com.monarca.venda.service.vendaModule
 import io.ktor.server.application.Application
@@ -36,6 +39,20 @@ fun Application.configureKoin() {
     val jwt = jwtConfig()
     val sudtax = sudtaxConfig()
     val seedCidades = environment.config.propertyOrNull("seed.cidades")?.getString()?.toBooleanStrictOrNull() ?: true
+    val systemPassword = environment.config.propertyOrNull("system.initialPassword")
+        ?.getString()
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: SystemUser.DEFAULT_INITIAL_PASSWORD
+    val loginMax = environment.config.propertyOrNull("auth.loginMaxAttempts")
+        ?.getString()
+        ?.toIntOrNull()
+        ?: 20
+    val loginWindow = environment.config.propertyOrNull("auth.loginWindowSeconds")
+        ?.getString()
+        ?.toLongOrNull()
+        ?.times(1000)
+        ?: 60_000L
 
     install(Koin) {
         slf4jLogger()
@@ -51,6 +68,8 @@ fun Application.configureKoin() {
                 single { jwt }
                 single { sudtax }
                 single { JdbcCredenciais(jdbcUrl, databaseUser, databasePassword, seedCidades) }
+                single { SystemBootstrapConfig(initialPassword = systemPassword) }
+                single { LoginRateLimiter(maxAttempts = loginMax, windowMs = loginWindow) }
             },
             auditModule,
             authModule,

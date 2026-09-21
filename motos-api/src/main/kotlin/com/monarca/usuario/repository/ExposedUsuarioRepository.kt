@@ -4,6 +4,7 @@ import com.monarca.audit.service.AuditService
 import com.monarca.common.enums.Status
 import com.monarca.empresa.repository.FiliaisTable
 import com.monarca.usuario.Senha
+import com.monarca.usuario.SystemBootstrapConfig
 import com.monarca.usuario.SystemUser
 import com.monarca.usuario.domain.FilialAcesso
 import com.monarca.usuario.domain.IdiomaUsuario
@@ -26,6 +27,7 @@ import org.jetbrains.exposed.v1.r2dbc.update
 class ExposedUsuarioRepository(
     private val database: R2dbcDatabase,
     private val audit: AuditService,
+    private val systemBootstrap: SystemBootstrapConfig,
 ) : UsuarioRepository {
 
     override suspend fun inicializar() {
@@ -327,15 +329,16 @@ class ExposedUsuarioRepository(
         val login = SystemUser.LOGIN
         val existente = buscarPorLogin(login)
         if (existente != null) {
+            // Nunca redefine a senha no boot — só reativa perfil admin se necessário.
             if (existente.status != Status.ATIVO || existente.perfil != PerfilUsuario.ADMINISTRADOR) {
                 atualizar(
                     id = existente.id,
                     nome = SystemUser.NOME,
                     login = login,
                     email = SystemUser.EMAIL,
-                    senhaHash = Senha.hash(SystemUser.SENHA),
+                    senhaHash = existente.senhaHash,
                     perfil = PerfilUsuario.ADMINISTRADOR,
-                    idioma = IdiomaUsuario.PT,
+                    idioma = existente.idioma,
                     status = Status.ATIVO,
                 )
             }
@@ -346,7 +349,7 @@ class ExposedUsuarioRepository(
             nome = SystemUser.NOME,
             login = login,
             email = SystemUser.EMAIL,
-            senhaHash = Senha.hash(SystemUser.SENHA),
+            senhaHash = Senha.hash(systemBootstrap.initialPassword),
             perfil = PerfilUsuario.ADMINISTRADOR,
             idioma = IdiomaUsuario.PT,
             status = Status.ATIVO,

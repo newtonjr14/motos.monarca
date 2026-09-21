@@ -40,6 +40,17 @@ jwt:
   accessExpirationMinutes: 60
   refreshExpirationDays: 7
 
+system:
+  initialPassword: "System@250623"
+
+cors:
+  hosts:
+    - "*"
+
+auth:
+  loginMaxAttempts: 0
+  loginWindowSeconds: 60
+
 cotacao:
   exigirDoDia: false
 

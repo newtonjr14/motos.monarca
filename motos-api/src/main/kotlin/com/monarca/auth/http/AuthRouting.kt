@@ -1,12 +1,14 @@
 package com.monarca.auth.http
 
 import com.monarca.auth.JWT_AUTH
+import com.monarca.auth.LoginRateLimiter
 import com.monarca.auth.domain.UsuarioAutenticado
 import com.monarca.auth.dto.AlterarSenhaRequest
 import com.monarca.auth.dto.EditarPerfilRequest
 import com.monarca.auth.dto.LoginRequest
 import com.monarca.auth.dto.RefreshRequest
 import com.monarca.auth.service.AuthService
+import com.monarca.common.dto.MensagemErro
 import com.monarca.common.http.respondBadRequest
 import com.monarca.common.http.respondNotFound
 import com.monarca.localidade.service.RecursoNaoEncontrado
@@ -27,10 +29,25 @@ import org.koin.ktor.ext.get as koinGet
 
 suspend fun Application.configureAuthRoutes() {
     val service = koinGet<AuthService>()
+    val rateLimiter = koinGet<LoginRateLimiter>()
 
     routing {
         post<AuthLogin> {
             call.handleAuth {
+                val forwarded = call.request.headers["X-Forwarded-For"]
+                    ?.substringBefore(',')
+                    ?.trim()
+                    .orEmpty()
+                val clientKey = forwarded
+                    .ifBlank { call.request.local.remoteHost }
+                    .ifBlank { "unknown" }
+                if (!rateLimiter.allow("login:$clientKey")) {
+                    call.respond(
+                        HttpStatusCode.TooManyRequests,
+                        MensagemErro("LOGIN_RATE_LIMIT", "Muitas tentativas de login. Aguarde um minuto."),
+                    )
+                    return@handleAuth
+                }
                 val request = call.receive<LoginRequest>()
                 call.respond(service.login(request))
             }
