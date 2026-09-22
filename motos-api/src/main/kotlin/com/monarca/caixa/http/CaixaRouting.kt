@@ -10,6 +10,7 @@ import com.monarca.caixa.dto.AbrirSessaoRequest
 import com.monarca.caixa.dto.CaixaRequest
 import com.monarca.caixa.dto.FecharSessaoRequest
 import com.monarca.caixa.dto.FinalizadorRequest
+import com.monarca.caixa.dto.LancamentoAvulsoRequest
 import com.monarca.caixa.dto.TransferenciaCaixaRequest
 import com.monarca.caixa.service.CaixaService
 import com.monarca.common.http.respondBadRequest
@@ -161,6 +162,18 @@ fun Application.configureCaixa() {
                     call.withAudit {
                         service.transferir(resource.parent.id, request, call.usuarioAutenticado().id)
                         call.respond(HttpStatusCode.NoContent)
+                    }
+                }
+            }
+            post<CaixaSessoes.Id.Lancamentos> { resource ->
+                call.handleCaixa {
+                    call.podeOperarCaixa()
+                    val request = call.receive<LancamentoAvulsoRequest>()
+                    call.withAudit {
+                        call.respond(
+                            HttpStatusCode.Created,
+                            service.lancamentoAvulso(resource.parent.id, request, call.usuarioAutenticado().id),
+                        )
                     }
                 }
             }

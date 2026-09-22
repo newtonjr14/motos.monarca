@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Field } from "@/components/crud/Field";
+import { Field, Section } from "@/components/crud/Field";
 import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useAlternarStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
@@ -19,6 +19,17 @@ import { slicePage, toTitleCase } from "@/format";
 const v = (name: string) => `var(${name})`;
 const TIPOS: TipoFinalizador[] = ["dinheiro", "cartao", "deposito", "cheque", "outro"];
 
+function Chip({ label }: { label: string }) {
+  return (
+    <span
+      className="text-[10px] px-1.5 py-0.5 rounded border font-medium"
+      style={{ color: v("--gold"), borderColor: v("--gold-border"), background: v("--gold-bg") }}
+    >
+      {label}
+    </span>
+  );
+}
+
 export default function FinalizadoresPage({ navReset }: { navReset: number }) {
   const { t } = useI18n();
   const [itens, setItens] = useState<Finalizador[]>([]);
@@ -32,6 +43,8 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
   const [tipo, setTipo] = useState<TipoFinalizador>("dinheiro");
   const [geraReceber, setGeraReceber] = useState(false);
   const [geraPagar, setGeraPagar] = useState(false);
+  const [fundoTroco, setFundoTroco] = useState(false);
+  const [permiteAvulso, setPermiteAvulso] = useState(false);
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [salvando, setSalvando] = useState(false);
 
@@ -57,6 +70,8 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
       tipo: item.tipo,
       geraContasReceber: item.geraContasReceber ?? false,
       geraContasPagar: item.geraContasPagar ?? false,
+      fundoTroco: item.fundoTroco ?? false,
+      permiteLancamentoAvulso: item.permiteLancamentoAvulso ?? false,
       status: proximo,
     }),
     (e) => setErro(mensagemErroApi(e, t, "common.error.saveFailed")),
@@ -74,9 +89,12 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
   function abrir(item?: Finalizador) {
     setEditando(item ?? null);
     setNome(item?.nome ?? "");
-    setTipo(item?.tipo ?? "dinheiro");
+    const tipoIni = item?.tipo ?? "dinheiro";
+    setTipo(tipoIni);
     setGeraReceber(item?.geraContasReceber ?? false);
     setGeraPagar(item?.geraContasPagar ?? false);
+    setFundoTroco(item?.fundoTroco ?? (!item && tipoIni === "dinheiro"));
+    setPermiteAvulso(item?.permiteLancamentoAvulso ?? (!item && tipoIni === "dinheiro"));
     setStatus(item?.status === "inativo" ? "inativo" : "ativo");
     setErro(null);
     setFormAberto(true);
@@ -95,6 +113,8 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
         tipo,
         geraContasReceber: geraReceber,
         geraContasPagar: geraPagar,
+        fundoTroco,
+        permiteLancamentoAvulso: permiteAvulso,
         status,
       };
       if (editando) await atualizarFinalizador(editando.id, body);
@@ -125,22 +145,45 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
               onBlur={() => setNome((x) => toTitleCase(x))} />
           </Field>
           <Field label={t("finalizador.type")} required>
-            <select className="field" value={tipo} onChange={(e) => setTipo(e.target.value as TipoFinalizador)}>
+            <select className="field" value={tipo} onChange={(e) => {
+              const next = e.target.value as TipoFinalizador;
+              setTipo(next);
+              if (!editando && next === "dinheiro") {
+                setFundoTroco(true);
+                setPermiteAvulso(true);
+              }
+            }}>
               {TIPOS.map((tp) => <option key={tp} value={tp}>{t(`finalizador.tipo.${tp}` as TranslationKey)}</option>)}
             </select>
           </Field>
-          <Field label={t("finalizador.geraReceber")} hint={t("finalizador.geraReceberHint")}>
-            <label className="field flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={geraReceber} onChange={(e) => setGeraReceber(e.target.checked)} />
-              <span className="text-sm" style={{ color: v("--text") }}>{geraReceber ? t("common.yes") : t("common.no")}</span>
-            </label>
-          </Field>
-          <Field label={t("finalizador.geraPagar")} hint={t("finalizador.geraPagarHint")}>
-            <label className="field flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={geraPagar} onChange={(e) => setGeraPagar(e.target.checked)} />
-              <span className="text-sm" style={{ color: v("--text") }}>{geraPagar ? t("common.yes") : t("common.no")}</span>
-            </label>
-          </Field>
+
+          <Section title={t("finalizador.section.params")}>
+            <Field label={t("finalizador.geraReceber")} hint={t("finalizador.geraReceberHint")}>
+              <label className="field flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={geraReceber} onChange={(e) => setGeraReceber(e.target.checked)} />
+                <span className="text-sm" style={{ color: v("--text") }}>{geraReceber ? t("common.yes") : t("common.no")}</span>
+              </label>
+            </Field>
+            <Field label={t("finalizador.geraPagar")} hint={t("finalizador.geraPagarHint")}>
+              <label className="field flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={geraPagar} onChange={(e) => setGeraPagar(e.target.checked)} />
+                <span className="text-sm" style={{ color: v("--text") }}>{geraPagar ? t("common.yes") : t("common.no")}</span>
+              </label>
+            </Field>
+            <Field label={t("finalizador.fundoTroco")} hint={t("finalizador.fundoTrocoHint")}>
+              <label className="field flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={fundoTroco} onChange={(e) => setFundoTroco(e.target.checked)} />
+                <span className="text-sm" style={{ color: v("--text") }}>{fundoTroco ? t("common.yes") : t("common.no")}</span>
+              </label>
+            </Field>
+            <Field label={t("finalizador.permiteAvulso")} hint={t("finalizador.permiteAvulsoHint")}>
+              <label className="field flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={permiteAvulso} onChange={(e) => setPermiteAvulso(e.target.checked)} />
+                <span className="text-sm" style={{ color: v("--text") }}>{permiteAvulso ? t("common.yes") : t("common.no")}</span>
+              </label>
+            </Field>
+          </Section>
+
           {editando && (
             <Field label={t("common.status")}>
               <select className="field" value={status} onChange={(e) => setStatus(e.target.value as "ativo" | "inativo")}>
@@ -181,6 +224,7 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
                 { label: "col.id", sort: "id" },
                 { label: "common.name", sort: "nome" },
                 { label: "finalizador.type", sort: "tipo" },
+                { label: "finalizador.section.params" },
                 { label: "common.status" },
                 "",
               ]}
@@ -192,6 +236,14 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
                 <Td mono gold>{e.id}</Td>
                 <Td>{e.nome}</Td>
                 <Td>{t(`finalizador.tipo.${e.tipo}` as TranslationKey)}</Td>
+                <td className="drive-td">
+                  <div className="flex flex-wrap gap-1">
+                    {e.fundoTroco && <Chip label={t("finalizador.chip.troco")} />}
+                    {e.permiteLancamentoAvulso && <Chip label={t("finalizador.chip.avulso")} />}
+                    {e.geraContasReceber && <Chip label={t("finalizador.chip.receber")} />}
+                    {e.geraContasPagar && <Chip label={t("finalizador.chip.pagar")} />}
+                  </div>
+                </td>
                 <td className="drive-td drive-td-status" onClick={(ev) => ev.stopPropagation()}>
                   <StatusBadge
                     status={e.status === "inativo" ? "inativo" : "ativo"}

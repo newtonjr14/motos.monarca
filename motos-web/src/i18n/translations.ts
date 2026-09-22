@@ -582,6 +582,8 @@ export type TranslationKey =
   | "cotacao.usdPygHint"
   | "cotacao.brlPyg"
   | "cotacao.brlPygHint"
+  | "cotacao.rateExample"
+  | "cotacao.ratePlaceholder"
   | "cotacao.error.required"
   | "cotacao.error.rate"
   | "cotacao.searchPlaceholder"
@@ -636,6 +638,15 @@ export type TranslationKey =
   | "finalizador.geraReceberHint"
   | "finalizador.geraPagar"
   | "finalizador.geraPagarHint"
+  | "finalizador.fundoTroco"
+  | "finalizador.fundoTrocoHint"
+  | "finalizador.permiteAvulso"
+  | "finalizador.permiteAvulsoHint"
+  | "finalizador.section.params"
+  | "finalizador.chip.troco"
+  | "finalizador.chip.avulso"
+  | "finalizador.chip.receber"
+  | "finalizador.chip.pagar"
   | "finalizador.error.nameRequired"
   | "finalizador.searchPlaceholder"
   | "caixa.new"
@@ -661,11 +672,33 @@ export type TranslationKey =
   | "caixa.error.destino"
   | "caixa.error.valor"
   | "caixa.error.noneClosed"
+  | "caixa.error.noFundoTroco"
+  | "caixa.addFinalizer"
+  | "caixa.addCurrency"
+  | "caixa.include"
+  | "caixa.informed"
+  | "caixa.difference"
+  | "caixa.summary"
+  | "caixa.fundoTroco"
+  | "caixa.ok"
+  | "caixa.shortage"
+  | "caixa.surplus"
+  | "caixa.lancamento"
+  | "caixa.lancamento.tipo"
+  | "caixa.lancamento.suprimento"
+  | "caixa.lancamento.sangria"
+  | "caixa.lancamento.valor"
+  | "caixa.error.lancamento"
+  | "caixa.error.noAvulso"
   | "caixa.mov.abertura"
   | "caixa.mov.fechamento"
   | "caixa.mov.venda"
   | "caixa.mov.transferencia_saida"
   | "caixa.mov.transferencia_entrada"
+  | "caixa.mov.suprimento"
+  | "caixa.mov.sangria"
+  | "caixa.mov.recebimento"
+  | "caixa.mov.pagamento"
   | "venda.new"
   | "venda.view"
   | "venda.status.finalizada"
@@ -824,6 +857,9 @@ export type TranslationKey =
   | "api.CAIXA_DESTINO_FECHADO"
   | "api.CAIXA_VALOR_INVALIDO"
   | "api.CAIXA_SALDO_INSUFICIENTE"
+  | "api.CAIXA_LANCAMENTO_TIPO"
+  | "api.CAIXA_FINALIZADOR_INATIVO"
+  | "api.CAIXA_FINALIZADOR_SEM_AVULSO"
   | "api.CAIXA_FILIAL_DIVERGENTE"
   | "api.CAIXA_NOME_OBRIGATORIO"
   | "api.CAIXAS_OBRIGATORIOS"
@@ -1311,6 +1347,9 @@ const pt: Record<TranslationKey, string> = {
   "api.CAIXA_DESTINO_FECHADO": "Abra o caixa de destino antes de transferir",
   "api.CAIXA_VALOR_INVALIDO": "O valor não pode ser negativo",
   "api.CAIXA_SALDO_INSUFICIENTE": "Saldo insuficiente para transferir",
+  "api.CAIXA_LANCAMENTO_TIPO": "Tipo de lançamento inválido",
+  "api.CAIXA_FINALIZADOR_INATIVO": "O finalizador não está ativo",
+  "api.CAIXA_FINALIZADOR_SEM_AVULSO": "Este finalizador não permite lançamento avulso",
   "api.CAIXA_FILIAL_DIVERGENTE": "O caixa não pertence a esta filial",
   "api.CAIXA_NOME_OBRIGATORIO": "O nome do caixa é obrigatório",
   "api.CAIXAS_OBRIGATORIOS": "Selecione ao menos um caixa",
@@ -1510,9 +1549,11 @@ const pt: Record<TranslationKey, string> = {
   "cotacao.date": "Data",
   "cotacao.dateHint": "Só a cotação de hoje pode ser editada. O histórico não é excluído.",
   "cotacao.usdPyg": "USD → PYG",
-  "cotacao.usdPygHint": "Quantos guaranis equivalem a 1 dólar hoje.",
+  "cotacao.usdPygHint": "Guaranis por 1 dólar. Só números, sem ponto de milhar.",
   "cotacao.brlPyg": "BRL → PYG",
-  "cotacao.brlPygHint": "Quantos guaranis equivalem a 1 real hoje.",
+  "cotacao.brlPygHint": "Guaranis por 1 real. Só números, sem ponto de milhar.",
+  "cotacao.rateExample": "Exemplo de lançamento: digite 1000 (não 1.000). Assim 1 US$ = 1000 Gs. neste exemplo.",
+  "cotacao.ratePlaceholder": "1000",
   "cotacao.error.required": "Informe a data da cotação",
   "cotacao.error.rate": "Informe as duas taxas, maiores que zero",
   "cotacao.searchPlaceholder": "Data...",
@@ -1532,6 +1573,15 @@ const pt: Record<TranslationKey, string> = {
   "finalizador.geraReceberHint": "Na venda, esta forma abre o parcelamento e não entra no caixa na hora.",
   "finalizador.geraPagar": "Gera contas a pagar",
   "finalizador.geraPagarHint": "Para nota de entrada futura. Não use na liquidação de parcela.",
+  "finalizador.fundoTroco": "Fundo de troco / saldo de abertura",
+  "finalizador.fundoTrocoHint": "Aparece na abertura do caixa e aceita saldo nas três moedas (Gs., US$, R$).",
+  "finalizador.permiteAvulso": "Permite lançamento avulso",
+  "finalizador.permiteAvulsoHint": "Pode ser usado em suprimento ou sangria na sessão de caixa.",
+  "finalizador.section.params": "Parâmetros",
+  "finalizador.chip.troco": "Troco",
+  "finalizador.chip.avulso": "Avulso",
+  "finalizador.chip.receber": "CR",
+  "finalizador.chip.pagar": "CP",
   "finalizador.error.nameRequired": "Informe o nome do finalizador",
   "finalizador.searchPlaceholder": "Nome...",
   "caixa.new": "Novo caixa",
@@ -1557,11 +1607,33 @@ const pt: Record<TranslationKey, string> = {
   "caixa.error.destino": "Selecione o caixa de destino",
   "caixa.error.valor": "Informe ao menos um valor",
   "caixa.error.noneClosed": "Não há caixa fechado para abrir",
+  "caixa.error.noFundoTroco": "Nenhum finalizador marcado como fundo de troco. Cadastre em Finalizadores.",
+  "caixa.error.noAvulso": "Nenhum finalizador permite lançamento avulso. Marque em Finalizadores → Parâmetros.",
+  "caixa.error.lancamento": "Informe tipo, finalizador e valor",
+  "caixa.lancamento": "Lançamento",
+  "caixa.lancamento.tipo": "Tipo",
+  "caixa.lancamento.suprimento": "Suprimento (entrada)",
+  "caixa.lancamento.sangria": "Sangria (saída)",
+  "caixa.lancamento.valor": "Valor",
+  "caixa.addFinalizer": "+ Adicionar outro finalizador",
+  "caixa.addCurrency": "+ Adicionar moeda",
+  "caixa.include": "Incluir",
+  "caixa.informed": "Informado",
+  "caixa.difference": "Diferença",
+  "caixa.summary": "Resumo",
+  "caixa.fundoTroco": "Fundo de troco",
+  "caixa.ok": "Bateu",
+  "caixa.shortage": "Falta",
+  "caixa.surplus": "Sobra",
   "caixa.mov.abertura": "Abertura",
   "caixa.mov.fechamento": "Fechamento",
   "caixa.mov.venda": "Venda",
   "caixa.mov.transferencia_saida": "Transferência (saída)",
   "caixa.mov.transferencia_entrada": "Transferência (entrada)",
+  "caixa.mov.suprimento": "Suprimento",
+  "caixa.mov.sangria": "Sangria",
+  "caixa.mov.recebimento": "Recebimento",
+  "caixa.mov.pagamento": "Pagamento",
   "venda.new": "Nova venda",
   "venda.view": "Venda",
   "venda.status.finalizada": "Finalizada",
@@ -2170,6 +2242,9 @@ const es: Record<TranslationKey, string> = {
   "api.CAIXA_DESTINO_FECHADO": "Abra la caja de destino antes de transferir",
   "api.CAIXA_VALOR_INVALIDO": "El valor no puede ser negativo",
   "api.CAIXA_SALDO_INSUFICIENTE": "Saldo insuficiente para transferir",
+  "api.CAIXA_LANCAMENTO_TIPO": "Tipo de movimiento inválido",
+  "api.CAIXA_FINALIZADOR_INATIVO": "El finalizador no está activo",
+  "api.CAIXA_FINALIZADOR_SEM_AVULSO": "Este finalizador no permite movimiento manual",
   "api.CAIXA_FILIAL_DIVERGENTE": "La caja no pertenece a esta sucursal",
   "api.CAIXA_NOME_OBRIGATORIO": "El nombre de la caja es obligatorio",
   "api.CAIXAS_OBRIGATORIOS": "Seleccione al menos una caja",
@@ -2379,9 +2454,11 @@ const es: Record<TranslationKey, string> = {
   "cotacao.date": "Fecha",
   "cotacao.dateHint": "Solo la cotización de hoy puede editarse. El historial no se elimina.",
   "cotacao.usdPyg": "USD → PYG",
-  "cotacao.usdPygHint": "Cuántos guaraníes equivalen a 1 dólar hoy.",
+  "cotacao.usdPygHint": "Guaraníes por 1 dólar. Solo números, sin punto de miles.",
   "cotacao.brlPyg": "BRL → PYG",
-  "cotacao.brlPygHint": "Cuántos guaraníes equivalen a 1 real hoy.",
+  "cotacao.brlPygHint": "Guaraníes por 1 real. Solo números, sin punto de miles.",
+  "cotacao.rateExample": "Ejemplo de registro: escriba 1000 (no 1.000). Así 1 US$ = 1000 Gs. en este ejemplo.",
+  "cotacao.ratePlaceholder": "1000",
   "cotacao.error.required": "Indique la fecha de la cotización",
   "cotacao.error.rate": "Indique las dos tasas, mayores que cero",
   "cotacao.searchPlaceholder": "Fecha...",
@@ -2401,6 +2478,15 @@ const es: Record<TranslationKey, string> = {
   "finalizador.geraReceberHint": "En la venta, esta forma abre el plan de cuotas y no entra en caja al momento.",
   "finalizador.geraPagar": "Genera cuentas por pagar",
   "finalizador.geraPagarHint": "Para nota de entrada futura. No use al liquidar una cuota.",
+  "finalizador.fundoTroco": "Fondo de cambio / saldo de apertura",
+  "finalizador.fundoTrocoHint": "Aparece en la apertura de caja y acepta saldo en las tres monedas (Gs., US$, R$).",
+  "finalizador.permiteAvulso": "Permite movimiento manual",
+  "finalizador.permiteAvulsoHint": "Puede usarse en suministro o sangría en la sesión de caja.",
+  "finalizador.section.params": "Parámetros",
+  "finalizador.chip.troco": "Cambio",
+  "finalizador.chip.avulso": "Manual",
+  "finalizador.chip.receber": "CxC",
+  "finalizador.chip.pagar": "CxP",
   "finalizador.error.nameRequired": "Indique el nombre del finalizador",
   "finalizador.searchPlaceholder": "Nombre...",
   "caixa.new": "Nueva caja",
@@ -2426,11 +2512,33 @@ const es: Record<TranslationKey, string> = {
   "caixa.error.destino": "Seleccione la caja de destino",
   "caixa.error.valor": "Indique al menos un valor",
   "caixa.error.noneClosed": "No hay caja cerrada para abrir",
+  "caixa.error.noFundoTroco": "Ningún finalizador marcado como fondo de cambio. Regístrelo en Finalizadores.",
+  "caixa.error.noAvulso": "Ningún finalizador permite movimiento manual. Márquelo en Finalizadores → Parámetros.",
+  "caixa.error.lancamento": "Indique tipo, finalizador y valor",
+  "caixa.lancamento": "Movimiento",
+  "caixa.lancamento.tipo": "Tipo",
+  "caixa.lancamento.suprimento": "Suministro (entrada)",
+  "caixa.lancamento.sangria": "Sangría (salida)",
+  "caixa.lancamento.valor": "Valor",
+  "caixa.addFinalizer": "+ Agregar otro finalizador",
+  "caixa.addCurrency": "+ Agregar moneda",
+  "caixa.include": "Incluir",
+  "caixa.informed": "Informado",
+  "caixa.difference": "Diferencia",
+  "caixa.summary": "Resumen",
+  "caixa.fundoTroco": "Fondo de cambio",
+  "caixa.ok": "Cuadra",
+  "caixa.shortage": "Falta",
+  "caixa.surplus": "Sobra",
   "caixa.mov.abertura": "Apertura",
   "caixa.mov.fechamento": "Cierre",
   "caixa.mov.venda": "Venta",
   "caixa.mov.transferencia_saida": "Transferencia (salida)",
   "caixa.mov.transferencia_entrada": "Transferencia (entrada)",
+  "caixa.mov.suprimento": "Suministro",
+  "caixa.mov.sangria": "Sangría",
+  "caixa.mov.recebimento": "Cobro",
+  "caixa.mov.pagamento": "Pago",
   "venda.new": "Nueva venta",
   "venda.view": "Venta",
   "venda.status.finalizada": "Finalizada",

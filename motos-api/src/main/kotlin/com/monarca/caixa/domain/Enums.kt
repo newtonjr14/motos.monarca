@@ -43,6 +43,12 @@ enum class TipoMovimentacaoCaixa {
 
     @SerialName("transferencia_entrada")
     TRANSFERENCIA_ENTRADA,
+
+    @SerialName("suprimento")
+    SUPRIMENTO,
+
+    @SerialName("sangria")
+    SANGRIA,
 }
 
 @Serializable

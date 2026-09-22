@@ -2,6 +2,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { hojeAsuncion } from "@/components/CotacoesPage";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
+import { parseTaxaCotacao } from "@/format";
 import {
   ApiError,
   avisarCotacaoMudou,
@@ -96,8 +97,8 @@ export function CotacaoAlerta({ onOpenCadastro }: { onOpenCadastro: () => void }
 
   async function salvar() {
     setErro(null);
-    const usd = Number(usdPyg.replace(",", "."));
-    const brl = Number(brlPyg.replace(",", "."));
+    const usd = parseTaxaCotacao(usdPyg);
+    const brl = parseTaxaCotacao(brlPyg);
     if (!Number.isFinite(usd) || usd <= 0 || !Number.isFinite(brl) || brl <= 0) {
       setErro(t("cotacao.error.rate"));
       return;
@@ -125,6 +126,11 @@ export function CotacaoAlerta({ onOpenCadastro }: { onOpenCadastro: () => void }
       <p className="text-sm min-w-[16rem] flex-1" style={{ color: v("--text") }}>
         {podeGerenciar ? t("cotacao.banner.missing") : t("cotacao.banner.wait")}
       </p>
+      {podeGerenciar && (
+        <p className="text-[11px] w-full md:w-auto" style={{ color: v("--text-muted") }}>
+          {t("cotacao.rateExample")}
+        </p>
+      )}
       {erro && <p className="text-xs" style={{ color: "#ef4444" }}>{erro}</p>}
       {podeGerenciar && (
         <form
@@ -137,6 +143,7 @@ export function CotacaoAlerta({ onOpenCadastro }: { onOpenCadastro: () => void }
               className="field font-mono w-[7.5rem] py-1.5"
               inputMode="decimal"
               autoComplete="off"
+              placeholder={t("cotacao.ratePlaceholder")}
               value={usdPyg}
               onChange={(e) => setUsdPyg(e.target.value)}
               aria-label={t("cotacao.usdPyg")}
@@ -148,6 +155,7 @@ export function CotacaoAlerta({ onOpenCadastro }: { onOpenCadastro: () => void }
               className="field font-mono w-[7.5rem] py-1.5"
               inputMode="decimal"
               autoComplete="off"
+              placeholder={t("cotacao.ratePlaceholder")}
               value={brlPyg}
               onChange={(e) => setBrlPyg(e.target.value)}
               aria-label={t("cotacao.brlPyg")}

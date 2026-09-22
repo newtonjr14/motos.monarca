@@ -70,6 +70,8 @@ class ExposedCaixaRepository(
             it[tipo] = item.tipo.name.lowercase()
             it[geraContasReceber] = item.geraContasReceber
             it[geraContasPagar] = item.geraContasPagar
+            it[fundoTroco] = item.fundoTroco
+            it[permiteLancamentoAvulso] = item.permiteLancamentoAvulso
             it[status] = item.status.name.lowercase()
         }
         val id = inserted[FinalizadoresTable.id].value
@@ -85,6 +87,8 @@ class ExposedCaixaRepository(
             it[tipo] = item.tipo.name.lowercase()
             it[geraContasReceber] = item.geraContasReceber
             it[geraContasPagar] = item.geraContasPagar
+            it[fundoTroco] = item.fundoTroco
+            it[permiteLancamentoAvulso] = item.permiteLancamentoAvulso
             it[status] = item.status.name.lowercase()
         } > 0
     }
@@ -456,6 +460,24 @@ class ExposedCaixaRepository(
         }
     }
 
+    override suspend fun registrarLancamentoAvulso(
+        idSessao: Long,
+        tipo: TipoMovimentacaoCaixa,
+        idUsuario: Long,
+        valores: List<ValorFinalizador>,
+        observacao: String?,
+    ) {
+        suspendTransaction(database) {
+            inserirMovimento(
+                idSessao = idSessao,
+                tipo = tipo,
+                idUsuario = idUsuario,
+                valores = valores,
+                observacao = observacao,
+            )
+        }
+    }
+
     private fun queryCaixas() = CaixasTable
         .innerJoin(FiliaisTable)
         .selectAll()
@@ -520,6 +542,7 @@ class ExposedCaixaRepository(
             val sinal = when (tipo) {
                 TipoMovimentacaoCaixa.TRANSFERENCIA_SAIDA.name.lowercase(),
                 TipoMovimentacaoCaixa.PAGAMENTO.name.lowercase(),
+                TipoMovimentacaoCaixa.SANGRIA.name.lowercase(),
                 -> -1.0
                 else -> 1.0
             }
@@ -546,6 +569,8 @@ class ExposedCaixaRepository(
         tipo = TipoFinalizador.valueOf(this[FinalizadoresTable.tipo].uppercase()),
         geraContasReceber = this[FinalizadoresTable.geraContasReceber],
         geraContasPagar = this[FinalizadoresTable.geraContasPagar],
+        fundoTroco = this[FinalizadoresTable.fundoTroco],
+        permiteLancamentoAvulso = this[FinalizadoresTable.permiteLancamentoAvulso],
         status = Status.valueOf(this[FinalizadoresTable.status].uppercase()),
     )
 

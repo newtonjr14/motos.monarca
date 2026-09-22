@@ -791,7 +791,9 @@ export type TipoMovimentacaoCaixa =
   | "recebimento"
   | "pagamento"
   | "transferencia_saida"
-  | "transferencia_entrada";
+  | "transferencia_entrada"
+  | "suprimento"
+  | "sangria";
 export type StatusSessaoCaixa = "aberto" | "fechado";
 export type StatusVenda = "finalizada" | "cancelada";
 
@@ -801,6 +803,8 @@ export interface Finalizador {
   tipo: TipoFinalizador;
   geraContasReceber?: boolean;
   geraContasPagar?: boolean;
+  fundoTroco?: boolean;
+  permiteLancamentoAvulso?: boolean;
   status: Status;
 }
 
@@ -928,6 +932,8 @@ export const fecharCaixaSessao = (id: number, body: unknown) =>
   api<CaixaSessao>(`/caixa-sessoes/${id}/fechar`, { method: "POST", body: JSON.stringify(body) });
 export const transferirCaixa = (idSessao: number, body: unknown) =>
   api<void>(`/caixa-sessoes/${idSessao}/transferencias`, { method: "POST", body: JSON.stringify(body) });
+export const lancamentoAvulsoCaixa = (idSessao: number, body: unknown) =>
+  api<CaixaMovimentacao>(`/caixa-sessoes/${idSessao}/lancamentos`, { method: "POST", body: JSON.stringify(body) });
 export const listarCaixaMovimentacoes = (idSessao: number) =>
   api<CaixaMovimentacao[]>(`/caixa-sessoes/${idSessao}/movimentacoes`);
 

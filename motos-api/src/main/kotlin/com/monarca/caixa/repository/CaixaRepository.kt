@@ -5,6 +5,7 @@ import com.monarca.caixa.domain.CaixaAcesso
 import com.monarca.caixa.domain.CaixaMovimentacao
 import com.monarca.caixa.domain.CaixaSessao
 import com.monarca.caixa.domain.Finalizador
+import com.monarca.caixa.domain.TipoMovimentacaoCaixa
 import com.monarca.caixa.domain.ValorFinalizador
 import com.monarca.common.enums.Status
 
@@ -69,5 +70,12 @@ interface CaixaRepository {
         idVenda: Long,
         idUsuario: Long,
         valores: List<ValorFinalizador>,
+    )
+    suspend fun registrarLancamentoAvulso(
+        idSessao: Long,
+        tipo: TipoMovimentacaoCaixa,
+        idUsuario: Long,
+        valores: List<ValorFinalizador>,
+        observacao: String?,
     )
 }

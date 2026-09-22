@@ -49,5 +49,9 @@ class CaixaSessoes {
         @Serializable
         @Resource("movimentacoes")
         class Movimentacoes(val parent: Id)
+
+        @Serializable
+        @Resource("lancamentos")
+        class Lancamentos(val parent: Id)
     }
 }

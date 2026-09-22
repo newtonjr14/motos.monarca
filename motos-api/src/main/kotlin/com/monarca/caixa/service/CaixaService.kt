@@ -5,6 +5,7 @@ import com.monarca.caixa.domain.Caixa
 import com.monarca.caixa.domain.CaixaSessao
 import com.monarca.caixa.domain.Finalizador
 import com.monarca.caixa.domain.StatusSessaoCaixa
+import com.monarca.caixa.domain.TipoMovimentacaoCaixa
 import com.monarca.caixa.domain.ValorFinalizador
 import com.monarca.caixa.dto.AbrirSessaoRequest
 import com.monarca.caixa.dto.CaixaAcessoResponse
@@ -15,6 +16,7 @@ import com.monarca.caixa.dto.CaixaSessaoResponse
 import com.monarca.caixa.dto.FecharSessaoRequest
 import com.monarca.caixa.dto.FinalizadorRequest
 import com.monarca.caixa.dto.FinalizadorResponse
+import com.monarca.caixa.dto.LancamentoAvulsoRequest
 import com.monarca.caixa.dto.TransferenciaCaixaRequest
 import com.monarca.caixa.dto.ValorFinalizadorRequest
 import com.monarca.caixa.dto.ValorFinalizadorResponse
@@ -275,6 +277,56 @@ class CaixaService(
         )
     }
 
+    suspend fun lancamentoAvulso(idSessao: Long, request: LancamentoAvulsoRequest, idUsuario: Long): CaixaMovimentacaoResponse {
+        val detalhe = repository.buscarSessao(idSessao) ?: throw RecursoNaoEncontrado("Sessão $idSessao não encontrada")
+        exigirAcessoFilial(idUsuario, detalhe.idFilial)
+        exigirAcessoCaixa(idUsuario, detalhe.sessao.idCaixa)
+        if (detalhe.sessao.status != StatusSessaoCaixa.ABERTO) {
+            throw invalido("CAIXA_SESSAO_FECHADA", "A sessão do caixa está fechada")
+        }
+        val tipo = request.tipo
+        if (tipo != TipoMovimentacaoCaixa.SUPRIMENTO && tipo != TipoMovimentacaoCaixa.SANGRIA) {
+            throw invalido("CAIXA_LANCAMENTO_TIPO", "Tipo de lançamento inválido (use suprimento ou sangria)")
+        }
+        if (request.valor <= 0) {
+            throw invalido("CAIXA_VALOR_INVALIDO", "Informe um valor maior que zero")
+        }
+        val finalizador = repository.buscarFinalizador(request.idFinalizador)
+            ?: throw RecursoNaoEncontrado("Finalizador ${request.idFinalizador} não encontrado")
+        if (finalizador.status != Status.ATIVO) {
+            throw invalido("CAIXA_FINALIZADOR_INATIVO", "O finalizador não está ativo")
+        }
+        if (!finalizador.permiteLancamentoAvulso) {
+            throw invalido("CAIXA_FINALIZADOR_SEM_AVULSO", "Este finalizador não permite lançamento avulso")
+        }
+        val valores = validarValores(
+            listOf(
+                ValorFinalizadorRequest(
+                    idFinalizador = request.idFinalizador,
+                    valor = request.valor,
+                    moeda = request.moeda,
+                ),
+            ),
+        )
+        if (tipo == TipoMovimentacaoCaixa.SANGRIA) {
+            val saldo = detalhe.saldos
+                .firstOrNull { it.idFinalizador == request.idFinalizador && it.moeda == request.moeda }
+                ?.valor ?: 0.0
+            if (request.valor > saldo + 0.009) {
+                throw invalido("CAIXA_SALDO_INSUFICIENTE", "Saldo insuficiente para a sangria")
+            }
+        }
+        repository.registrarLancamentoAvulso(
+            idSessao = idSessao,
+            tipo = tipo,
+            idUsuario = idUsuario,
+            valores = valores,
+            observacao = request.observacao?.trim()?.ifBlank { null },
+        )
+        return listarMovimentacoes(idSessao, idUsuario).maxByOrNull { it.id }
+            ?: throw RecursoNaoEncontrado("Movimentação não encontrada após o lançamento")
+    }
+
     suspend fun buscarSessao(id: Long, idUsuario: Long): CaixaSessaoResponse {
         val detalhe = repository.buscarSessao(id) ?: throw RecursoNaoEncontrado("Sessão $id não encontrada")
         exigirAcessoFilial(idUsuario, detalhe.idFilial)
@@ -321,7 +373,16 @@ class CaixaService(
         val nome = Texto.titleCase(request.nome.trim())
         if (nome.isEmpty()) throw invalido("FINALIZADOR_NOME_OBRIGATORIO", "O nome do finalizador é obrigatório")
         if (request.status == Status.DELETADO) throw invalido("USE_DELETE", "Use DELETE para marcar como deletado")
-        return Finalizador(id = id, nome = nome, tipo = request.tipo, geraContasReceber = request.geraContasReceber, geraContasPagar = request.geraContasPagar, status = request.status)
+        return Finalizador(
+            id = id,
+            nome = nome,
+            tipo = request.tipo,
+            geraContasReceber = request.geraContasReceber,
+            geraContasPagar = request.geraContasPagar,
+            fundoTroco = request.fundoTroco,
+            permiteLancamentoAvulso = request.permiteLancamentoAvulso,
+            status = request.status,
+        )
     }
 
     private fun validarCaixa(request: CaixaRequest, id: Long, idFilial: Long): Caixa {
@@ -385,6 +446,8 @@ class CaixaService(
         tipo = tipo,
         geraContasReceber = geraContasReceber,
         geraContasPagar = geraContasPagar,
+        fundoTroco = fundoTroco,
+        permiteLancamentoAvulso = permiteLancamentoAvulso,
         status = status,
     )
 

@@ -20,6 +20,18 @@ export function apenasDigitos(valor: string): string {
   return valor.replace(/\D/g, "");
 }
 
+/**
+ * Taxa de cotação (Gs. por 1 US$/R$).
+ * Ponto de milhar (ex.: 1.000) vira 1000 — não 1.
+ */
+export function parseTaxaCotacao(raw: string): number {
+  const s = raw.trim().replace(/\s/g, "");
+  if (!s) return NaN;
+  if (/^\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ""));
+  if (/^\d{1,3}(\.\d{3})+,\d+$/.test(s)) return Number(s.replace(/\./g, "").replace(",", "."));
+  return Number(s.replace(",", "."));
+}
+
 /** CEP / código postal — letras e números, até 12 caracteres. */
 export function normalizarCep(valor: string): string {
   return valor.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 12);

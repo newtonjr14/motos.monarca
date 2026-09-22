@@ -10,6 +10,8 @@ object FinalizadoresTable : LongIdTable("finalizador") {
     val tipo = varchar("tipo", 20)
     val geraContasReceber = bool("gera_contas_receber").default(false)
     val geraContasPagar = bool("gera_contas_pagar").default(false)
+    val fundoTroco = bool("fundo_troco").default(false)
+    val permiteLancamentoAvulso = bool("permite_lancamento_avulso").default(false)
     val status = varchar("status", 20).default("ativo")
 }
 

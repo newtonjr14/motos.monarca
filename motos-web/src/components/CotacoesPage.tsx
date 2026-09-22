@@ -11,7 +11,7 @@ import {
   listarCotacoes,
   type Cotacao,
 } from "@/api";
-import { formatarDataIso, slicePage } from "@/format";
+import { formatarDataIso, parseTaxaCotacao, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
@@ -98,8 +98,8 @@ export default function CotacoesPage({ navReset }: { navReset: number }) {
 
   async function salvar() {
     setErro(null);
-    const usd = Number(usdPyg.replace(",", "."));
-    const brl = Number(brlPyg.replace(",", "."));
+    const usd = parseTaxaCotacao(usdPyg);
+    const brl = parseTaxaCotacao(brlPyg);
     if (!Number.isFinite(usd) || usd <= 0 || !Number.isFinite(brl) || brl <= 0) {
       setErro(t("cotacao.error.rate"));
       return;
@@ -131,14 +131,21 @@ export default function CotacoesPage({ navReset }: { navReset: number }) {
         <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
           onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+          <p className="text-xs rounded-md px-3 py-2" style={{ color: v("--text-sub"), background: v("--gold-bg"), border: `1px solid ${v("--gold-border")}` }}>
+            {t("cotacao.rateExample")}
+          </p>
           <Field label={t("cotacao.date")} required hint={t("cotacao.dateHint")}>
             <input className="field font-mono" type="date" autoFocus={false} readOnly value={data} />
           </Field>
           <Field label={t("cotacao.usdPyg")} required hint={t("cotacao.usdPygHint")}>
-            <input className="field font-mono" inputMode="decimal" autoFocus value={usdPyg} onChange={(e) => setUsdPyg(e.target.value)} />
+            <input className="field font-mono" inputMode="decimal" autoFocus value={usdPyg}
+              placeholder={t("cotacao.ratePlaceholder")}
+              onChange={(e) => setUsdPyg(e.target.value)} />
           </Field>
           <Field label={t("cotacao.brlPyg")} required hint={t("cotacao.brlPygHint")}>
-            <input className="field font-mono" inputMode="decimal" value={brlPyg} onChange={(e) => setBrlPyg(e.target.value)} />
+            <input className="field font-mono" inputMode="decimal" value={brlPyg}
+              placeholder={t("cotacao.ratePlaceholder")}
+              onChange={(e) => setBrlPyg(e.target.value)} />
           </Field>
           {editando && (
             <Field label={t("common.status")}>

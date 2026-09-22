@@ -13,6 +13,8 @@ data class FinalizadorRequest(
     val tipo: TipoFinalizador,
     val geraContasReceber: Boolean = false,
     val geraContasPagar: Boolean = false,
+    val fundoTroco: Boolean = false,
+    val permiteLancamentoAvulso: Boolean = false,
     val status: Status = Status.ATIVO,
 )
 
@@ -23,6 +25,8 @@ data class FinalizadorResponse(
     val tipo: TipoFinalizador,
     val geraContasReceber: Boolean = false,
     val geraContasPagar: Boolean = false,
+    val fundoTroco: Boolean = false,
+    val permiteLancamentoAvulso: Boolean = false,
     val status: Status,
 )
 
@@ -86,6 +90,15 @@ data class FecharSessaoRequest(
 data class TransferenciaCaixaRequest(
     val idCaixaDestino: Long,
     val conferencia: List<ValorFinalizadorRequest>,
+    val observacao: String? = null,
+)
+
+@Serializable
+data class LancamentoAvulsoRequest(
+    val tipo: TipoMovimentacaoCaixa,
+    val idFinalizador: Long,
+    val valor: Double,
+    val moeda: Moeda = Moeda.PYG,
     val observacao: String? = null,
 )
 
