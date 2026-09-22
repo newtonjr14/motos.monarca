@@ -84,18 +84,21 @@ body {
   font-size: 14px;
   line-height: 1.4;
 }
-.field:disabled,
-.field:read-only {
+/* :read-only casa com <button> no CSS — não usar em .field genérico */
+input.field:disabled,
+input.field:read-only,
+textarea.field:disabled,
+textarea.field:read-only,
+select.field:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+button.field {
+  cursor: pointer;
 }
 select.field {
   appearance: auto;
   cursor: pointer;
-}
-select.field:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 
 .btn-gold {
@@ -483,6 +486,9 @@ select.field:disabled {
 }
 .ficha-modal-locked {
   height: min(40rem, calc(100vh - 8vh));
+}
+.ficha-modal-compact {
+  height: min(28rem, calc(100vh - 8vh));
 }
 .ficha-modal-body {
   overflow-y: auto;

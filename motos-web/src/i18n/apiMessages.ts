@@ -1,4 +1,4 @@
-import { ApiError, type DocumentoConflito } from "@/api";
+import { ApiError, type DocumentoConflito, type VinculoFilialConflito } from "@/api";
 import { translations, type TranslationKey } from "@/i18n/translations";
 import { tf } from "@/i18n/format";
 
@@ -22,14 +22,30 @@ const CODIGOS_CAMPO_DOCUMENTO = new Set([
   "DOCUMENTOS_REPETIDOS",
 ]);
 
+/** Papel existe, mas sem vínculo ativo na filial atual (ex.: após “excluir” o vínculo). */
+export function conflitoSemVinculoNaFilial(
+  conflito: DocumentoConflito | VinculoFilialConflito,
+  idFilial: number | null | undefined,
+): boolean {
+  if (conflito.codigo === "VINCULO_FILIAL") return false;
+  if (conflito.idPapel == null) return false;
+  const filiais = conflito.filiaisVinculadas ?? [];
+  if (idFilial == null) return filiais.length === 0;
+  return !filiais.some((f) => f.id === idFilial);
+}
+
 export function mensagemConflitoDocumento(
   conflito: DocumentoConflito,
   t: (key: TranslationKey) => string,
+  opts?: { idFilial?: number | null },
 ): string {
   if (conflito.codigo === "DOCUMENTO_POSSIVEL_DUPLICADO") {
     return t("error.conflict.possibleDuplicate");
   }
   if (conflito.codigo === "DOCUMENTO_UNICO") {
+    if (conflitoSemVinculoNaFilial(conflito, opts?.idFilial)) {
+      return tf(t, "error.conflict.docUnlinked", conflito.params);
+    }
     return tf(t, "error.conflict.docUnique", conflito.params);
   }
   return mensagemErroApi(conflito, t, "common.error.saveFailed");

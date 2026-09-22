@@ -123,6 +123,8 @@ export interface Pessoa {
   tipoPessoa: TipoPessoa;
   ddi: string | null;
   telefone: string | null;
+  ddi2?: string | null;
+  telefone2?: string | null;
   email: string | null;
   enderecos: PessoaEndereco[];
   status: Status;
@@ -368,13 +370,108 @@ export const criarCidade = (body: unknown) => api<Cidade>("/cidades", { method: 
 export const atualizarCidade = (id: number, body: unknown) =>
   api<Cidade>(`/cidades/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const excluirCidade = (id: number) => api<void>(`/cidades/${id}`, { method: "DELETE" });
+
+const tiposDocumentoCache = new Map<string, DocumentoTipo[]>();
+const tiposDocumentoInflight = new Map<string, Promise<DocumentoTipo[]>>();
+
+function filtrarTiposDocumento(
+  todos: DocumentoTipo[],
+  idPais?: number,
+  tipoPessoa?: TipoPessoa,
+): DocumentoTipo[] {
+  return todos.filter(
+    (tp) =>
+      (idPais == null || tp.idPais === idPais) &&
+      (tipoPessoa == null || tp.tipoPessoa === tipoPessoa),
+  );
+}
+
 export const listarTipos = (idPais?: number, tipoPessoa?: TipoPessoa) => {
+  const key = `${idPais ?? ""}:${tipoPessoa ?? ""}`;
+  const cached = tiposDocumentoCache.get(key);
+  if (cached) return Promise.resolve(cached);
+
+  const todos = tiposDocumentoCache.get(":");
+  if (todos && (idPais != null || tipoPessoa)) {
+    const filtrado = filtrarTiposDocumento(todos, idPais, tipoPessoa);
+    tiposDocumentoCache.set(key, filtrado);
+    return Promise.resolve(filtrado);
+  }
+
+  const pending = tiposDocumentoInflight.get(key);
+  if (pending) return pending;
+
+  // Se o aquecimento global já está em voo, reutiliza e filtra.
+  const aquecendo = tiposDocumentoInflight.get(":");
+  if (aquecendo && (idPais != null || tipoPessoa)) {
+    const derivado = aquecendo.then((lista) => {
+      const filtrado = filtrarTiposDocumento(lista, idPais, tipoPessoa);
+      tiposDocumentoCache.set(key, filtrado);
+      return filtrado;
+    });
+    tiposDocumentoInflight.set(key, derivado);
+    return derivado;
+  }
+
   const q = new URLSearchParams();
   if (idPais != null) q.set("idPais", String(idPais));
   if (tipoPessoa) q.set("tipoPessoa", tipoPessoa);
   const suffix = q.toString() ? `?${q}` : "";
-  return api<DocumentoTipo[]>(`/documentos-tipos${suffix}`);
+  const req = api<DocumentoTipo[]>(`/documentos-tipos${suffix}`)
+    .then((lista) => {
+      tiposDocumentoCache.set(key, lista);
+      tiposDocumentoInflight.delete(key);
+      return lista;
+    })
+    .catch((e) => {
+      tiposDocumentoInflight.delete(key);
+      throw e;
+    });
+  tiposDocumentoInflight.set(key, req);
+  return req;
 };
+
+/** Uma chamada lista tudo e popula o cache por país/tipo — usado no boot do app. */
+export async function aquecerCacheTiposDocumento(): Promise<DocumentoTipo[]> {
+  const cached = tiposDocumentoCache.get(":");
+  if (cached) return cached;
+  const pending = tiposDocumentoInflight.get(":");
+  if (pending) return pending;
+
+  const req = api<DocumentoTipo[]>("/documentos-tipos")
+    .then((todos) => {
+      tiposDocumentoCache.set(":", todos);
+      const porChave = new Map<string, DocumentoTipo[]>();
+      for (const tp of todos) {
+        const key = `${tp.idPais}:${tp.tipoPessoa}`;
+        const lista = porChave.get(key) ?? [];
+        lista.push(tp);
+        porChave.set(key, lista);
+      }
+      for (const [key, lista] of porChave) {
+        tiposDocumentoCache.set(key, lista);
+      }
+      tiposDocumentoInflight.delete(":");
+      return todos;
+    })
+    .catch((e) => {
+      tiposDocumentoInflight.delete(":");
+      throw e;
+    });
+  tiposDocumentoInflight.set(":", req);
+  return req;
+}
+
+/** Leitura síncrona do cache (prefetch / form Novo sem esperar rede). */
+export function tiposDocumentoEmCache(idPais: number, tipoPessoa: TipoPessoa): DocumentoTipo[] | undefined {
+  return tiposDocumentoCache.get(`${idPais}:${tipoPessoa}`);
+}
+
+export function invalidarCacheTiposDocumento() {
+  tiposDocumentoCache.clear();
+  tiposDocumentoInflight.clear();
+}
+
 export const buscarTipoDocumento = (id: number) => api<DocumentoTipo>(`/documentos-tipos/${id}`);
 export const criarTipoDocumento = (body: {
   idPais: number;
@@ -382,12 +479,24 @@ export const criarTipoDocumento = (body: {
   codigo: string;
   nome: string;
   unico: boolean;
-}) => api<DocumentoTipo>("/documentos-tipos", { method: "POST", body: JSON.stringify(body) });
+}) =>
+  api<DocumentoTipo>("/documentos-tipos", { method: "POST", body: JSON.stringify(body) }).then((r) => {
+    invalidarCacheTiposDocumento();
+    return r;
+  });
 export const atualizarTipoDocumento = (
   id: number,
   body: { idPais: number; tipoPessoa: TipoPessoa; codigo: string; nome: string; unico: boolean },
-) => api<DocumentoTipo>(`/documentos-tipos/${id}`, { method: "PUT", body: JSON.stringify(body) });
-export const excluirTipoDocumento = (id: number) => api<void>(`/documentos-tipos/${id}`, { method: "DELETE" });
+) =>
+  api<DocumentoTipo>(`/documentos-tipos/${id}`, { method: "PUT", body: JSON.stringify(body) }).then((r) => {
+    invalidarCacheTiposDocumento();
+    return r;
+  });
+export const excluirTipoDocumento = (id: number) =>
+  api<void>(`/documentos-tipos/${id}`, { method: "DELETE" }).then((r) => {
+    invalidarCacheTiposDocumento();
+    return r;
+  });
 
 export const listarPapeis = (
   recurso: "clientes" | "fornecedores",

@@ -1,4 +1,6 @@
 import { Field } from "@/components/crud/Field";
+import F2InsideHint from "@/components/F2InsideHint";
+import SearchPickerModal, { type SearchPickerItem } from "@/components/SearchPickerModal";
 import {
   PAISES_TELEFONE,
   apenasDigitos,
@@ -46,10 +48,15 @@ export default function DdiSearchSelect({
   ddi,
   telefone,
   onChange,
+  phoneLabel,
+  fallbackDdi,
 }: {
   ddi: string;
   telefone: string;
   onChange: (next: { ddi: string; telefone: string }) => void;
+  phoneLabel?: string;
+  /** Se o DDI desta linha estiver vazio, usa este para máscara (ex.: mesmo país do 1º telefone). */
+  fallbackDdi?: string;
 }) {
   const { t } = useI18n();
   const nomePais = (iso: string, fallback: string) => {
@@ -62,14 +69,50 @@ export default function DdiSearchSelect({
   const [modoOutro, setModoOutro] = useState(() => Boolean(ddi) && !paisPorCodigo(ddi));
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const pais = modoOutro ? undefined : conhecido;
+  const ddiMascara = (!modoOutro && (ddi || fallbackDdi)) || "";
+  const pais = modoOutro ? undefined : paisPorCodigo(ddiMascara);
   const digits = apenasDigitos(telefone);
   const visivel = pais ? formatarTelefoneLocal(digits, pais.mask) : telefone;
 
   const opcoes = useMemo(() => filtrarPaises(busca, nomePais), [busca, t]);
+
+  const items: SearchPickerItem[] = useMemo(() => {
+    const lista: SearchPickerItem[] = [];
+    if (!busca.trim()) {
+      lista.push({
+        id: "",
+        label: t("ddi.noPhone"),
+        selected: !ddi && !modoOutro,
+      });
+    }
+    for (const p of opcoes) {
+      lista.push({
+        id: p.codigo,
+        label: (
+          <>
+            <span className="font-mono">+{p.codigo}</span> {nomePais(p.iso, p.nome)}{" "}
+            <span className="text-xs" style={{ color: v("--text-muted") }}>({p.iso})</span>
+          </>
+        ),
+        selected: ddi === p.codigo && !modoOutro,
+      });
+    }
+    if (!busca.trim()) {
+      lista.push({
+        id: "outro",
+        label: t("ddi.other"),
+        selected: modoOutro,
+      });
+    }
+    return lista;
+  }, [opcoes, busca, ddi, modoOutro, t]);
+
+  function abrir() {
+    setBusca("");
+    setAberto(true);
+  }
 
   function fechar() {
     setAberto(false);
@@ -88,14 +131,7 @@ export default function DdiSearchSelect({
       setModoOutro(false);
       onChange({ ddi: val, telefone: "" });
     }
-    setAberto(false);
-    setBusca("");
-  }
-
-  function selecionarPrimeiro() {
-    if (opcoes.length > 0) {
-      selecionar(opcoes[0]!.codigo);
-    }
+    fechar();
   }
 
   const rotuloAtual = modoOutro
@@ -107,130 +143,71 @@ export default function DdiSearchSelect({
       : t("ddi.searchPlaceholder");
 
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(11rem, 0.9fr) 1.1fr" }}>
-      <Field label={t("ddi.label")}>
-        <div className="relative" ref={containerRef}>
+    <>
+      <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(9.75rem, 11rem) minmax(0, 1fr)" }}>
+        <Field label={t("ddi.label")}>
           <button
             ref={triggerRef}
             type="button"
-            className="field text-left flex items-center justify-between gap-2 cursor-pointer"
-            onClick={() => setAberto((x) => !x)}
+            className="field text-left flex items-center justify-between gap-2 cursor-pointer w-full"
+            onClick={abrir}
             onKeyDown={(e) => {
               if (e.key === "F2") {
                 e.preventDefault();
-                setAberto(true);
+                abrir();
               }
             }}
+            aria-label={`${t("ddi.label")} — ${t("common.f2Search")}`}
           >
-            <span className="truncate text-sm" style={{ color: ddi || modoOutro ? v("--text") : v("--text-muted") }}>
+            <span className="truncate text-sm min-w-0" style={{ color: ddi || modoOutro ? v("--text") : v("--text-muted") }}>
               {rotuloAtual}
             </span>
-            <span className="text-xs shrink-0" style={{ color: v("--text-muted") }}>▾</span>
+            <F2InsideHint />
           </button>
-          {aberto && (
-            <>
-              <div className="fixed inset-0 z-20" onClick={fechar} />
-              <div
-                className="absolute left-0 right-0 mt-1 z-30 rounded-md shadow-lg overflow-hidden"
-                style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
-              >
-                <div className="p-2" style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                  <input
-                    className="field text-sm"
-                    autoFocus
-                    placeholder={t("ddi.searchInputPlaceholder")}
-                    value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        selecionarPrimeiro();
-                      } else if (e.key === "Escape") {
-                        e.preventDefault();
-                        fechar();
-                      }
-                    }}
-                  />
-                </div>
-                <ul className="max-h-48 overflow-y-auto py-1">
-                  {!busca.trim() && (
-                    <li>
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-sm cursor-pointer hover:opacity-90"
-                        style={{ color: v("--text-muted") }}
-                        onClick={() => selecionar("")}
-                      >
-                        {t("ddi.noPhone")}
-                      </button>
-                    </li>
-                  )}
-                  {opcoes.map((p) => (
-                    <li key={p.codigo}>
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-sm cursor-pointer hover:opacity-90"
-                        style={{ color: ddi === p.codigo && !modoOutro ? v("--gold") : v("--text-sub") }}
-                        onClick={() => selecionar(p.codigo)}
-                      >
-                        <span className="font-mono">+{p.codigo}</span> {nomePais(p.iso, p.nome)}{" "}
-                        <span className="text-xs" style={{ color: v("--text-muted") }}>({p.iso})</span>
-                      </button>
-                    </li>
-                  ))}
-                  {busca.trim() && opcoes.length === 0 && (
-                    <li className="px-3 py-2 text-sm" style={{ color: v("--text-muted") }}>
-                      {t("common.noRecords")}
-                    </li>
-                  )}
-                  {!busca.trim() && (
-                    <li>
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-sm cursor-pointer hover:opacity-90"
-                        style={{ color: modoOutro ? v("--gold") : v("--text-sub") }}
-                        onClick={() => selecionar("outro")}
-                      >
-                        {t("ddi.other")}
-                      </button>
-                    </li>
-                  )}
-                </ul>
-              </div>
-            </>
+          {modoOutro && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-sm" style={{ color: v("--text-muted") }}>+</span>
+              <input
+                className="field font-mono"
+                inputMode="numeric"
+                value={ddi}
+                onChange={(e) => onChange({ ddi: apenasDigitos(e.target.value).slice(0, 4), telefone: "" })}
+                placeholder="DDI"
+                onKeyDown={(e) => {
+                  if (e.key === "F2") {
+                    e.preventDefault();
+                    abrir();
+                  }
+                }}
+              />
+            </div>
           )}
-        </div>
-        {modoOutro && (
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-sm" style={{ color: v("--text-muted") }}>+</span>
-            <input
-              className="field font-mono"
-              inputMode="numeric"
-              value={ddi}
-              onChange={(e) => onChange({ ddi: apenasDigitos(e.target.value).slice(0, 4), telefone: "" })}
-              placeholder="DDI"
-              onKeyDown={(e) => {
-                if (e.key === "F2") {
-                  e.preventDefault();
-                  setAberto(true);
-                }
-              }}
-            />
-          </div>
-        )}
-      </Field>
-      <Field label={t("ddi.phone")}>
-        <input
-          className="field font-mono"
-          inputMode="numeric"
-          value={visivel}
-          placeholder={pais?.mask.replace(/#/g, "0") ?? t("ddi.phonePlaceholder")}
-          onChange={(e) => {
-            const max = pais?.maxDigits ?? 15;
-            onChange({ ddi, telefone: apenasDigitos(e.target.value).slice(0, max) });
-          }}
-        />
-      </Field>
-    </div>
+        </Field>
+        <Field label={phoneLabel ?? t("ddi.phone")}>
+          <input
+            className="field font-mono"
+            inputMode="numeric"
+            value={visivel}
+            placeholder={pais?.mask.replace(/#/g, "0") ?? t("ddi.phonePlaceholder")}
+            onChange={(e) => {
+              const max = pais?.maxDigits ?? 15;
+              const nextDdi = ddi || (!modoOutro && fallbackDdi && paisPorCodigo(fallbackDdi) ? fallbackDdi : ddi);
+              onChange({ ddi: nextDdi, telefone: apenasDigitos(e.target.value).slice(0, max) });
+            }}
+          />
+        </Field>
+      </div>
+
+      <SearchPickerModal
+        open={aberto}
+        title={t("ddi.searchModalTitle")}
+        searchPlaceholder={t("ddi.searchInputPlaceholder")}
+        query={busca}
+        onQueryChange={setBusca}
+        items={items}
+        onPick={selecionar}
+        onClose={fechar}
+      />
+    </>
   );
 }

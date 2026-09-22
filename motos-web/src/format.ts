@@ -248,10 +248,17 @@ export function formatarDataHoraEpoch(ms: number, timeZone = "America/Asuncion")
   }).format(new Date(ms));
 }
 
-export function formatarEndereco(p: Pessoa, cidades: Cidade[]): string | null {
+export function formatarEndereco(
+  p: Pessoa,
+  cidades: Cidade[],
+  rotuloTipo?: (codigo: string) => string,
+): string | null {
   const e = enderecoPrincipal(p);
   if (!e) return null;
-  const logradouro = [e.tipoLogradouro, e.logradouro].filter(Boolean).join(" ");
+  const tipo = e.tipoLogradouro
+    ? (rotuloTipo ? rotuloTipo(e.tipoLogradouro) : rotuloTipoLogradouroFallback(e.tipoLogradouro))
+    : null;
+  const logradouro = [tipo, e.logradouro].filter(Boolean).join(" ");
   const linha1 = [logradouro, e.numero].filter(Boolean).join(", ");
   const cidade = formatarCidade(cidades, e.idCidade);
   const parts = [
@@ -262,6 +269,106 @@ export function formatarEndereco(p: Pessoa, cidades: Cidade[]): string | null {
     cidade !== "—" ? cidade : null,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
+}
+
+/** Códigos estáveis gravados no banco; rótulos vêm do i18n. */
+export const TIPOS_LOGRADOURO = [
+  "rua",
+  "avenida",
+  "alameda",
+  "travessa",
+  "praca",
+  "rodovia",
+  "estrada",
+  "passagem",
+  "vila",
+  "beco",
+  "condominio",
+  "fazenda",
+  "sitio",
+  "chacara",
+] as const;
+
+export type TipoLogradouroCodigo = (typeof TIPOS_LOGRADOURO)[number];
+
+const SINONIMOS_LOGRADOURO: Record<string, TipoLogradouroCodigo> = {
+  rua: "rua",
+  calle: "rua",
+  r: "rua",
+  avenida: "avenida",
+  av: "avenida",
+  "av.": "avenida",
+  alameda: "alameda",
+  travessa: "travessa",
+  travesia: "travessa",
+  "travesía": "travessa",
+  tv: "travessa",
+  praca: "praca",
+  "praça": "praca",
+  plaza: "praca",
+  rodovia: "rodovia",
+  ruta: "rodovia",
+  estrada: "estrada",
+  camino: "estrada",
+  passagem: "passagem",
+  pasaje: "passagem",
+  vila: "vila",
+  villa: "vila",
+  beco: "beco",
+  callejon: "beco",
+  "callejón": "beco",
+  condominio: "condominio",
+  "condomínio": "condominio",
+  fazenda: "fazenda",
+  estancia: "fazenda",
+  "estância": "fazenda",
+  sitio: "sitio",
+  "sítio": "sitio",
+  chacara: "chacara",
+  "chácara": "chacara",
+};
+
+function normalizarChaveLogradouro(valor: string): string {
+  return valor
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\./g, "");
+}
+
+/** Resolve código conhecido; null se vazio ou legado desconhecido. */
+export function resolverTipoLogradouroCodigo(valor: string | null | undefined): TipoLogradouroCodigo | null {
+  if (!valor?.trim()) return null;
+  const chave = normalizarChaveLogradouro(valor);
+  if ((TIPOS_LOGRADOURO as readonly string[]).includes(chave)) return chave as TipoLogradouroCodigo;
+  return SINONIMOS_LOGRADOURO[chave] ?? null;
+}
+
+/** Para formulário/salvar: sempre um código válido (padrão rua). */
+export function normalizarTipoLogradouroCodigo(valor: string | null | undefined): string {
+  return resolverTipoLogradouroCodigo(valor) ?? "rua";
+}
+
+function rotuloTipoLogradouroFallback(codigo: string): string {
+  const n = resolverTipoLogradouroCodigo(codigo);
+  const labels: Record<string, string> = {
+    rua: "Rua",
+    avenida: "Avenida",
+    alameda: "Alameda",
+    travessa: "Travessa",
+    praca: "Praça",
+    rodovia: "Rodovia",
+    estrada: "Estrada",
+    passagem: "Passagem",
+    vila: "Vila",
+    beco: "Beco",
+    condominio: "Condomínio",
+    fazenda: "Fazenda",
+    sitio: "Sítio",
+    chacara: "Chácara",
+  };
+  return n ? (labels[n] ?? codigo) : codigo;
 }
 
 export const CHASSI_MAXIMO = 500;

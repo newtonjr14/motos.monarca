@@ -1,9 +1,10 @@
 import { buscarPessoa, listarPapeis, type Cidade, type Pessoa } from "@/api";
 import { useFilial } from "@/auth/FilialContext";
 import { Section } from "@/components/crud/Field";
-import { formatarDocumentoExibicao, formatarEndereco, formatarTelefoneExibicao } from "@/format";
+import { formatarDocumentoExibicao, formatarEndereco, formatarTelefoneExibicao, resolverTipoLogradouroCodigo } from "@/format";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import { useI18n } from "@/i18n";
+import type { TranslationKey } from "@/i18n";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -13,11 +14,16 @@ const border1 = () => `1px solid ${v("--border")}`;
 export default function PessoaPreviewModal({
   idPessoa,
   cidades,
+  recurso,
   onClose,
+  onVincular,
 }: {
   idPessoa: number;
   cidades: Cidade[];
+  recurso?: "clientes" | "fornecedores";
   onClose: () => void;
+  /** Quando o cadastro existe sem vínculo na filial atual */
+  onVincular?: () => void;
 }) {
   const { t } = useI18n();
   const { filial } = useFilial();
@@ -44,22 +50,28 @@ export default function PessoaPreviewModal({
     let cancelled = false;
     setLoading(true);
     setErro(null);
+    setPessoa(null);
+    setJaCliente(false);
+    setJaFornecedor(false);
     void (async () => {
       try {
-        const [p, clientes, fornecedores] = await Promise.all([
-          buscarPessoa(idPessoa),
-          listarPapeis("clientes", filial?.id),
-          listarPapeis("fornecedores", filial?.id),
-        ]);
+        const p = await buscarPessoa(idPessoa);
         if (cancelled) return;
         setPessoa(p);
-        setJaCliente(clientes.some((c) => c.idPessoa === idPessoa));
-        setJaFornecedor(fornecedores.some((f) => f.idPessoa === idPessoa));
+        setLoading(false);
+        const idFilial = filial?.id;
+        void Promise.all([
+          listarPapeis("clientes", idFilial),
+          listarPapeis("fornecedores", idFilial),
+        ]).then(([clientes, fornecedores]) => {
+          if (cancelled) return;
+          setJaCliente(clientes.some((c) => c.idPessoa === idPessoa));
+          setJaFornecedor(fornecedores.some((f) => f.idPessoa === idPessoa));
+        }).catch(() => {});
       } catch (e) {
         if (cancelled) return;
         setErro(mensagemErroApi(e, t, "papel.loadExistingFailed"));
-      } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -68,9 +80,20 @@ export default function PessoaPreviewModal({
   const docPrincipal = pessoa?.documentos[0];
   const telefone = pessoa ? formatarTelefoneExibicao(pessoa.ddi, pessoa.telefone) : "—";
   const telDisplay = telefone === "—" ? null : telefone;
+  const telefone2 = pessoa ? formatarTelefoneExibicao(pessoa.ddi2, pessoa.telefone2) : "—";
+  const tel2Display = telefone2 === "—" ? null : telefone2;
   const email = pessoa?.email?.trim() || null;
-  const temContato = Boolean(telDisplay || email);
-  const endereco = pessoa ? formatarEndereco(pessoa, cidades) : null;
+  const temContato = Boolean(telDisplay || tel2Display || email);
+  const endereco = pessoa
+    ? formatarEndereco(pessoa, cidades, (codigo) => {
+        const n = resolverTipoLogradouroCodigo(codigo);
+        return n ? t(`streetType.${n}` as TranslationKey) : codigo;
+      })
+    : null;
+
+  const jaNoRecurso =
+    recurso === "fornecedores" ? jaFornecedor : recurso === "clientes" ? jaCliente : jaCliente || jaFornecedor;
+  const mostrarVincular = Boolean(onVincular) && !loading && !erro && pessoa != null && !jaNoRecurso;
 
   return createPortal(
     <div
@@ -82,7 +105,7 @@ export default function PessoaPreviewModal({
       aria-labelledby="pessoa-preview-title"
     >
       <div
-        className="ficha-modal w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
+        className="ficha-modal ficha-modal-compact w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
         style={{ background: v("--card"), border: border1() }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -126,7 +149,7 @@ export default function PessoaPreviewModal({
         </div>
 
         {loading && (
-          <div className="px-6 py-10 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.saving")}</div>
+          <div className="px-6 py-10 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.loading")}</div>
         )}
 
         {erro && !loading && (
@@ -146,8 +169,8 @@ export default function PessoaPreviewModal({
               </div>
             )}
 
-            <div className="ficha-modal-body px-6 py-5 space-y-5">
-              <div className="grid gap-5 sm:grid-cols-2 sm:items-start">
+            <div className="ficha-modal-body px-6 py-4 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
                 <Section title={t("papel.section.contact")}>
                   {temContato ? (
                     <div className="space-y-3">
@@ -155,6 +178,12 @@ export default function PessoaPreviewModal({
                         <div className="min-w-0">
                           <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("ddi.phone")}</p>
                           <p className="text-sm mt-1 font-mono break-words" style={{ color: v("--text") }}>{telDisplay}</p>
+                        </div>
+                      )}
+                      {tel2Display && (
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("ddi.phone2")}</p>
+                          <p className="text-sm mt-1 font-mono break-words" style={{ color: v("--text") }}>{tel2Display}</p>
                         </div>
                       )}
                       {email && (
@@ -195,6 +224,20 @@ export default function PessoaPreviewModal({
                 </Section>
               )}
             </div>
+
+            {mostrarVincular && (
+              <div className="px-6 py-4 flex flex-wrap gap-2 justify-end shrink-0" style={{ borderTop: border1() }}>
+                <p className="w-full text-xs mb-1" style={{ color: v("--text-muted") }}>
+                  {t("error.conflict.docUnlinkedPreview")}
+                </p>
+                <button type="button" className="btn-ghost text-sm px-3 py-1.5" onClick={onClose}>
+                  {t("ficha.close")}
+                </button>
+                <button type="button" className="btn-gold text-sm px-3 py-1.5" onClick={onVincular}>
+                  {t("papel.linkToBranch")}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

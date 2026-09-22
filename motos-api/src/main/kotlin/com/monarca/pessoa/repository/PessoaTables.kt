@@ -22,6 +22,8 @@ object PessoasTable : LongIdTable("pessoa") {
     val tipoPessoa = varchar("tipo_pessoa", 20)
     val ddi = varchar("ddi", 5).nullable()
     val telefone = varchar("telefone", 30).nullable()
+    val ddi2 = varchar("ddi2", 5).nullable()
+    val telefone2 = varchar("telefone2", 30).nullable()
     val email = varchar("email", 120).nullable()
     val status = varchar("status", 20).default("ativo")
 }

@@ -2,8 +2,9 @@ import { atualizarPapel, excluirPapel, type Cidade, type Papel } from "@/api";
 import { useFilialId } from "@/auth/FilialContext";
 import { Section } from "@/components/crud/Field";
 import { StatusTexto } from "@/components/crud/ListUi";
-import { formatarDocumentoExibicao, formatarEndereco, formatarTelefoneExibicao } from "@/format";
+import { formatarDocumentoExibicao, formatarEndereco, formatarTelefoneExibicao, resolverTipoLogradouroCodigo } from "@/format";
 import { useI18n } from "@/i18n";
+import type { TranslationKey } from "@/i18n";
 import { pessoaParaAtualizacao } from "@/papelUtils";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -53,9 +54,14 @@ export default function PapelFicha({
   const p = item.pessoa;
   const telefone = formatarTelefoneExibicao(p.ddi, p.telefone);
   const telDisplay = telefone === "—" ? null : telefone;
+  const telefone2 = formatarTelefoneExibicao(p.ddi2, p.telefone2);
+  const tel2Display = telefone2 === "—" ? null : telefone2;
   const email = p.email?.trim() || null;
-  const temContato = Boolean(telDisplay || email);
-  const endereco = formatarEndereco(p, cidades);
+  const temContato = Boolean(telDisplay || tel2Display || email);
+  const endereco = formatarEndereco(p, cidades, (codigo) => {
+    const n = resolverTipoLogradouroCodigo(codigo);
+    return n ? t(`streetType.${n}` as TranslationKey) : codigo;
+  });
   const docPrincipal = p.documentos[0];
   const outrosDocs = p.documentos.slice(1);
 
@@ -120,7 +126,7 @@ export default function PapelFicha({
       aria-labelledby="ficha-title"
     >
       <div
-        className="ficha-modal ficha-modal-locked w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
+        className="ficha-modal ficha-modal-compact w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
         style={{ background: v("--card"), border: border1() }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -183,8 +189,8 @@ export default function PapelFicha({
         </div>
 
         {/* Conteúdo */}
-        <div className="ficha-modal-body px-6 py-5 space-y-5">
-          <div className="grid gap-5 sm:grid-cols-2 sm:items-start">
+        <div className="ficha-modal-body px-6 py-4 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
             <Section title={t("papel.section.contact")}>
               {temContato ? (
                 <div className="space-y-3">
@@ -192,6 +198,12 @@ export default function PapelFicha({
                     <div className="min-w-0">
                       <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("ddi.phone")}</p>
                       <p className="text-sm mt-1 font-mono break-words" style={{ color: v("--text") }}>{telDisplay}</p>
+                    </div>
+                  )}
+                  {tel2Display && (
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>{t("ddi.phone2")}</p>
+                      <p className="text-sm mt-1 font-mono break-words" style={{ color: v("--text") }}>{tel2Display}</p>
                     </div>
                   )}
                   {email && (

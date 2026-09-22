@@ -152,6 +152,11 @@ class PessoaService(
         if ((ddi == null) != (telefone == null)) {
             throw invalido("TELEFONE_PAR", "Informe DDI e telefone juntos, ou deixe ambos vazios")
         }
+        val ddi2 = soDigitos(request.ddi2)
+        val telefone2 = soDigitos(request.telefone2)
+        if ((ddi2 == null) != (telefone2 == null)) {
+            throw invalido("TELEFONE2_PAR", "Informe DDI e segundo telefone juntos, ou deixe ambos vazios")
+        }
 
         val documentos = request.documentos.map { normalizarDocumento(it, request.tipoPessoa) }
         garantirDocumentosDistintos(documentos)
@@ -164,6 +169,8 @@ class PessoaService(
                 tipoPessoa = request.tipoPessoa,
                 ddi = ddi,
                 telefone = telefone,
+                ddi2 = ddi2,
+                telefone2 = telefone2,
                 email = Texto.email(request.email),
                 status = status,
             ),
@@ -193,7 +200,7 @@ class PessoaService(
             EnderecoNovo(
                 tipo = request.tipo,
                 principal = request.principal,
-                tipoLogradouro = opcional(request.tipoLogradouro)?.let(Texto::titleCase),
+                tipoLogradouro = opcional(request.tipoLogradouro)?.lowercase(),
                 logradouro = opcional(request.logradouro)?.let(Texto::titleCase),
                 numero = opcional(request.numero),
                 bairro = opcional(request.bairro)?.let(Texto::titleCase),
@@ -366,6 +373,8 @@ class PessoaService(
         tipoPessoa = pessoa.tipoPessoa,
         ddi = pessoa.ddi,
         telefone = pessoa.telefone,
+        ddi2 = pessoa.ddi2,
+        telefone2 = pessoa.telefone2,
         email = pessoa.email,
         enderecos = enderecos.map { it.toResponse() },
         status = pessoa.status,

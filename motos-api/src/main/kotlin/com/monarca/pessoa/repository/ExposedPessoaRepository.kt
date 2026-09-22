@@ -126,6 +126,8 @@ class ExposedPessoaRepository(
                 it[tipoPessoa] = pessoa.tipoPessoa.name.lowercase()
                 it[ddi] = pessoa.ddi
                 it[telefone] = pessoa.telefone
+                it[ddi2] = pessoa.ddi2
+                it[telefone2] = pessoa.telefone2
                 it[email] = pessoa.email
                 it[status] = pessoa.status.name.lowercase()
             }[PessoasTable.id].value
@@ -148,6 +150,8 @@ class ExposedPessoaRepository(
                 it[tipoPessoa] = pessoa.tipoPessoa.name.lowercase()
                 it[ddi] = pessoa.ddi
                 it[telefone] = pessoa.telefone
+                it[ddi2] = pessoa.ddi2
+                it[telefone2] = pessoa.telefone2
                 it[email] = pessoa.email
                 it[status] = pessoa.status.name.lowercase()
             }
@@ -708,6 +712,8 @@ class ExposedPessoaRepository(
         tipoPessoa = TipoPessoa.valueOf(this[PessoasTable.tipoPessoa].uppercase()),
         ddi = this[PessoasTable.ddi],
         telefone = this[PessoasTable.telefone],
+        ddi2 = this[PessoasTable.ddi2],
+        telefone2 = this[PessoasTable.telefone2],
         email = this[PessoasTable.email],
         status = Status.valueOf(this[PessoasTable.status].uppercase()),
     )

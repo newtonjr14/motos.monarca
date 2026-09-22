@@ -45,6 +45,8 @@ export type TranslationKey =
   | "common.edit"
   | "common.delete"
   | "common.search"
+  | "common.f2Search"
+  | "searchModal.hint"
   | "common.back"
   | "common.saving"
   | "common.loading"
@@ -110,6 +112,21 @@ export type TranslationKey =
   | "papel.personType.juridica"
   | "papel.streetType"
   | "papel.streetTypePlaceholder"
+  | "papel.streetTypeEmpty"
+  | "streetType.rua"
+  | "streetType.avenida"
+  | "streetType.alameda"
+  | "streetType.travessa"
+  | "streetType.praca"
+  | "streetType.rodovia"
+  | "streetType.estrada"
+  | "streetType.passagem"
+  | "streetType.vila"
+  | "streetType.beco"
+  | "streetType.condominio"
+  | "streetType.fazenda"
+  | "streetType.sitio"
+  | "streetType.chacara"
   | "papel.street"
   | "papel.streetPlaceholder"
   | "papel.number"
@@ -136,6 +153,7 @@ export type TranslationKey =
   | "papel.openExisting"
   | "papel.registeredBranches"
   | "papel.confirmLinkBranch"
+  | "papel.linkToBranch"
   | "papel.conflict.linkBranch"
   | "papel.viewExisting"
   | "papel.existingPreviewTitle"
@@ -145,6 +163,7 @@ export type TranslationKey =
   | "papel.searchPlaceholder"
   | "papel.error.nameRequired"
   | "papel.error.phonePair"
+  | "papel.error.phone2Pair"
   | "papel.error.docRequired"
   | "papel.error.docNumberRequired"
   | "papel.error.saveFailed"
@@ -155,13 +174,16 @@ export type TranslationKey =
   | "ddi.label"
   | "ddi.searchPlaceholder"
   | "ddi.searchInputPlaceholder"
+  | "ddi.searchModalTitle"
   | "ddi.noPhone"
   | "ddi.other"
   | "ddi.otherManual"
   | "ddi.phonePlaceholder"
   | "ddi.phone"
+  | "ddi.phone2"
   | "cidade.searchPlaceholder"
   | "cidade.searchInputPlaceholder"
+  | "cidade.searchModalTitle"
   | "country.BR"
   | "country.PY"
   | "country.AR"
@@ -287,6 +309,8 @@ export type TranslationKey =
   | "cidade.tipo.distrito"
   | "cidade.municipio"
   | "error.conflict.docUnique"
+  | "error.conflict.docUnlinked"
+  | "error.conflict.docUnlinkedPreview"
   | "error.conflict.possibleDuplicate"
   | "api.NAO_ENCONTRADO"
   | "api.ACESSO_NEGADO"
@@ -402,6 +426,7 @@ export type TranslationKey =
   | "api.DOCUMENTO_TIPO_EM_USO"
   | "api.DOCUMENTO_OBRIGATORIO"
   | "api.TELEFONE_PAR"
+  | "api.TELEFONE2_PAR"
   | "api.DOCUMENTO_TIPO_XOR"
   | "api.DOCUMENTO_TIPO_OBRIGATORIO"
   | "api.DOCUMENTO_TIPO_PAIS"
@@ -913,6 +938,8 @@ const pt: Record<TranslationKey, string> = {
   "common.edit": "Editar",
   "common.delete": "Excluir",
   "common.search": "Buscar...",
+  "common.f2Search": "F2 pesquisar",
+  "searchModal.hint": "Enter confirma · Esc fecha · ↑↓ navega",
   "common.back": "Voltar para a lista",
   "common.saving": "Salvando...",
   "common.loading": "Carregando...",
@@ -978,6 +1005,21 @@ const pt: Record<TranslationKey, string> = {
   "papel.personType.juridica": "Pessoa jurídica",
   "papel.streetType": "Tipo",
   "papel.streetTypePlaceholder": "Rua",
+  "papel.streetTypeEmpty": "—",
+  "streetType.rua": "Rua",
+  "streetType.avenida": "Avenida",
+  "streetType.alameda": "Alameda",
+  "streetType.travessa": "Travessa",
+  "streetType.praca": "Praça",
+  "streetType.rodovia": "Rodovia",
+  "streetType.estrada": "Estrada",
+  "streetType.passagem": "Passagem",
+  "streetType.vila": "Vila",
+  "streetType.beco": "Beco",
+  "streetType.condominio": "Condomínio",
+  "streetType.fazenda": "Fazenda",
+  "streetType.sitio": "Sítio",
+  "streetType.chacara": "Chácara",
   "papel.street": "Logradouro",
   "papel.streetPlaceholder": "Nome da rua",
   "papel.number": "Nº",
@@ -1004,6 +1046,7 @@ const pt: Record<TranslationKey, string> = {
   "papel.openExisting": "Abrir cadastro",
   "papel.registeredBranches": "Filiais com cadastro",
   "papel.confirmLinkBranch": "Confirmar vínculo nesta filial",
+  "papel.linkToBranch": "Vincular a esta filial",
   "papel.conflict.linkBranch": "{nome} já está cadastrado em {filiais}. Vincular também em {filialAlvo}?",
   "papel.viewExisting": "Ver cadastro",
   "papel.existingPreviewTitle": "Cadastro existente",
@@ -1013,6 +1056,7 @@ const pt: Record<TranslationKey, string> = {
   "papel.searchPlaceholder": "Nome, documento, cidade...",
   "papel.error.nameRequired": "Informe o nome / razão social",
   "papel.error.phonePair": "Informe DDI e telefone juntos, ou deixe ambos vazios",
+  "papel.error.phone2Pair": "Informe DDI e segundo telefone juntos, ou deixe ambos vazios",
   "papel.error.docRequired": "Informe o documento",
   "papel.error.docNumberRequired": "Informe o número do documento",
   "papel.error.saveFailed": "Falha ao salvar",
@@ -1023,13 +1067,16 @@ const pt: Record<TranslationKey, string> = {
   "ddi.label": "País / DDI",
   "ddi.searchPlaceholder": "Buscar país ou código…",
   "ddi.searchInputPlaceholder": "País, sigla ou +55…",
+  "ddi.searchModalTitle": "Buscar país / DDI",
   "ddi.noPhone": "— Sem telefone",
   "ddi.other": "Outro (DDI manual)",
   "ddi.otherManual": "Outro — informe o DDI",
   "ddi.phonePlaceholder": "Número",
   "ddi.phone": "Telefone",
+  "ddi.phone2": "Telefone 2",
   "cidade.searchPlaceholder": "Buscar cidade…",
   "cidade.searchInputPlaceholder": "Nome, UF ou país…",
+  "cidade.searchModalTitle": "Buscar cidade",
   "country.BR": "Brasil",
   "country.PY": "Paraguai",
   "country.AR": "Argentina",
@@ -1155,6 +1202,8 @@ const pt: Record<TranslationKey, string> = {
   "cidade.tipo.distrito": "Distrito",
   "cidade.municipio": "Município",
   "error.conflict.docUnique": "Já existe uma pessoa cadastrada com {tipo} {numero}",
+  "error.conflict.docUnlinked": "Já existe uma pessoa com {tipo} {numero}, mas sem vínculo nesta filial — não aparece na venda até vincular",
+  "error.conflict.docUnlinkedPreview": "Sem vínculo nesta filial — não aparece na venda até vincular",
   "error.conflict.possibleDuplicate": "Já existe uma pessoa com o mesmo documento. Confirme se deseja cadastrar outra pessoa.",
   "api.NAO_ENCONTRADO": "Registro não encontrado",
   "api.ACESSO_NEGADO": "Acesso negado",
@@ -1308,6 +1357,7 @@ const pt: Record<TranslationKey, string> = {
   "api.DOCUMENTO_TIPO_EM_USO": "Tipo em uso por pessoas cadastradas e não pode ser excluído",
   "api.DOCUMENTO_OBRIGATORIO": "Informe pelo menos um documento",
   "api.TELEFONE_PAR": "Informe DDI e telefone juntos, ou deixe ambos vazios",
+  "api.TELEFONE2_PAR": "Informe DDI e segundo telefone juntos, ou deixe ambos vazios",
   "api.DOCUMENTO_TIPO_XOR": "Informe o tipo de catálogo ou o tipo livre, não os dois",
   "api.DOCUMENTO_TIPO_OBRIGATORIO": "Informe o tipo de documento",
   "api.DOCUMENTO_TIPO_PAIS": "O tipo {codigo} não pertence a este país",
@@ -1747,6 +1797,8 @@ const es: Record<TranslationKey, string> = {
   "common.edit": "Editar",
   "common.delete": "Eliminar",
   "common.search": "Buscar...",
+  "common.f2Search": "F2 buscar",
+  "searchModal.hint": "Enter confirma · Esc cierra · ↑↓ navega",
   "common.back": "Volver a la lista",
   "common.saving": "Guardando...",
   "common.loading": "Cargando...",
@@ -1812,6 +1864,21 @@ const es: Record<TranslationKey, string> = {
   "papel.personType.juridica": "Persona jurídica",
   "papel.streetType": "Tipo",
   "papel.streetTypePlaceholder": "Calle",
+  "papel.streetTypeEmpty": "—",
+  "streetType.rua": "Calle",
+  "streetType.avenida": "Avenida",
+  "streetType.alameda": "Alameda",
+  "streetType.travessa": "Travesía",
+  "streetType.praca": "Plaza",
+  "streetType.rodovia": "Ruta",
+  "streetType.estrada": "Camino",
+  "streetType.passagem": "Pasaje",
+  "streetType.vila": "Villa",
+  "streetType.beco": "Callejón",
+  "streetType.condominio": "Condominio",
+  "streetType.fazenda": "Estancia",
+  "streetType.sitio": "Sitio",
+  "streetType.chacara": "Chacra",
   "papel.street": "Dirección",
   "papel.streetPlaceholder": "Nombre de la calle",
   "papel.number": "Nº",
@@ -1838,6 +1905,7 @@ const es: Record<TranslationKey, string> = {
   "papel.openExisting": "Abrir registro",
   "papel.registeredBranches": "Sucursales con registro",
   "papel.confirmLinkBranch": "Confirmar vínculo en esta sucursal",
+  "papel.linkToBranch": "Vincular a esta sucursal",
   "papel.conflict.linkBranch": "{nome} ya está registrado en {filiais}. ¿Vincular también en {filialAlvo}?",
   "papel.viewExisting": "Ver registro",
   "papel.existingPreviewTitle": "Registro existente",
@@ -1847,6 +1915,7 @@ const es: Record<TranslationKey, string> = {
   "papel.searchPlaceholder": "Nombre, documento, ciudad...",
   "papel.error.nameRequired": "Indique el nombre / razón social",
   "papel.error.phonePair": "Indique DDI y teléfono juntos, o deje ambos vacíos",
+  "papel.error.phone2Pair": "Indique DDI y segundo teléfono juntos, o deje ambos vacíos",
   "papel.error.docRequired": "Indique el documento",
   "papel.error.docNumberRequired": "Indique el número del documento",
   "papel.error.saveFailed": "Error al guardar",
@@ -1857,13 +1926,16 @@ const es: Record<TranslationKey, string> = {
   "ddi.label": "País / DDI",
   "ddi.searchPlaceholder": "Buscar país o código…",
   "ddi.searchInputPlaceholder": "País, sigla o +55…",
+  "ddi.searchModalTitle": "Buscar país / DDI",
   "ddi.noPhone": "— Sin teléfono",
   "ddi.other": "Otro (DDI manual)",
   "ddi.otherManual": "Otro — indique el DDI",
   "ddi.phonePlaceholder": "Número",
   "ddi.phone": "Teléfono",
+  "ddi.phone2": "Teléfono 2",
   "cidade.searchPlaceholder": "Buscar ciudad…",
   "cidade.searchInputPlaceholder": "Nombre, UF o país…",
+  "cidade.searchModalTitle": "Buscar ciudad",
   "country.BR": "Brasil",
   "country.PY": "Paraguay",
   "country.AR": "Argentina",
@@ -1989,6 +2061,8 @@ const es: Record<TranslationKey, string> = {
   "cidade.tipo.distrito": "Distrito",
   "cidade.municipio": "Municipio",
   "error.conflict.docUnique": "Ya existe una persona registrada con {tipo} {numero}",
+  "error.conflict.docUnlinked": "Ya existe una persona con {tipo} {numero}, pero sin vínculo en esta sucursal — no aparece en la venta hasta vincular",
+  "error.conflict.docUnlinkedPreview": "Sin vínculo en esta sucursal — no aparece en la venta hasta vincular",
   "error.conflict.possibleDuplicate": "Ya existe una persona con el mismo documento. Confirme si desea registrar otra persona.",
   "api.NAO_ENCONTRADO": "Registro no encontrado",
   "api.ACESSO_NEGADO": "Acceso denegado",
@@ -2142,6 +2216,7 @@ const es: Record<TranslationKey, string> = {
   "api.DOCUMENTO_TIPO_EM_USO": "El tipo está en uso por personas registradas y no puede eliminarse",
   "api.DOCUMENTO_OBRIGATORIO": "Indique al menos un documento",
   "api.TELEFONE_PAR": "Indique DDI y teléfono juntos, o deje ambos vacíos",
+  "api.TELEFONE2_PAR": "Indique DDI y segundo teléfono juntos, o deje ambos vacíos",
   "api.DOCUMENTO_TIPO_XOR": "Indique el tipo de catálogo o el tipo libre, no ambos",
   "api.DOCUMENTO_TIPO_OBRIGATORIO": "Indique el tipo de documento",
   "api.DOCUMENTO_TIPO_PAIS": "El tipo {codigo} no pertenece a este país",

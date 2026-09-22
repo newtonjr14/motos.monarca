@@ -6,6 +6,8 @@ export function pessoaParaAtualizacao(p: Pessoa) {
     tipoPessoa: p.tipoPessoa,
     ddi: p.ddi,
     telefone: p.telefone,
+    ddi2: p.ddi2 ?? null,
+    telefone2: p.telefone2 ?? null,
     email: p.email,
     enderecos: (p.enderecos ?? [])
       .filter((e) => e.status !== "deletado")

@@ -8,6 +8,8 @@ data class Pessoa(
     val tipoPessoa: TipoPessoa,
     val ddi: String? = null,
     val telefone: String? = null,
+    val ddi2: String? = null,
+    val telefone2: String? = null,
     val email: String? = null,
     val status: Status,
 )

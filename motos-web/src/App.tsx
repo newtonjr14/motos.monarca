@@ -29,7 +29,7 @@ import { ListToolbar, StatusBadge, StatusFilter, TableHeadRow, passaFiltroStatus
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useSystemHeartbeat } from "@/hooks/useSystemHeartbeat";
 import { useI18n } from "@/i18n";
-import { isErroCampoDocumento, mensagemConflitoDocumento, mensagemErroApi } from "@/i18n/apiMessages";
+import { conflitoSemVinculoNaFilial, isErroCampoDocumento, mensagemConflitoDocumento, mensagemErroApi } from "@/i18n/apiMessages";
 import { tf } from "@/i18n/format";
 import { pessoaParaAtualizacao } from "@/papelUtils";
 import type { SystemStatus } from "@/systemStatus";
@@ -55,6 +55,8 @@ import {
   listarPapeis,
   listarPaises,
   listarTipos,
+  aquecerCacheTiposDocumento,
+  tiposDocumentoEmCache,
   listarUsuarios,
   listarFiliais,
   listarCaixas,
@@ -93,11 +95,13 @@ import {
   formatarDocumentoExibicao,
   formatPyg,
   normalizarCep,
+  normalizarTipoLogradouroCodigo,
   placeholderDocumento,
+  TIPOS_LOGRADOURO,
   toTitleCase,
   toEmailLower,
 } from "@/format";
-
+import type { TranslationKey } from "@/i18n";
 const v = (name: string) => `var(${name})`;
 
 function useTheme() {
@@ -699,8 +703,8 @@ function slicePage<T>(itens: T[], page: number) {
   };
 }
 
-function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }: {
-  recurso: Recurso; titulo: string; singular: string; cidades: Cidade[];
+function PapelPage({ recurso, titulo, singular, cidades, paises, navReset, onNavigate }: {
+  recurso: Recurso; titulo: string; singular: string; cidades: Cidade[]; paises: Pais[];
   navReset: number; onNavigate: (v: View) => void;
 }) {
   const { t } = useI18n();
@@ -715,6 +719,14 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
   const [editando, setEditando] = useState<Papel | null>(null);
   const [menuId, setMenuId] = useState<number | null>(null);
   const [statusBusyId, setStatusBusyId] = useState<number | null>(null);
+
+  useEffect(() => {
+    for (const pais of paises) {
+      if (pais.sigla !== "BR" && pais.sigla !== "PY") continue;
+      void listarTipos(pais.id, "fisica");
+      void listarTipos(pais.id, "juridica");
+    }
+  }, [paises]);
 
   const resetLista = useCallback(() => {
     setFormAberto(false);
@@ -795,6 +807,7 @@ function PapelPage({ recurso, titulo, singular, cidades, navReset, onNavigate }:
         recurso={recurso}
         singular={singular}
         cidades={cidades}
+        paises={paises}
         editando={editando}
         onClose={() => setFormAberto(false)}
         onSaved={async () => { setFormAberto(false); await carregar(); }}
@@ -931,9 +944,9 @@ type EnderecoForm = {
 
 function enderecoVazio(principal = true): EnderecoForm {
   return {
-    tipo: "fiscal",
+    tipo: "residencial",
     principal,
-    tipoLogradouro: "",
+    tipoLogradouro: "rua",
     logradouro: "",
     numero: "",
     bairro: "",
@@ -949,7 +962,7 @@ function enderecosIniciais(pessoa?: Pessoa): EnderecoForm[] {
   const mapped: EnderecoForm[] = ativos.map((e) => ({
     tipo: e.tipo,
     principal: e.principal,
-    tipoLogradouro: e.tipoLogradouro ?? "",
+    tipoLogradouro: normalizarTipoLogradouroCodigo(e.tipoLogradouro),
     logradouro: e.logradouro ?? "",
     numero: e.numero ?? "",
     bairro: e.bairro ?? "",
@@ -973,8 +986,30 @@ function enderecoPreenchido(e: EnderecoForm): boolean {
   );
 }
 
-function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onAbrirExistente, onNavigate }: {
-  recurso: Recurso; singular: string; cidades: Cidade[]; editando: Papel | null;
+function preferirTipoDocumento(lista: DocumentoTipo[], tipoPessoa: TipoPessoa, paisSigla?: string): DocumentoTipo | undefined {
+  const sigla = paisSigla?.toUpperCase();
+  const preferidos =
+    sigla === "BR"
+      ? tipoPessoa === "juridica" ? ["CNPJ", "CPF"] : ["CPF", "CNPJ"]
+      : sigla === "PY"
+        ? tipoPessoa === "juridica" ? ["RUC", "CI"] : ["CI", "RUC"]
+        : [];
+  for (const codigo of preferidos) {
+    const hit = lista.find((tp) => tp.codigo.toUpperCase() === codigo);
+    if (hit) return hit;
+  }
+  return lista[0];
+}
+
+function codigoDocumentoPreferido(paisSigla: string | undefined, tipoPessoa: TipoPessoa): string | undefined {
+  const sigla = paisSigla?.toUpperCase();
+  if (sigla === "BR") return tipoPessoa === "juridica" ? "CNPJ" : "CPF";
+  if (sigla === "PY") return tipoPessoa === "juridica" ? "RUC" : "CI";
+  return undefined;
+}
+
+function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSaved, onAbrirExistente, onNavigate }: {
+  recurso: Recurso; singular: string; cidades: Cidade[]; paises: Pais[]; editando: Papel | null;
   onClose: () => void; onSaved: () => Promise<void>; onAbrirExistente: (papel: Papel) => void; onNavigate: (v: View) => void;
 }) {
   const { t } = useI18n();
@@ -983,20 +1018,36 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
   const numeroRef = useRef<HTMLInputElement>(null);
   const conflitoRef = useRef<HTMLDivElement>(null);
   const pessoa = editando?.pessoa;
-  const [paises, setPaises] = useState<Pais[]>([]);
-  const [tipos, setTipos] = useState<DocumentoTipo[]>([]);
+  const doc0 = pessoa?.documentos[0];
+  const tipoPessoaInicial: TipoPessoa = pessoa?.tipoPessoa ?? "fisica";
+  const paisPadrao = paises.find((p) => p.sigla === "BR") ?? paises[0];
+  const idPaisInicial = doc0?.idPais ?? paisPadrao?.id;
+  const tiposIniciais =
+    idPaisInicial == null ? [] : (tiposDocumentoEmCache(idPaisInicial, tipoPessoaInicial) ?? []);
+  const tipoInicialPreferido =
+    doc0?.idTipoDocumento != null && tiposIniciais.some((tp) => tp.id === doc0.idTipoDocumento)
+      ? tiposIniciais.find((tp) => tp.id === doc0.idTipoDocumento)
+      : preferirTipoDocumento(
+          tiposIniciais,
+          tipoPessoaInicial,
+          (idPaisInicial != null ? paises.find((p) => p.id === idPaisInicial) : undefined)?.sigla
+            ?? paisPadrao?.sigla,
+        );
+
+  const [tipos, setTipos] = useState<DocumentoTipo[]>(tiposIniciais);
   const [nome, setNome] = useState(pessoa?.nomeRazaoSocial ?? "");
-  const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa>(pessoa?.tipoPessoa ?? "fisica");
+  const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa>(tipoPessoaInicial);
   const [ddi, setDdi] = useState(pessoa?.ddi ?? "");
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? "");
+  const [ddi2, setDdi2] = useState(pessoa?.ddi2 ?? "");
+  const [telefone2, setTelefone2] = useState(pessoa?.telefone2 ?? "");
   const [email, setEmail] = useState(pessoa?.email ?? "");
   const [enderecos, setEnderecos] = useState<EnderecoForm[]>(() => enderecosIniciais(pessoa));
   const [status, setStatus] = useState<"ativo" | "inativo">(editando?.status === "inativo" ? "inativo" : "ativo");
-  const doc0 = pessoa?.documentos[0];
-  const [idPais, setIdPais] = useState<number | "">(doc0?.idPais ?? "");
-  const [idTipo, setIdTipo] = useState<number | "">(doc0?.idTipoDocumento ?? "");
+  const [idPais, setIdPais] = useState<number | "">(idPaisInicial ?? "");
+  const [idTipo, setIdTipo] = useState<number | "">(doc0?.idTipoDocumento ?? tipoInicialPreferido?.id ?? "");
   const [numero, setNumero] = useState(() =>
-    formatarDocumentoExibicao(doc0?.tipoCodigo ?? null, doc0?.numero ?? ""),
+    formatarDocumentoExibicao(doc0?.tipoCodigo ?? tipoInicialPreferido?.codigo ?? null, doc0?.numero ?? ""),
   );
   const [erro, setErro] = useState<string | null>(null);
   const [erroNumero, setErroNumero] = useState<string | null>(null);
@@ -1006,27 +1057,51 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
   const [salvando, setSalvando] = useState(false);
   const [guia, setGuia] = useState<"dados" | "enderecos">("dados");
 
-  useEffect(() => { void listarPaises().then(setPaises); }, []);
   useEffect(() => {
-    if (idPais === "") { setTipos([]); return; }
-    void listarTipos(Number(idPais), tipoPessoa).then((lista) => {
-      setTipos(lista);
-      if (!lista.some((t) => t.id === idTipo)) setIdTipo(lista[0]?.id ?? "");
-    });
-  }, [idPais, tipoPessoa]);
+    if (idPais !== "" || !paisPadrao) return;
+    setIdPais(paisPadrao.id);
+  }, [idPais, paisPadrao]);
 
-  const paisPadrao = useMemo(() => paises.find((p) => p.sigla === "BR") ?? paises[0], [paises]);
   useEffect(() => {
-    if (idPais === "" && paisPadrao) setIdPais(paisPadrao.id);
-  }, [paisPadrao, idPais]);
+    if (idPais === "") {
+      setTipos([]);
+      return;
+    }
+    const cached = tiposDocumentoEmCache(Number(idPais), tipoPessoa);
+    if (cached) {
+      setTipos(cached);
+      const pais = paises.find((p) => p.id === Number(idPais));
+      setIdTipo((atual) => {
+        if (atual !== "" && cached.some((tp) => tp.id === atual)) return atual;
+        const next = preferirTipoDocumento(cached, tipoPessoa, pais?.sigla);
+        setNumero((valor) => formatarDocumentoEntrada(next?.codigo, valor));
+        return next?.id ?? "";
+      });
+    }
+    let cancel = false;
+    void (async () => {
+      const listaTipos = await listarTipos(Number(idPais), tipoPessoa);
+      if (cancel) return;
+      setTipos(listaTipos);
+      const pais = paises.find((p) => p.id === Number(idPais));
+      setIdTipo((atual) => {
+        if (atual !== "" && listaTipos.some((tp) => tp.id === atual)) return atual;
+        const next = preferirTipoDocumento(listaTipos, tipoPessoa, pais?.sigla);
+        setNumero((valor) => formatarDocumentoEntrada(next?.codigo, valor));
+        return next?.id ?? "";
+      });
+    })();
+    return () => { cancel = true; };
+  }, [tipoPessoa, idPais, paises]);
 
   const tipoSelecionado = tipos.find((t) => t.id === idTipo);
+  const paisSelecionado = idPais === "" ? undefined : paises.find((p) => p.id === Number(idPais));
+  const codigoMascara =
+    tipoSelecionado?.codigo
+    ?? codigoDocumentoPreferido(paisSelecionado?.sigla ?? paisPadrao?.sigla ?? "BR", tipoPessoa)
+    ?? "CPF";
+  const rotuloTipoProvisorio = codigoMascara;
   const consultaDocSeq = useRef(0);
-
-  useEffect(() => {
-    if (!numero.trim() || !tipoSelecionado) return;
-    setNumero((atual) => formatarDocumentoEntrada(tipoSelecionado.codigo, atual));
-  }, [tipoSelecionado?.codigo]);
 
   useEffect(() => {
     if (!conflito) return;
@@ -1057,16 +1132,20 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
   function corpoPessoa() {
     const ddiDigits = apenasDigitos(ddi);
     const telDigits = apenasDigitos(telefone);
+    const ddi2Digits = apenasDigitos(ddi2);
+    const tel2Digits = apenasDigitos(telefone2);
     return {
       nomeRazaoSocial: toTitleCase(nome),
       tipoPessoa,
       ddi: ddiDigits || null,
       telefone: telDigits || null,
+      ddi2: ddi2Digits || null,
+      telefone2: tel2Digits || null,
       email: toEmailLower(email) || null,
       enderecos: enderecos.filter(enderecoPreenchido).map((e, i, lista) => ({
         tipo: e.tipo,
         principal: lista.length === 1 ? true : e.principal,
-        tipoLogradouro: toTitleCase(e.tipoLogradouro) || null,
+        tipoLogradouro: normalizarTipoLogradouroCodigo(e.tipoLogradouro),
         logradouro: toTitleCase(e.logradouro) || null,
         numero: e.numero.trim() || null,
         bairro: toTitleCase(e.bairro) || null,
@@ -1096,6 +1175,13 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
       setGuia("dados");
       return false;
     }
+    const ddi2Digits = apenasDigitos(ddi2);
+    const tel2Digits = apenasDigitos(telefone2);
+    if (Boolean(ddi2Digits) !== Boolean(tel2Digits)) {
+      setErro(t("papel.error.phone2Pair"));
+      setGuia("dados");
+      return false;
+    }
     if (idPais === "" || idTipo === "") {
       setErro(t("papel.error.docRequired"));
       setGuia("dados");
@@ -1117,6 +1203,16 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
     try {
       if (editando) {
         await atualizarPapel(recurso, editando.id, { status, pessoa: corpoPessoa() });
+        // Abrir cadastro + Salvar não recriava o vínculo após exclusão da filial
+        const jaNaFilial = (editando.filiaisVinculadas ?? []).some((f) => f.id === idFilialCadastro);
+        if (!jaNaFilial) {
+          await criarPapel(recurso, {
+            idPessoa: editando.idPessoa,
+            idFilialCadastro,
+            confirmarVinculoFilial,
+            status,
+          });
+        }
       } else if (idPessoaExistente != null) {
         await criarPapel(recurso, {
           idPessoa: idPessoaExistente,
@@ -1140,6 +1236,8 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
           setIdPessoaPendente(body.pessoa.id);
         } else if (idPessoaExistente != null) {
           setIdPessoaPendente(idPessoaExistente);
+        } else if (editando) {
+          setIdPessoaPendente(editando.idPessoa);
         }
       } else if (isErroCampoDocumento(e)) {
         setErroNumero(msg);
@@ -1230,7 +1328,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
           <Section title={t("papel.section.document")}>
             {hasPermission(Permissao.DOCUMENTO_GERENCIAR) && (
               <div className="flex items-center justify-end gap-2 mb-1">
-                <button type="button" className="text-xs cursor-pointer underline-offset-2 hover:underline"
+                <button type="button" className="text-xs cursor-pointer underline-offset-2 hover:underline transition-opacity hover:opacity-90"
                   style={{ color: v("--gold") }}
                   onClick={() => onNavigate("documentos")}>
                   {t("papel.manageDocTypes")}
@@ -1239,13 +1337,30 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
             )}
             <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
               <Field label={t("papel.country")}>
-                <select className="field" value={idPais} onChange={(e) => setIdPais(Number(e.target.value))}>
+                <select
+                  className="field"
+                  value={idPais}
+                  onChange={(e) => setIdPais(Number(e.target.value))}
+                  disabled={paises.length === 0}
+                >
+                  {paises.length === 0 && <option value="">Brasil</option>}
                   {paises.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
                 </select>
               </Field>
               <Field label={t("papel.docType")}>
-                <select className="field" value={idTipo} onChange={(e) => { setIdTipo(Number(e.target.value)); setErroNumero(null); }}>
-                  {tipos.length === 0 && <option value="">{t("papel.noDocType")}</option>}
+                <select
+                  className="field"
+                  value={idTipo}
+                  disabled={tipos.length === 0}
+                  onChange={(e) => {
+                    const nextId = Number(e.target.value);
+                    setIdTipo(nextId);
+                    setErroNumero(null);
+                    const next = tipos.find((tp) => tp.id === nextId);
+                    setNumero((atual) => formatarDocumentoEntrada(next?.codigo ?? codigoMascara, atual));
+                  }}
+                >
+                  {tipos.length === 0 && <option value="">{rotuloTipoProvisorio}</option>}
                   {tipos.map((tp) => <option key={tp.id} value={tp.id}>{tp.nome}</option>)}
                 </select>
               </Field>
@@ -1256,12 +1371,12 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
                   autoFocus={!editando}
                   value={numero}
                   onChange={(e) => {
-                    setNumero(formatarDocumentoEntrada(tipoSelecionado?.codigo, e.target.value));
+                    setNumero(formatarDocumentoEntrada(codigoMascara, e.target.value));
                     setErroNumero(null);
                     setConflito(null);
                   }}
                   onBlur={(e) => void consultarDocumentoExistente(e.currentTarget.value)}
-                  placeholder={placeholderDocumento(tipoSelecionado?.codigo)}
+                  placeholder={placeholderDocumento(codigoMascara)}
                 />
               </Field>
             </div>
@@ -1276,7 +1391,7 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
                       filiais: filiaisConflitoTexto(conflito.filiaisVinculadas),
                       filialAlvo: "filialAlvoNome" in conflito ? conflito.filialAlvoNome : "",
                     })
-                  : mensagemConflitoDocumento(conflito, t)}
+                  : mensagemConflitoDocumento(conflito, t, { idFilial: idFilialCadastro })}
               </p>
               {conflito.filiaisVinculadas && conflito.filiaisVinculadas.length > 0 && conflito.codigo !== "VINCULO_FILIAL" && (
                 <p className="text-xs" style={{ color: v("--text-muted") }}>
@@ -1294,6 +1409,19 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
                     onClick={() => void salvar(idPessoaPendente ?? conflito.pessoa.id, true)}>
                     {t("papel.confirmLinkBranch")}
                   </button>
+                ) : conflitoSemVinculoNaFilial(conflito, idFilialCadastro) ? (
+                  <>
+                    <button type="button" className="btn-gold text-sm px-3 py-1.5"
+                      onClick={() => void salvar(conflito.pessoa.id)}>
+                      {t("papel.linkToBranch")}
+                    </button>
+                    {conflito.idPapel != null && (
+                      <button type="button" className="btn-ghost text-sm px-3 py-1.5"
+                        onClick={() => void abrirCadastroExistente(conflito.idPapel!)}>
+                        {t("papel.openExisting")}
+                      </button>
+                    )}
+                  </>
                 ) : conflito.idPapel != null ? (
                   <button type="button" className="btn-gold text-sm px-3 py-1.5"
                     onClick={() => void abrirCadastroExistente(conflito.idPapel!)}>
@@ -1338,6 +1466,15 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
             <Section title={t("papel.section.contact")}>
               <DdiSearchSelect ddi={ddi} telefone={telefone}
                 onChange={({ ddi: nextDdi, telefone: nextTel }) => { setDdi(nextDdi); setTelefone(nextTel); }} />
+              <div className="mt-3">
+                <DdiSearchSelect
+                  ddi={ddi2}
+                  telefone={telefone2}
+                  phoneLabel={t("ddi.phone2")}
+                  fallbackDdi={ddi}
+                  onChange={({ ddi: nextDdi, telefone: nextTel }) => { setDdi2(nextDdi); setTelefone2(nextTel); }}
+                />
+              </div>
               <Field label={t("common.email")} className="mt-3">
                 <input className="field" type="email" value={email}
                   onChange={(e) => setEmail(toEmailLower(e.target.value))}
@@ -1387,12 +1524,19 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
                   )}
                 </div>
               </div>
-              <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: "6rem 1fr 5rem" }}>
-                <Field label={t("papel.streetType")}>
-                  <input className="field" value={e.tipoLogradouro}
+              <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: "11rem 1fr 5rem" }}>
+                <Field label={t("papel.streetType")} required>
+                  <select
+                    className="field"
+                    value={normalizarTipoLogradouroCodigo(e.tipoLogradouro)}
                     onChange={(ev) => patchEndereco(i, { tipoLogradouro: ev.target.value })}
-                    onBlur={() => patchEndereco(i, { tipoLogradouro: toTitleCase(e.tipoLogradouro) })}
-                    placeholder={t("papel.streetTypePlaceholder")} />
+                  >
+                    {TIPOS_LOGRADOURO.map((codigo) => (
+                      <option key={codigo} value={codigo}>
+                        {t(`streetType.${codigo}` as TranslationKey)}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
                 <Field label={t("papel.street")}>
                   <input className="field" value={e.logradouro}
@@ -1458,7 +1602,21 @@ function PapelForm({ recurso, singular, cidades, editando, onClose, onSaved, onA
         <PessoaPreviewModal
           idPessoa={previewPessoaId}
           cidades={cidades}
+          recurso={recurso}
           onClose={() => setPreviewPessoaId(null)}
+          onVincular={
+            conflito && conflitoSemVinculoNaFilial(conflito, idFilialCadastro)
+              ? () => {
+                  setPreviewPessoaId(null);
+                  void salvar(conflito.pessoa.id);
+                }
+              : conflito && conflito.idPapel == null
+                ? () => {
+                    setPreviewPessoaId(null);
+                    void salvar(conflito.pessoa.id);
+                  }
+                : undefined
+          }
         />
       )}
     </div>
@@ -2717,24 +2875,38 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
   }, [view, viewsOk]);
 
   useEffect(() => {
+    // Catálogo leve: não espera lista de clientes/fornecedores (era a causa da demora no Novo).
     void (async () => {
       try {
         const opts = { logoutOn401: false as const };
-        const [c, f, cid, p] = await Promise.all([
-          listarPapeis("clientes", filial?.id, opts),
-          listarPapeis("fornecedores", filial?.id, opts),
+        const [cid, p] = await Promise.all([
           listarCidades(undefined, undefined, opts),
           listarPaises(opts),
         ]);
-        setClientes(c);
-        setFornecedores(f);
         setCidades(cid);
         setPaises(p);
+        await aquecerCacheTiposDocumento();
       } catch {
         /* mantém dados já carregados */
       }
     })();
-  }, [view, filial?.id]);
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const opts = { logoutOn401: false as const };
+        const [c, f] = await Promise.all([
+          listarPapeis("clientes", filial?.id, opts),
+          listarPapeis("fornecedores", filial?.id, opts),
+        ]);
+        setClientes(c);
+        setFornecedores(f);
+      } catch {
+        /* mantém dados já carregados */
+      }
+    })();
+  }, [filial?.id]);
 
   const titles: Record<View, string> = {
     dashboard: t("nav.dashboard"),
@@ -2806,8 +2978,8 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
           {view === "entradaNota" && <EntradaNotaPage navReset={navReset} />}
           {view === "facturas" && <FacturasPage navReset={navReset} />}
           {view === "caixa" && <CaixaOperacaoPage navReset={navReset} />}
-          {view === "clientes" && <PapelPage recurso="clientes" titulo={t("nav.clientes")} singular={t("entity.cliente")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
-          {view === "fornecedores" && <PapelPage recurso="fornecedores" titulo={t("nav.fornecedores")} singular={t("entity.fornecedor")} cidades={cidades} navReset={navReset} onNavigate={navigateTo} />}
+          {view === "clientes" && <PapelPage recurso="clientes" titulo={t("nav.clientes")} singular={t("entity.cliente")} cidades={cidades} paises={paises} navReset={navReset} onNavigate={navigateTo} />}
+          {view === "fornecedores" && <PapelPage recurso="fornecedores" titulo={t("nav.fornecedores")} singular={t("entity.fornecedor")} cidades={cidades} paises={paises} navReset={navReset} onNavigate={navigateTo} />}
           {view === "produtos" && <ProdutosPage navReset={navReset} />}
           {view === "marcas" && <MarcasPage navReset={navReset} />}
           {view === "modelos" && <ModelosPage navReset={navReset} />}

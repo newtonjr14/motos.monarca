@@ -4,8 +4,6 @@ import DdiSearchSelect from "@/components/DdiSearchSelect";
 import FilialParametrosModal, { FilialParametrosIconButton } from "@/components/FilialParametrosModal";
 import { ListToolbar, StatusBadge, StatusFilter, TableHeadRow, Td, passaFiltroStatus, useAlternarStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
-import { useI18n } from "@/i18n";
-import { mensagemErroApi } from "@/i18n/apiMessages";
 import {
   aplicarSeedDemo,
   atualizarEmpresa,
@@ -21,7 +19,9 @@ import {
   type Filial,
   type SeedDemoStatus,
 } from "@/api";
-import { normalizarCep, toEmailLower, toTitleCase } from "@/format";
+import { normalizarCep, normalizarTipoLogradouroCodigo, TIPOS_LOGRADOURO, toEmailLower, toTitleCase } from "@/format";
+import { useI18n, type TranslationKey } from "@/i18n";
+import { mensagemErroApi } from "@/i18n/apiMessages";
 
 const v = (name: string) => `var(${name})`;
 
@@ -109,7 +109,7 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
   const [ddi, setDdi] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
-  const [tipoLogradouro, setTipoLogradouro] = useState("");
+  const [tipoLogradouro, setTipoLogradouro] = useState("rua");
   const [logradouro, setLogradouro] = useState("");
   const [numero, setNumero] = useState("");
   const [bairro, setBairro] = useState("");
@@ -240,7 +240,7 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
     setDdi(item?.ddi ?? "");
     setTelefone(item?.telefone ?? "");
     setEmail(item?.email ?? "");
-    setTipoLogradouro(item?.tipoLogradouro ?? "");
+    setTipoLogradouro(normalizarTipoLogradouroCodigo(item?.tipoLogradouro ?? ""));
     setLogradouro(item?.logradouro ?? "");
     setNumero(item?.numero ?? "");
     setBairro(item?.bairro ?? "");
@@ -274,7 +274,7 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
         ddi: ddi || null,
         telefone: telefone || null,
         email: email ? toEmailLower(email) : null,
-        tipoLogradouro: tipoLogradouro.trim() || null,
+        tipoLogradouro: normalizarTipoLogradouroCodigo(tipoLogradouro),
         logradouro: logradouro.trim() || null,
         numero: numero.trim() || null,
         bairro: bairro.trim() || null,
@@ -370,9 +370,19 @@ export default function EmpresaPage({ cidades, navReset }: { cidades: Cidade[]; 
             </Section>
           </div>
           <Section title={t("papel.section.address")}>
-            <div className="grid gap-3" style={{ gridTemplateColumns: "6rem 1fr 5rem" }}>
-              <Field label={t("papel.streetType")}>
-                <input className="field" value={tipoLogradouro} onChange={(e) => setTipoLogradouro(e.target.value)} onBlur={() => setTipoLogradouro((x) => toTitleCase(x))} />
+            <div className="grid gap-3" style={{ gridTemplateColumns: "11rem 1fr 5rem" }}>
+              <Field label={t("papel.streetType")} required>
+                <select
+                  className="field"
+                  value={normalizarTipoLogradouroCodigo(tipoLogradouro)}
+                  onChange={(e) => setTipoLogradouro(e.target.value)}
+                >
+                  {TIPOS_LOGRADOURO.map((codigo) => (
+                    <option key={codigo} value={codigo}>
+                      {t(`streetType.${codigo}` as TranslationKey)}
+                    </option>
+                  ))}
+                </select>
               </Field>
               <Field label={t("papel.street")}>
                 <input className="field" value={logradouro} onChange={(e) => setLogradouro(e.target.value)} onBlur={() => setLogradouro((x) => toTitleCase(x))} />

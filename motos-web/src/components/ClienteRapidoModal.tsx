@@ -12,7 +12,7 @@ import {
 import { Field } from "@/components/crud/Field";
 import { useFilialId } from "@/auth/FilialContext";
 import { apenasDigitos, toTitleCase } from "@/format";
-import { mensagemConflitoDocumento, mensagemErroApi, isErroCampoDocumento } from "@/i18n/apiMessages";
+import { conflitoSemVinculoNaFilial, mensagemConflitoDocumento, mensagemErroApi, isErroCampoDocumento } from "@/i18n/apiMessages";
 import { useI18n } from "@/i18n";
 import { tf } from "@/i18n/format";
 import { useEffect, useState } from "react";
@@ -209,7 +209,7 @@ export default function ClienteRapidoModal({
                       filiais: filiaisTexto(conflito.filiaisVinculadas),
                       filialAlvo: "filialAlvoNome" in conflito ? conflito.filialAlvoNome : "",
                     })
-                  : mensagemConflitoDocumento(conflito as DocumentoConflito, t)}
+                  : mensagemConflitoDocumento(conflito as DocumentoConflito, t, { idFilial: idFilial })}
               </p>
               <p className="text-sm font-medium" style={{ color: v("--text-sub") }}>{conflito.pessoa.nomeRazaoSocial}</p>
               {conflito.codigo === "VINCULO_FILIAL" ? (
@@ -217,12 +217,12 @@ export default function ClienteRapidoModal({
                   onClick={() => void salvar(idPessoaPendente ?? conflito.pessoa.id, true)}>
                   {t("papel.confirmLinkBranch")}
                 </button>
-              ) : conflito.idPapel == null && (
+              ) : conflitoSemVinculoNaFilial(conflito, idFilial) || conflito.idPapel == null ? (
                 <button type="button" className="btn-gold px-3 py-1.5 text-sm" disabled={salvando}
                   onClick={() => void salvar(conflito.pessoa.id)}>
-                  {t("papel.useExisting")}
+                  {conflitoSemVinculoNaFilial(conflito, idFilial) ? t("papel.linkToBranch") : t("papel.useExisting")}
                 </button>
-              )}
+              ) : null}
             </div>
           )}
 
