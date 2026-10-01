@@ -18,6 +18,10 @@ class Produtos(
         class StatusPatch(val parent: Id)
 
         @Serializable
+        @Resource("foto")
+        class Foto(val parent: Id)
+
+        @Serializable
         @Resource("unidades")
         class Unidades(
             val parent: Id,

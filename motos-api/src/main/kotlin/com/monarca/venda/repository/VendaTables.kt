@@ -17,6 +17,8 @@ object VendasTable : LongIdTable("venda") {
     val idCaixaSessao = reference("id_caixa_sessao", CaixaSessoesTable)
     val idCotacao = reference("id_cotacao", CotacoesTable)
     val totalPyg = double("total_pyg")
+    val descontoPct = double("desconto_pct").default(0.0)
+    val descontoPyg = double("desconto_pyg").default(0.0)
     val observacao = varchar("observacao", 500).nullable()
     val criadoEm = long("criado_em")
     val status = varchar("status", 20).default("finalizada")

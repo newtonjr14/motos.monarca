@@ -20,3 +20,8 @@ data class Produto(
     val custo: Double,
     val status: Status,
 )
+
+data class ProdutoFoto(
+    val contentType: String,
+    val conteudo: ByteArray,
+)

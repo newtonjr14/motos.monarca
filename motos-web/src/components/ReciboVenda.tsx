@@ -89,6 +89,12 @@ export default function ReciboVenda({
           </table>
 
           <div className="space-y-1 text-sm">
+            {(venda.descontoPct ?? 0) > 0 && (
+              <div className="flex justify-between text-xs">
+                <span style={{ color: v("--text-muted") }}>{t("venda.saleDiscount")} {venda.descontoPct}%</span>
+                <span className="font-mono" style={{ color: v("--text-sub") }}>− Gs. {formatPyg(venda.descontoPyg ?? 0)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-semibold">
               <span style={{ color: v("--text") }}>{t("venda.total")}</span>
               <span className="font-mono" style={{ color: v("--text") }}>Gs. {formatPyg(venda.totalPyg)}</span>

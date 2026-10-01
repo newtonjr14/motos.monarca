@@ -25,12 +25,14 @@ import com.monarca.pessoa.dto.PessoaRequest
 import com.monarca.pessoa.service.PapelService
 import com.monarca.pessoa.service.PessoaService
 import com.monarca.produto.domain.Moeda
+import com.monarca.produto.domain.SituacaoUnidade
 import com.monarca.produto.domain.TipoProduto
 import com.monarca.produto.dto.MarcaRequest
 import com.monarca.produto.dto.ModeloRequest
 import com.monarca.produto.dto.ProdutoBicicletaRequest
 import com.monarca.produto.dto.ProdutoMotoRequest
 import com.monarca.produto.dto.ProdutoRequest
+import com.monarca.produto.dto.ProdutoUnidadeLoteRequest
 import com.monarca.produto.service.MarcaService
 import com.monarca.produto.service.ProdutoService
 import com.monarca.seed.dto.SeedDemoStatusResponse
@@ -221,7 +223,19 @@ class DemoSeedService(
 
         val idPatio = garantirEstoque(idFilial, idUsuario, "DEMO Pátio")
         setEstoque(idPatio, bikeUrbana, 4, idFilial, idUsuario)
-        setEstoque(idPatio, motoCux, 2, idFilial, idUsuario)
+        val chassisPatio = listOf("DEMO-M05-005", "DEMO-M05-006")
+        val jaNoPatio = produtoService.listarUnidades(motoCux, idFilial, SituacaoUnidade.DISPONIVEL, idUsuario)
+            .filter { it.idEstoque == idPatio }
+            .map { it.numero }
+            .toSet()
+        val faltandoPatio = chassisPatio.filter { it !in jaNoPatio }
+        if (faltandoPatio.isNotEmpty()) {
+            produtoService.adicionarUnidades(
+                motoCux,
+                ProdutoUnidadeLoteRequest(numeros = faltandoPatio, idEstoque = idPatio),
+                idUsuario,
+            )
+        }
 
         val py = localidadeService.listarPaises().first { it.sigla.equals("PY", ignoreCase = true) }
         val tipoCi = pessoaService.listarTipos(py.id, TipoPessoa.FISICA).first { it.codigo.equals("CI", ignoreCase = true) }
@@ -270,10 +284,7 @@ class DemoSeedService(
                 idCliente = carlos,
                 idCaixaSessao = sessao1,
                 itens = listOf(VendaItemRequest(idProduto = bikeTrail, quantidade = 1)),
-                negociacao = listOf(
-                    VendaNegociacaoRequest(idFinalizador = idDinheiro, valor = 1_000_000.0),
-                    VendaNegociacaoRequest(idFinalizador = idCartao, valor = totalTrail - 1_000_000.0),
-                ),
+                negociacao = negociacaoMista(totalTrail, idDinheiro, idCartao),
                 idVendedor = idVendedorDemo,
                 observacao = "[DEMO]",
             ),
@@ -281,12 +292,14 @@ class DemoSeedService(
         )
         marcadores.marcar("venda", venda2.id)
 
+        val chassiMoto = produtoService.listarUnidades(moto, idFilial, SituacaoUnidade.DISPONIVEL, idUsuario)
+            .first { it.idEstoque != idPatio }
         val venda3 = vendaService.criar(
             VendaRequest(
                 idFilial = idFilial,
                 idCliente = comercio,
                 idCaixaSessao = sessao1,
-                itens = listOf(VendaItemRequest(idProduto = moto, quantidade = 1)),
+                itens = listOf(VendaItemRequest(idProduto = moto, quantidade = 1, idsUnidades = listOf(chassiMoto.id))),
                 negociacao = listOf(VendaNegociacaoRequest(idFinalizador = idDeposito, valor = totalMoto)),
                 observacao = "[DEMO]",
             ),
@@ -541,6 +554,17 @@ class DemoSeedService(
             DocumentoRequest(idPais = idPais, idTipoDocumento = idTipo, numero = numero),
         ),
     )
+
+    private fun negociacaoMista(total: Double, idParte: Long, idResto: Long): List<VendaNegociacaoRequest> {
+        if (total < 2.0) {
+            return listOf(VendaNegociacaoRequest(idFinalizador = idParte, valor = total))
+        }
+        val parte = round(total * 0.4).coerceIn(1.0, total - 1.0)
+        return listOf(
+            VendaNegociacaoRequest(idFinalizador = idParte, valor = parte),
+            VendaNegociacaoRequest(idFinalizador = idResto, valor = total - parte),
+        )
+    }
 
     private fun paraPyg(valor: Double, moeda: Moeda, usdPyg: Double, brlPyg: Double): Double =
         converterMoeda(valor, moeda, Moeda.PYG, usdPyg, brlPyg)

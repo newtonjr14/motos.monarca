@@ -65,6 +65,8 @@ class ExposedVendaRepository(
         idCaixaSessao: Long,
         idCotacao: Long,
         totalPyg: Double,
+        descontoPct: Double,
+        descontoPyg: Double,
         observacao: String?,
         itens: List<VendaItemPersistencia>,
         negociacao: List<VendaNegociacaoPersistencia>,
@@ -80,6 +82,8 @@ class ExposedVendaRepository(
             it[VendasTable.idCaixaSessao] = idCaixaSessao
             it[VendasTable.idCotacao] = idCotacao
             it[VendasTable.totalPyg] = totalPyg
+            it[VendasTable.descontoPct] = descontoPct
+            it[VendasTable.descontoPyg] = descontoPyg
             it[VendasTable.observacao] = observacao
             it[VendasTable.criadoEm] = agora
             it[VendasTable.status] = StatusVenda.FINALIZADA.name.lowercase()
@@ -267,6 +271,8 @@ class ExposedVendaRepository(
             idCaixaSessao = row[VendasTable.idCaixaSessao].value,
             idCotacao = row[VendasTable.idCotacao].value,
             totalPyg = row[VendasTable.totalPyg],
+            descontoPct = row[VendasTable.descontoPct],
+            descontoPyg = row[VendasTable.descontoPyg],
             observacao = row[VendasTable.observacao],
             criadoEm = row[VendasTable.criadoEm],
             status = row[VendasTable.status],

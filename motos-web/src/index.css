@@ -600,8 +600,55 @@ select.field {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.6rem;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.6rem;
   flex-shrink: 0;
+}
+.pdv-open {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  flex-shrink: 0;
+  min-height: 2.15rem;
+}
+.pdv-open-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: 0.15rem;
+}
+.pdv-open-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pdv-open-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  max-width: 18rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text);
+}
+.pdv-open-chip:hover {
+  border-color: var(--gold-border);
+}
+.pdv-open-hold {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0.2rem 0.15rem;
 }
 @media (max-width: 959px) {
   .pdv-top {
@@ -660,6 +707,54 @@ select.field {
   .pdv-layout {
     grid-template-columns: minmax(0, 1fr) 24rem;
   }
+  .pdv-layout.is-pay {
+    grid-template-columns: 22rem minmax(0, 1fr);
+    grid-template-areas: "resumo pagamento";
+  }
+  .pdv-layout.is-pay .pdv-cart {
+    grid-area: resumo;
+  }
+  .pdv-layout.is-pay .pdv-catalog {
+    grid-area: pagamento;
+  }
+}
+.pdv-pay-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 1rem 1.1rem 1.15rem;
+}
+.pdv-pay-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.5rem;
+}
+.pdv-pay-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.pdv-pay-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0.35rem 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.pdv-pay-table td {
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.pdv-pay-table th:last-child,
+.pdv-pay-table td:last-child {
+  text-align: right;
 }
 .pdv-catalog {
   min-width: 0;
@@ -763,6 +858,12 @@ select.field {
   align-items: center;
   justify-content: center;
   margin-bottom: 0.6rem;
+  overflow: hidden;
+}
+.pdv-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .pdv-card-name {
   font-size: 13px;
@@ -894,6 +995,31 @@ select.field {
 .pdv-qty:hover {
   border-color: var(--gold-border);
   color: var(--gold);
+}
+.pdv-discount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.pdv-discount input.pdv-discount-value {
+  width: 6.5rem;
+}
+.pdv-discount input {
+  width: 2.75rem;
+  padding: 0.15rem 0.35rem;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: right;
+  border-radius: 6px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: ui-monospace, monospace;
 }
 .pdv-pay {
   min-height: 2.15rem;

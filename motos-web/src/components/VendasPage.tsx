@@ -21,7 +21,10 @@ import {
 } from "@/api";
 import ClienteRapidoModal from "@/components/ClienteRapidoModal";
 import EquivalentesMoeda from "@/components/EquivalentesMoeda";
+import F2InsideHint from "@/components/F2InsideHint";
+import ProdutoMiniatura from "@/components/ProdutoMiniatura";
 import ReciboVenda from "@/components/ReciboVenda";
+import SearchPickerModal, { type SearchPickerItem } from "@/components/SearchPickerModal";
 import { Field } from "@/components/crud/Field";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
@@ -45,7 +48,7 @@ const v = (name: string) => `var(${name})`;
 const border1 = () => `1px solid ${v("--border")}`;
 
 type UnidadeDraft = { id: number; numero: string };
-type ItemDraft = { idProduto: number; quantidade: number; unidades: UnidadeDraft[]; descontoPct: number };
+type ItemDraft = { linhaId: string; idProduto: number; quantidade: number; unidades: UnidadeDraft[]; descontoPct: number };
 type PagDraft = { idFinalizador: number; moeda: Moeda; valor: string };
 type FiltroTipo = "todos" | TipoProduto;
 /** Vendas em espera só na memória da aba — some ao fechar o navegador. */
@@ -56,6 +59,7 @@ type VendaEmEspera = {
   idVendedor: number | "";
   linhas: ItemDraft[];
   observacao: string;
+  descontoVenda: number;
 };
 const MOEDAS: Moeda[] = ["pyg", "usd", "brl"];
 const VITRINE_LIMITE = 24;
@@ -75,6 +79,44 @@ function formatarValorMoeda(pyg: number, moeda: Moeda, cotacao: Cotacao | null):
 
 function parseGs(valor: string): number {
   return Number(valor.replace(",", ".")) || 0;
+}
+
+function somarMeses(data: Date, meses: number, dia: number): Date {
+  const base = new Date(data.getFullYear(), data.getMonth() + meses, 1);
+  const ultimo = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+  base.setDate(Math.min(dia, ultimo));
+  return base;
+}
+
+function preverParcelas(
+  total: number,
+  qtd: number,
+  modo: "intervalo_30" | "dia_fixo",
+  dia: number,
+  moeda: Moeda,
+): { numero: number; vencimento: Date; valor: number }[] {
+  if (qtd < 1) return [];
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const arred = (n: number) => (moeda === "pyg" ? Math.round(n) : Math.round(n * 100) / 100);
+  const unidade = arred(total / qtd);
+  const partes = Array.from({ length: qtd }, () => unidade);
+  const soma = partes.reduce((a, n) => a + n, 0);
+  partes[qtd - 1] = arred(partes[qtd - 1]! + (total - soma));
+  const diaFixo = Math.min(28, Math.max(1, dia || 1));
+  let ancora = somarMeses(hoje, 0, diaFixo);
+  if (hoje.getTime() >= ancora.getTime()) ancora = somarMeses(ancora, 1, diaFixo);
+  return partes.map((valor, i) => ({
+    numero: i + 1,
+    valor,
+    vencimento: modo === "intervalo_30"
+      ? new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 30 * (i + 1))
+      : somarMeses(ancora, i, diaFixo),
+  }));
+}
+
+function novaLinhaId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 function textoCliente(c: Papel): string {
@@ -151,12 +193,13 @@ function VendaForm({
   navReset: number;
   onSaved: () => Promise<void>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { user, hasPermission } = useAuth();
   const { filial } = useFilial();
   const moedaOp = moedaOperacaoDe(filial?.moedaOperacao);
   const podeDesconto = hasPermission(Permissao.VENDA_DESCONTO);
-  const caixasAbertos = caixas.filter((c) => c.sessaoAbertaId);
+  const caixaPadrao = caixas.find((c) => c.padrao) ?? (caixas.length === 1 ? caixas[0] : undefined);
+  const sessaoPadrao = caixaPadrao?.sessaoAbertaId ?? null;
   const [idCliente, setIdCliente] = useState<number | "">("");
   const [idVendedor, setIdVendedor] = useState<number | "">(user?.id ?? "");
   const [vendedores, setVendedores] = useState<VendedorOpcao[]>([]);
@@ -180,7 +223,7 @@ function VendaForm({
   const [listaVendedor, setListaVendedor] = useState(false);
   const [buscaProduto, setBuscaProduto] = useState("");
   const produtoRef = useRef<HTMLInputElement>(null);
-  const clienteRef = useRef<HTMLInputElement>(null);
+  const clienteRef = useRef<HTMLButtonElement>(null);
   const carrinhoRef = useRef<HTMLDivElement>(null);
   const chassiRef = useRef<HTMLInputElement>(null);
   const [pickingId, setPickingId] = useState<number | null>(null);
@@ -189,18 +232,35 @@ function VendaForm({
   const [carregandoChassi, setCarregandoChassi] = useState(false);
   const [modalCliente, setModalCliente] = useState(false);
   const [esperas, setEsperas] = useState<VendaEmEspera[]>([]);
-  const [listaEspera, setListaEspera] = useState(false);
+  const [listaCaixa, setListaCaixa] = useState(false);
+  const [definindo, setDefinindo] = useState(false);
+  const [descontoVenda, setDescontoVenda] = useState(0);
+  const [descontoValorTxt, setDescontoValorTxt] = useState("");
+  const descontoValorFoco = useRef(false);
+  const [listaFinalizador, setListaFinalizador] = useState(false);
+  const [buscaFinalizador, setBuscaFinalizador] = useState("");
+  const [defId, setDefId] = useState<number | "">("");
+  const [defMoeda, setDefMoeda] = useState<Moeda>("pyg");
+  const [defValor, setDefValor] = useState("");
 
   const cliente = idCliente === "" ? undefined : clientes.find((c) => c.id === idCliente);
   const vendedor = idVendedor === ""
     ? undefined
     : vendedores.find((vdd) => vdd.id === idVendedor)
       ?? (user && user.id === idVendedor ? { id: user.id, nome: user.nome } : undefined);
-  const caixaAtual = caixasAbertos.find((c) => c.sessaoAbertaId === idSessao);
+  const caixaEmUso = caixas.find((c) => c.sessaoAbertaId != null && c.sessaoAbertaId === idSessao) ?? caixaPadrao;
+  const outrosAbertos = sessaoPadrao
+    ? caixas.filter((c) => c.sessaoAbertaId && c.id !== caixaEmUso?.id)
+    : [];
 
   const limparCarrinho = useCallback(() => {
     setLinhas([]);
     setPagamentos([]);
+    setDefinindo(false);
+    setDescontoVenda(0);
+    setDescontoValorTxt("");
+    setDefId("");
+    setDefValor("");
     setQtdParcelas("3");
     setModoVencimento("intervalo_30");
     setDiaVencimento("10");
@@ -238,46 +298,95 @@ function VendaForm({
   }, [idFilial]);
 
   useEffect(() => {
+    const padrao = caixas.find((c) => c.padrao) ?? (caixas.length === 1 ? caixas[0] : undefined);
+    const sessao = padrao?.sessaoAbertaId ?? null;
     setIdSessao((atual) => {
+      if (!sessao) return "";
       if (atual !== "" && caixas.some((c) => c.sessaoAbertaId === atual)) return atual;
-      return caixas.find((c) => c.padrao && c.sessaoAbertaId)?.sessaoAbertaId
-        ?? caixas.find((c) => c.sessaoAbertaId)?.sessaoAbertaId
-        ?? "";
+      return sessao;
     });
+    if (!sessao) setListaCaixa(false);
   }, [caixas]);
 
-  const totalPyg = useMemo(() => linhas.reduce((acc, linha) => {
+  const pygDasLinhas = useCallback((itens: ItemDraft[]) => itens.reduce((acc, linha) => {
     const p = produtos.find((x) => x.id === linha.idProduto);
     if (!p) return acc;
     const bruto = paraPyg(p.precoLista, p.moedaPreco, cotacao) * linha.quantidade;
     const desc = bruto * ((linha.descontoPct || 0) / 100);
     return acc + Math.max(0, Math.round(bruto - desc));
-  }, 0), [linhas, produtos, cotacao]);
+  }, 0), [produtos, cotacao]);
 
-  const pago = pagamentos.reduce((acc, p) => acc + paraPyg(parseGs(p.valor), p.moeda, cotacao), 0);
-  const falta = Math.round(totalPyg - pago);
+  const totalPyg = useMemo(() => pygDasLinhas(linhas), [linhas, pygDasLinhas]);
+  const descontoVendaPyg = Math.round(totalPyg * (descontoVenda || 0) / 100);
+  const totalLiquido = Math.max(0, totalPyg - descontoVendaPyg);
+
+  function textoValorDesconto(pyg: number) {
+    const n = converterMoeda(pyg, "pyg", moedaOp, cotacao);
+    if (!Number.isFinite(n) || n <= 0) return "";
+    if (moedaOp === "pyg") return String(Math.round(n));
+    return (Math.round(n * 100) / 100).toFixed(2);
+  }
 
   useEffect(() => {
-    setPagamentos((atual) => {
-      if (atual.length !== 1) return atual;
-      const unico = atual[0]!;
-      if (unico.moeda !== "pyg") return atual;
-      const alvo = totalPyg > 0 ? String(Math.round(totalPyg)) : "";
-      return unico.valor === alvo ? atual : [{ ...unico, valor: alvo }];
-    });
-  }, [totalPyg]);
+    if (descontoValorFoco.current) return;
+    setDescontoValorTxt(descontoVenda <= 0 ? "" : textoValorDesconto(descontoVendaPyg));
+  }, [descontoVenda, descontoVendaPyg, moedaOp, cotacao]);
+
+  const resumoPag = useMemo(() => {
+    let aplicado = 0;
+    let trocoPyg = 0;
+    const enviaveis: { idFinalizador: number; moeda: Moeda; valor: number }[] = [];
+    for (const p of pagamentos) {
+      const pyg = Math.round(paraPyg(parseGs(p.valor), p.moeda, cotacao));
+      if (pyg <= 0) continue;
+      const fin = finalizadores.find((f) => f.id === p.idFinalizador);
+      const faltaAgora = Math.max(0, Math.round(totalLiquido - aplicado));
+      if (fin?.tipo === "dinheiro" && pyg > faltaAgora) {
+        trocoPyg += pyg - faltaAgora;
+        if (faltaAgora > 0) {
+          const valor = p.moeda === "pyg" ? faltaAgora : Math.round(dePyg(faltaAgora, p.moeda, cotacao) * 100) / 100;
+          enviaveis.push({ idFinalizador: p.idFinalizador, moeda: p.moeda, valor });
+          aplicado += faltaAgora;
+        }
+      } else {
+        aplicado += pyg;
+        enviaveis.push({ idFinalizador: p.idFinalizador, moeda: p.moeda, valor: parseGs(p.valor) });
+      }
+    }
+    return { aplicado, trocoPyg, falta: Math.round(totalLiquido - aplicado), enviaveis };
+  }, [pagamentos, totalLiquido, finalizadores, cotacao]);
+  const pago = resumoPag.aplicado;
+  const falta = resumoPag.falta;
+  const troco = resumoPag.trocoPyg;
 
   const clientesFiltrados = useMemo(() => {
     const q = buscaCliente.trim().toLowerCase();
     const base = q ? clientes.filter((c) => textoCliente(c).toLowerCase().includes(q)) : clientes;
-    return base.slice(0, 8);
+    return base.slice(0, 80);
   }, [clientes, buscaCliente]);
 
   const vendedoresFiltrados = useMemo(() => {
     const q = buscaVendedor.trim().toLowerCase();
     const base = q ? vendedores.filter((vdd) => vdd.nome.toLowerCase().includes(q)) : vendedores;
-    return base.slice(0, 8);
+    return base.slice(0, 80);
   }, [vendedores, buscaVendedor]);
+
+  const itensCliente: SearchPickerItem[] = useMemo(() => clientesFiltrados.map((c) => ({
+    id: String(c.id),
+    label: (
+      <span>
+        <span className="block">{c.pessoa.nomeRazaoSocial}</span>
+        {docCliente(c) && <span className="block text-xs font-mono" style={{ color: v("--text-muted") }}>{docCliente(c)}</span>}
+      </span>
+    ),
+    selected: idCliente === c.id,
+  })), [clientesFiltrados, idCliente]);
+
+  const itensVendedor: SearchPickerItem[] = useMemo(() => vendedoresFiltrados.map((vdd) => ({
+    id: String(vdd.id),
+    label: vdd.nome,
+    selected: idVendedor === vdd.id,
+  })), [vendedoresFiltrados, idVendedor]);
 
   const produtosVitrine = useMemo(() => {
     const q = buscaProduto.trim().toLowerCase();
@@ -337,16 +446,16 @@ function VendaForm({
       setErro(t("api.UNIDADE_REPETIDA"));
       return;
     }
-    setLinhas((lista) => {
-      const i = lista.findIndex((l) => l.idProduto === u.idProduto);
-      const nova = { id: u.id, numero: u.numero };
-      if (i >= 0) {
-        const linha = lista[i]!;
-        const unidades = [...linha.unidades, nova];
-        return [{ ...linha, unidades, quantidade: unidades.length }, ...lista.filter((_, idx) => idx !== i)];
-      }
-      return [{ idProduto: u.idProduto, quantidade: 1, unidades: [nova], descontoPct: 0 }, ...lista];
-    });
+    setLinhas((lista) => [
+      {
+        linhaId: novaLinhaId(),
+        idProduto: u.idProduto,
+        quantidade: 1,
+        unidades: [{ id: u.id, numero: u.numero }],
+        descontoPct: 0,
+      },
+      ...lista,
+    ]);
     setBuscaChassi("");
     setErro(null);
     requestAnimationFrame(() => {
@@ -393,12 +502,12 @@ function VendaForm({
       return;
     }
     setLinhas((lista) => {
-      const i = lista.findIndex((l) => l.idProduto === id);
+      const i = lista.findIndex((l) => l.idProduto === id && l.unidades.length === 0);
       if (i >= 0) {
         const linha = { ...lista[i]!, quantidade: next };
         return [linha, ...lista.filter((_, idx) => idx !== i)];
       }
-      return [{ idProduto: id, quantidade: 1, unidades: [], descontoPct: 0 }, ...lista];
+      return [{ linhaId: novaLinhaId(), idProduto: id, quantidade: 1, unidades: [], descontoPct: 0 }, ...lista];
     });
     setBuscaProduto("");
     setErro(null);
@@ -406,27 +515,13 @@ function VendaForm({
     requestAnimationFrame(() => { carrinhoRef.current && (carrinhoRef.current.scrollTop = 0); });
   }
 
-  function alterarQtd(idProduto: number, delta: number) {
-    const atual = linhas.find((l) => l.idProduto === idProduto);
-    if (!atual) return;
-    const p = produtos.find((x) => x.id === idProduto);
-    if (p?.controlaChassi || atual.unidades.length > 0) {
-      if (delta > 0) {
-        void abrirPicker(idProduto);
-        return;
-      }
-      const unidades = atual.unidades.slice(0, -1);
-      if (unidades.length === 0) {
-        setLinhas((lista) => lista.filter((l) => l.idProduto !== idProduto));
-      } else {
-        setLinhas((lista) => lista.map((l) => l.idProduto === idProduto ? { ...l, unidades, quantidade: unidades.length } : l));
-      }
-      setErro(null);
-      return;
-    }
+  function alterarQtd(linhaId: string, delta: number) {
+    const atual = linhas.find((l) => l.linhaId === linhaId);
+    if (!atual || atual.unidades.length > 0) return;
+    const p = produtos.find((x) => x.id === atual.idProduto);
     const next = atual.quantidade + delta;
     if (next <= 0) {
-      setLinhas((lista) => lista.filter((l) => l.idProduto !== idProduto));
+      setLinhas((lista) => lista.filter((l) => l.linhaId !== linhaId));
       setErro(null);
       return;
     }
@@ -434,48 +529,89 @@ function VendaForm({
       setErro(t("venda.error.qty"));
       return;
     }
-    setLinhas((lista) => lista.map((l) => l.idProduto === idProduto ? { ...l, quantidade: next } : l));
+    setLinhas((lista) => lista.map((l) => l.linhaId === linhaId ? { ...l, quantidade: next } : l));
     setErro(null);
   }
 
-  function escolherFinalizador(id: number) {
-    const linhasPag = pagamentos.filter((p) => p.idFinalizador === id);
-    if (linhasPag.length === 0) {
-      const rest = Math.max(0, Math.round(totalPyg - pago));
-      setPagamentos((atual) => [...atual, { idFinalizador: id, moeda: "pyg", valor: rest > 0 ? String(rest) : "" }]);
-      setErro(null);
-      return;
-    }
-    const usadas = new Set(linhasPag.map((p) => p.moeda));
-    const proxima = MOEDAS.find((m) => !usadas.has(m) && (m === "pyg" || cotacao));
-    if (proxima) {
-      const rest = Math.max(0, totalPyg - pago);
-      setPagamentos((atual) => [...atual, {
-        idFinalizador: id,
-        moeda: proxima,
-        valor: formatarValorMoeda(rest, proxima, cotacao),
-      }]);
-      setErro(null);
-      return;
-    }
-    if (pagamentos.length > 1) {
-      setPagamentos((atual) => atual.filter((p) => p.idFinalizador !== id));
-    }
+  function abrirDefinir() {
+    const rest = Math.max(0, falta);
+    const moeda: Moeda = moedaOp !== "pyg" && cotacao ? moedaOp : "pyg";
+    setDefMoeda(moeda);
+    setDefValor(formatarValorMoeda(rest, moeda, cotacao));
+    setDefId("");
+    setBuscaFinalizador("");
+    setDefinindo(true);
+    setErro(null);
   }
 
-  function mudarMoeda(idx: number, moeda: Moeda) {
+  function mudarDefMoeda(moeda: Moeda) {
     if (moeda !== "pyg" && !cotacao) return;
-    setPagamentos((atual) => {
-      const alvo = atual[idx];
-      if (!alvo) return atual;
-      if (atual.some((p, i) => i !== idx && p.idFinalizador === alvo.idFinalizador && p.moeda === moeda)) {
-        return atual;
+    const pyg = paraPyg(parseGs(defValor), defMoeda, cotacao);
+    setDefMoeda(moeda);
+    setDefValor(formatarValorMoeda(pyg || Math.max(0, falta), moeda, cotacao));
+  }
+
+  function mudarDescontoVenda(pct: number) {
+    setDescontoVenda(pct);
+    if (!definindo) return;
+    const liquido = Math.max(0, totalPyg - Math.round(totalPyg * pct / 100));
+    const rest = Math.max(0, liquido - pago);
+    setDefValor(formatarValorMoeda(rest, defMoeda, cotacao));
+  }
+
+  function mudarDescontoPct(pct: number) {
+    mudarDescontoVenda(pct);
+    setDescontoValorTxt(pct <= 0 ? "" : textoValorDesconto(Math.round(totalPyg * pct / 100)));
+  }
+
+  function mudarDescontoValor(raw: string) {
+    const limpo = raw.replace(",", ".").replace(/[^\d.]/g, "");
+    setDescontoValorTxt(limpo);
+    const n = Number.parseFloat(limpo);
+    if (!limpo || !Number.isFinite(n) || n <= 0) {
+      mudarDescontoVenda(0);
+      return;
+    }
+    const pyg = Math.min(totalPyg, Math.max(0, Math.round(paraPyg(n, moedaOp, cotacao))));
+    const pct = totalPyg > 0 ? Math.min(100, Math.round((pyg / totalPyg) * 10000) / 100) : 0;
+    mudarDescontoVenda(pct);
+  }
+
+  function confirmarDefinir() {
+    if (defId === "") {
+      setErro(t("venda.error.pay"));
+      return;
+    }
+    const fin = finalizadores.find((f) => f.id === defId);
+    const pyg = Math.round(paraPyg(parseGs(defValor), defMoeda, cotacao));
+    if (pyg <= 0) {
+      setErro(t("venda.error.pay"));
+      return;
+    }
+    const jaCredito = pagamentos.some((p) => finalizadores.find((f) => f.id === p.idFinalizador)?.geraContasReceber);
+    if (fin?.geraContasReceber && jaCredito) {
+      setErro(t("api.VENDA_CREDITO_UNICO"));
+      return;
+    }
+    if (fin?.tipo !== "dinheiro" && pyg > Math.max(0, falta) + 1) {
+      setErro(t("venda.payOver"));
+      return;
+    }
+    if (fin?.geraContasReceber) {
+      const qtd = Number.parseInt(qtdParcelas, 10) || 0;
+      const dia = Number.parseInt(diaVencimento, 10) || 0;
+      if (qtd < 1 || qtd > 120) {
+        setErro(t("api.PARCELAS_QTD"));
+        return;
       }
-      const pyg = paraPyg(parseGs(alvo.valor), alvo.moeda, cotacao);
-      return atual.map((p, i) => i === idx
-        ? { ...p, moeda, valor: formatarValorMoeda(pyg || Math.max(0, totalPyg - (pago - pyg)), moeda, cotacao) }
-        : p);
-    });
+      if (modoVencimento === "dia_fixo" && (dia < 1 || dia > 28)) {
+        setErro(t("api.DIA_VENCIMENTO_INVALIDO"));
+        return;
+      }
+    }
+    setPagamentos((atual) => [...atual, { idFinalizador: defId, moeda: defMoeda, valor: defValor }]);
+    setDefinindo(false);
+    setErro(null);
   }
 
   function escolherCliente(id: number) {
@@ -505,6 +641,7 @@ function VendaForm({
         idVendedor,
         linhas: linhas.map((l) => ({ ...l, unidades: [...l.unidades] })),
         observacao,
+        descontoVenda,
       },
     ]);
     limparCarrinho();
@@ -516,12 +653,14 @@ function VendaForm({
     if (linhas.length > 0 && !window.confirm(t("venda.discardConfirm"))) return;
     setIdCliente(item.idCliente);
     setIdVendedor(item.idVendedor);
-    setLinhas(item.linhas.map((l) => ({ ...l, unidades: [...l.unidades] })));
+    setLinhas(item.linhas.map((l) => ({ ...l, linhaId: l.linhaId || novaLinhaId(), unidades: [...l.unidades] })));
     setObservacao(item.observacao);
+    setDescontoVenda(item.descontoVenda || 0);
+    setDescontoValorTxt("");
     setPagamentos([]);
+    setDefinindo(false);
     setPasso("itens");
     setEsperas((atual) => atual.filter((e) => e.id !== id));
-    setListaEspera(false);
     produtoRef.current?.focus();
   }
 
@@ -548,9 +687,11 @@ function VendaForm({
       setPasso("itens");
       return;
     }
-    const negociacao = pagamentos
-      .map((p) => ({ idFinalizador: p.idFinalizador, moeda: p.moeda, valor: parseGs(p.valor) }))
-      .filter((p) => p.valor > 0);
+    if (idSessao === "") {
+      setErro(t("venda.tillClosed"));
+      return;
+    }
+    const negociacao = resumoPag.enviaveis.filter((p) => p.valor > 0);
     if (!negociacao.length) {
       setErro(t("venda.error.pay"));
       return;
@@ -591,6 +732,7 @@ function VendaForm({
               diaVencimento: modoVencimento === "dia_fixo" ? (Number.parseInt(diaVencimento, 10) || 10) : null,
             }
           : null,
+        descontoPct: podeDesconto ? descontoVenda : 0,
         observacao: observacao.trim() || null,
       });
       limparCarrinho();
@@ -605,8 +747,8 @@ function VendaForm({
   }
 
   const qtdItens = linhas.reduce((acc, l) => acc + l.quantidade, 0);
-  const podePagar = idCliente !== "" && idVendedor !== "" && linhas.length > 0;
-  const podeFinalizar = podePagar && falta === 0 && pagamentos.some((p) => parseGs(p.valor) > 0);
+  const podePagar = idCliente !== "" && idVendedor !== "" && linhas.length > 0 && idSessao !== "";
+  const podeFinalizar = podePagar && Math.abs(falta) <= 1 && resumoPag.enviaveis.length > 0;
 
   function irParaPagamento() {
     setErro(null);
@@ -630,6 +772,11 @@ function VendaForm({
       setErro(t("venda.error.chassisRequired"));
       return;
     }
+    if (idSessao === "") {
+      setErro(caixaPadrao ? t("venda.tillClosed") : t("venda.noTill"));
+      return;
+    }
+    setDefinindo(false);
     setPasso("pagamento");
   }
 
@@ -640,150 +787,372 @@ function VendaForm({
       <div className="pdv-top">
         <div className="pdv-chip">
           <span className="pdv-chip-label">{t("venda.client")}</span>
-          {cliente && !listaCliente ? (
+          {cliente ? (
             <div className="flex items-center justify-between gap-2 min-w-0 flex-1">
               <span className="pdv-chip-value truncate">{cliente.pessoa.nomeRazaoSocial}</span>
               <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: v("--gold") }}
-                onClick={() => { setListaCliente(true); setBuscaCliente(""); setTimeout(() => clienteRef.current?.focus(), 0); }}>
+                onClick={() => { setBuscaCliente(""); setListaCliente(true); }}>
                 {t("venda.changeClient")}
               </button>
             </div>
           ) : (
-            <div className="relative flex-1 min-w-0">
-              <input
-                ref={clienteRef}
-                className="pdv-chip-input"
-                autoFocus
-                value={buscaCliente}
-                placeholder={t("venda.clientSearchPlaceholder")}
-                onChange={(e) => { setBuscaCliente(e.target.value); setListaCliente(true); }}
-                onFocus={() => setListaCliente(true)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    const first = clientesFiltrados[0];
-                    if (first) escolherCliente(first.id);
-                  } else if (e.key === "Escape") {
-                    setListaCliente(false);
-                  }
-                }}
-              />
-              {listaCliente && (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={() => setListaCliente(false)} />
-                  <ul className="absolute left-0 right-0 mt-1 z-30 rounded-md shadow-lg overflow-hidden max-h-56 overflow-y-auto"
-                    style={{ background: v("--card"), border: border1() }}>
-                    {clientesFiltrados.map((c) => (
-                      <li key={c.id}>
-                        <button type="button" className="w-full text-left px-3 py-2 cursor-pointer"
-                          onClick={() => escolherCliente(c.id)}>
-                          <span className="block text-sm" style={{ color: v("--text") }}>{c.pessoa.nomeRazaoSocial}</span>
-                          {docCliente(c) && <span className="block text-xs font-mono" style={{ color: v("--text-muted") }}>{docCliente(c)}</span>}
-                        </button>
-                      </li>
-                    ))}
-                    {clientesFiltrados.length === 0 && (
-                      <li className="px-3 py-2 space-y-2">
-                        <p className="text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</p>
-                        <button
-                          type="button"
-                          className="text-sm font-medium cursor-pointer"
-                          style={{ color: v("--gold") }}
-                          onClick={() => { setListaCliente(false); setModalCliente(true); }}
-                        >
-                          + {t("venda.clienteRapido.new")}
-                        </button>
-                      </li>
-                    )}
-                  </ul>
-                </>
-              )}
-            </div>
+            <button
+              ref={clienteRef}
+              type="button"
+              className="pdv-chip-input flex items-center justify-between gap-2 text-left cursor-pointer"
+              onClick={() => { setBuscaCliente(""); setListaCliente(true); }}
+              onKeyDown={(e) => {
+                if (e.key === "F2") {
+                  e.preventDefault();
+                  setBuscaCliente("");
+                  setListaCliente(true);
+                }
+              }}
+            >
+              <span className="truncate" style={{ color: v("--text-muted") }}>{t("venda.clientSearchPlaceholder")}</span>
+              <F2InsideHint />
+            </button>
           )}
         </div>
 
         <div className="pdv-chip">
           <span className="pdv-chip-label">{t("venda.seller")}</span>
-          {vendedor && !listaVendedor ? (
+          {vendedor ? (
             <div className="flex items-center justify-between gap-2 min-w-0 flex-1">
               <span className="pdv-chip-value truncate">{vendedor.nome}</span>
               <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: v("--gold") }}
-                onClick={() => { setListaVendedor(true); setBuscaVendedor(""); }}>
+                onClick={() => { setBuscaVendedor(""); setListaVendedor(true); }}>
                 {t("venda.changeSeller")}
               </button>
             </div>
           ) : (
-            <div className="relative flex-1 min-w-0">
-              <input
-                className="pdv-chip-input"
-                value={buscaVendedor}
-                placeholder={t("venda.sellerSearchPlaceholder")}
-                onChange={(e) => { setBuscaVendedor(e.target.value); setListaVendedor(true); }}
-                onFocus={() => setListaVendedor(true)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    const first = vendedoresFiltrados[0];
-                    if (first) {
-                      setIdVendedor(first.id);
-                      setListaVendedor(false);
-                      setBuscaVendedor("");
-                    }
-                  } else if (e.key === "Escape") {
-                    setListaVendedor(false);
-                    setBuscaVendedor("");
-                  }
-                }}
-              />
-              {listaVendedor && (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={() => { setListaVendedor(false); setBuscaVendedor(""); }} />
-                  <ul className="absolute left-0 right-0 mt-1 z-30 rounded-md shadow-lg overflow-hidden max-h-56 overflow-y-auto"
-                    style={{ background: v("--card"), border: border1() }}>
-                    {vendedoresFiltrados.map((vdd) => (
-                      <li key={vdd.id}>
-                        <button type="button" className="w-full text-left px-3 py-2 cursor-pointer"
-                          onClick={() => { setIdVendedor(vdd.id); setListaVendedor(false); setBuscaVendedor(""); }}>
-                          <span className="block text-sm" style={{ color: v("--text") }}>{vdd.nome}</span>
-                        </button>
-                      </li>
-                    ))}
-                    {vendedoresFiltrados.length === 0 && (
-                      <li className="px-3 py-2 text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</li>
-                    )}
-                  </ul>
-                </>
-              )}
-            </div>
+            <button
+              type="button"
+              className="pdv-chip-input flex items-center justify-between gap-2 text-left cursor-pointer"
+              onClick={() => { setBuscaVendedor(""); setListaVendedor(true); }}
+              onKeyDown={(e) => {
+                if (e.key === "F2") {
+                  e.preventDefault();
+                  setBuscaVendedor("");
+                  setListaVendedor(true);
+                }
+              }}
+            >
+              <span className="truncate" style={{ color: v("--text-muted") }}>{t("venda.sellerSearchPlaceholder")}</span>
+              <F2InsideHint />
+            </button>
           )}
         </div>
 
-        <div className="pdv-chip">
+        <div className="pdv-chip relative">
           <span className="pdv-chip-label">{t("venda.till")}</span>
-          {caixasAbertos.length ? (
-            <select className="pdv-chip-input" value={idSessao} onChange={(e) => setIdSessao(e.target.value ? Number(e.target.value) : "")}>
-              <option value="">{t("common.select")}</option>
-              {caixasAbertos.map((c) => (
-                <option key={c.id} value={c.sessaoAbertaId ?? ""}>{c.nome}</option>
-              ))}
-            </select>
+          {caixaPadrao ? (
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="pdv-chip-value truncate">{caixaEmUso?.nome ?? caixaPadrao.nome}</span>
+              {sessaoPadrao ? (
+                <span className="pdv-chip-dot" title={t("caixa.session.open")} />
+              ) : (
+                <span className="text-xs shrink-0" style={{ color: "var(--danger)" }}>{t("venda.tillClosed")}</span>
+              )}
+              {sessaoPadrao && outrosAbertos.length > 0 && (
+                <button type="button" className="text-xs cursor-pointer shrink-0 ml-auto" style={{ color: v("--gold") }}
+                  onClick={() => setListaCaixa((x) => !x)}>
+                  {t("venda.changeTill")}
+                </button>
+              )}
+            </div>
           ) : (
             <span className="pdv-chip-value" style={{ color: v("--text-muted") }}>{t("venda.noTill")}</span>
           )}
-          {caixaAtual && <span className="pdv-chip-dot" title={t("caixa.session.open")} />}
+          {listaCaixa && sessaoPadrao && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={() => setListaCaixa(false)} />
+              <ul className="absolute right-2 top-full mt-1 z-30 rounded-md shadow-lg overflow-hidden min-w-[10rem]"
+                style={{ background: v("--card"), border: border1() }}>
+                {caixas.filter((c) => c.sessaoAbertaId).map((c) => (
+                  <li key={c.id}>
+                    <button type="button" className="w-full text-left px-3 py-2 text-sm cursor-pointer"
+                      style={{ color: c.sessaoAbertaId === idSessao ? v("--gold") : v("--text") }}
+                      onClick={() => { setIdSessao(c.sessaoAbertaId ?? ""); setListaCaixa(false); }}>
+                      {c.nome}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       </div>
 
-      <form className="pdv-layout" onSubmit={(e) => e.preventDefault()}>
+      <div className="pdv-open">
+        <span className="pdv-open-label">{t("venda.open")}</span>
+        {esperas.length === 0 ? (
+          <span className="pdv-open-empty">{t("venda.openEmpty")}</span>
+        ) : (
+          esperas.map((e) => {
+            const qtd = e.linhas.reduce((a, l) => a + l.quantidade, 0);
+            const total = pygDasLinhas(e.linhas);
+            return (
+              <button key={e.id} type="button" className="pdv-open-chip" onClick={() => retomarEspera(e.id)}>
+                <span className="truncate font-medium">{e.rotulo}</span>
+                <span className="font-mono shrink-0" style={{ color: v("--text-muted") }}>
+                  {tf(t, "venda.itemsCount", { n: String(qtd) })} · {formatMoeda(converterMoeda(total, "pyg", moedaOp, cotacao), moedaOp)}
+                </span>
+              </button>
+            );
+          })
+        )}
+        {linhas.length > 0 && (
+          <button type="button" className="pdv-open-hold" onClick={segurarVenda}>
+            {t("venda.hold")}
+          </button>
+        )}
+      </div>
+
+      <form className={passo === "pagamento" ? "pdv-layout is-pay" : "pdv-layout"} onSubmit={(e) => e.preventDefault()}>
         <div className="pdv-catalog">
-          {pickingId != null && produtoPicking ? (
+          {passo === "pagamento" ? (
+            <div className="pdv-pay-panel">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="pdv-cart-title">{t("venda.pay")}</h2>
+                  <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>
+                    {cliente?.pessoa.nomeRazaoSocial ?? ""} · {tf(t, "venda.itemsCount", { n: String(qtdItens) })}
+                  </p>
+                </div>
+                <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: v("--gold") }}
+                  onClick={() => setPasso("itens")}>
+                  {t("venda.backItems")}
+                </button>
+              </div>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                {podeDesconto && (
+                  <div>
+                    <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.saleDiscount")}</p>
+                    <label className="pdv-discount" style={{ marginLeft: 0 }}>
+                      <input
+                        inputMode="decimal"
+                        aria-label={t("venda.saleDiscount")}
+                        value={descontoVenda === 0 ? "" : String(descontoVenda)}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(",", ".").replace(/[^\d.]/g, "");
+                          const n = Number.parseFloat(raw);
+                          const pct = !Number.isFinite(n) || raw === "" ? 0 : Math.min(100, Math.max(0, Math.round(n * 100) / 100));
+                          mudarDescontoPct(pct);
+                        }}
+                      />
+                      <span>%</span>
+                      <input
+                        className="pdv-discount-value"
+                        inputMode="decimal"
+                        aria-label={t("venda.amount")}
+                        value={descontoValorTxt}
+                        placeholder={moedaOp === "pyg" ? "0" : "0.00"}
+                        onFocus={() => { descontoValorFoco.current = true; }}
+                        onBlur={() => {
+                          descontoValorFoco.current = false;
+                          setDescontoValorTxt(descontoVenda <= 0 ? "" : textoValorDesconto(descontoVendaPyg));
+                        }}
+                        onChange={(e) => mudarDescontoValor(e.target.value)}
+                      />
+                      <span>{moedaOp === "pyg" ? t("venda.currency.pyg") : moedaOp === "brl" ? t("venda.currency.brl") : t("venda.currency.usd")}</span>
+                    </label>
+                  </div>
+                )}
+                <div className="space-y-1 text-sm min-w-[13rem] ml-auto">
+                  <div className="flex justify-between gap-4">
+                    <span style={{ color: v("--text-muted") }}>{t("venda.paid")}</span>
+                    <span className="font-mono" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(pago, "pyg", moedaOp, cotacao), moedaOp)}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span style={{ color: v("--text-muted") }}>{t("venda.remainingValue")}</span>
+                    <span className="font-mono" style={{ color: Math.abs(falta) <= 1 ? "var(--success)" : v("--gold") }}>
+                      {formatMoeda(converterMoeda(Math.max(0, falta), "pyg", moedaOp, cotacao), moedaOp)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span style={{ color: v("--text-muted") }}>{t("venda.change")}</span>
+                    <span className="font-mono" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(troco, "pyg", moedaOp, cotacao), moedaOp)}</span>
+                  </div>
+                </div>
+              </div>
+              {definindo ? (
+                <div className="space-y-3 rounded-md p-3" style={{ background: v("--card2"), border: border1() }}>
+                  <div>
+                    <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.pay")}</p>
+                    <button
+                      type="button"
+                      className="field max-w-sm flex items-center justify-between gap-2 text-left cursor-pointer"
+                      onClick={() => { setBuscaFinalizador(""); setListaFinalizador(true); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "F2") {
+                          e.preventDefault();
+                          setBuscaFinalizador("");
+                          setListaFinalizador(true);
+                        }
+                      }}
+                    >
+                      <span className="truncate" style={{ color: defId === "" ? v("--text-muted") : v("--text") }}>
+                        {defId === ""
+                          ? t("venda.finalizerSearch")
+                          : (finalizadores.find((f) => f.id === defId)?.nome ?? "")}
+                      </span>
+                      <F2InsideHint />
+                    </button>
+                  </div>
+                  <div className="max-w-sm">
+                    <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.remainingValue")}</p>
+                    <p className="field font-mono" style={{ color: v("--text") }}>
+                      {formatMoeda(converterMoeda(Math.max(0, falta), "pyg", defMoeda, cotacao), defMoeda)}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 max-w-sm">
+                    {MOEDAS.map((m) => {
+                      const ativo = defMoeda === m;
+                      const bloqueada = m !== "pyg" && !cotacao;
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          disabled={bloqueada}
+                          className="pdv-pay px-2 py-1.5 text-xs rounded-md cursor-pointer"
+                          style={{
+                            background: ativo ? "var(--gold-bg)" : v("--card"),
+                            border: ativo ? `1px solid ${v("--gold-border")}` : border1(),
+                            color: ativo ? v("--gold") : v("--text-sub"),
+                            opacity: bloqueada ? 0.45 : 1,
+                          }}
+                          onClick={() => mudarDefMoeda(m)}
+                        >
+                          {m === "pyg" ? t("venda.currency.pyg") : m === "brl" ? t("venda.currency.brl") : t("venda.currency.usd")}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="max-w-sm">
+                    <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.payAmount")}</p>
+                    <input
+                      className="field font-mono"
+                      inputMode="decimal"
+                      value={defValor}
+                      onChange={(e) => setDefValor(e.target.value)}
+                    />
+                  </div>
+                  {defMoeda !== "pyg" && paraPyg(parseGs(defValor), defMoeda, cotacao) > 0 && (
+                    <p className="text-xs font-mono" style={{ color: v("--text-muted") }}>
+                      {tf(t, "venda.equivalent", { n: formatPyg(paraPyg(parseGs(defValor), defMoeda, cotacao)) })}
+                    </p>
+                  )}
+                  {finalizadores.find((f) => f.id === defId)?.geraContasReceber && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium" style={{ color: v("--text") }}>{t("venda.parcelas")}</p>
+                      <Field label={t("venda.qtdParcelas")}>
+                        <input className="field" inputMode="numeric" value={qtdParcelas}
+                          onChange={(e) => setQtdParcelas(e.target.value.replace(/\D/g, ""))} />
+                      </Field>
+                      <Field label={t("venda.modoVencimento")}>
+                        <select className="field" value={modoVencimento}
+                          onChange={(e) => setModoVencimento(e.target.value as "intervalo_30" | "dia_fixo")}>
+                          <option value="intervalo_30">{t("venda.modo.intervalo30")}</option>
+                          <option value="dia_fixo">{t("venda.modo.diaFixo")}</option>
+                        </select>
+                      </Field>
+                      {modoVencimento === "dia_fixo" && (
+                        <Field label={t("venda.diaVencimento")}>
+                          <input className="field" inputMode="numeric" value={diaVencimento}
+                            onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, "").slice(0, 2))} />
+                        </Field>
+                      )}
+                      {parseGs(defValor) > 0 && (Number.parseInt(qtdParcelas, 10) || 0) >= 1 && (
+                        <table className="pdv-pay-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>{t("venda.due")}</th>
+                              <th>{t("venda.amount")}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preverParcelas(
+                              parseGs(defValor),
+                              Number.parseInt(qtdParcelas, 10) || 0,
+                              modoVencimento,
+                              Number.parseInt(diaVencimento, 10) || 10,
+                              defMoeda,
+                            ).map((p) => (
+                              <tr key={p.numero}>
+                                <td>{p.numero}</td>
+                                <td>{p.vencimento.toLocaleDateString(locale === "pt" ? "pt-BR" : "es-PY")}</td>
+                                <td className="font-mono">{formatMoeda(p.valor, defMoeda)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <button type="button" className="text-xs cursor-pointer px-3 py-2" style={{ color: v("--text-muted") }}
+                      onClick={() => { setDefinindo(false); setErro(null); }}>
+                      {t("common.cancel")}
+                    </button>
+                    <button type="button" className="btn-gold px-4 py-2 text-sm" onClick={confirmarDefinir}>
+                      {t("venda.confirmPay")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {pagamentos.length === 0 ? (
+                    <p className="text-sm py-6 text-center" style={{ color: v("--text-muted") }}>{t("venda.payEmpty")}</p>
+                  ) : (
+                    <table className="pdv-pay-table">
+                      <thead>
+                        <tr>
+                          <th>{t("venda.pay")}</th>
+                          <th>{t("venda.amount")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagamentos.map((p, idx) => {
+                          const fin = finalizadores.find((f) => f.id === p.idFinalizador);
+                          const qtd = fin?.geraContasReceber ? Number.parseInt(qtdParcelas, 10) || 0 : 0;
+                          return (
+                            <tr key={`${p.idFinalizador}-${idx}`}>
+                              <td>{fin?.nome ?? ""}{qtd > 1 ? ` ${qtd}x` : ""}</td>
+                              <td className="font-mono">
+                                {formatMoeda(parseGs(p.valor), p.moeda)}
+                                <button type="button" className="ml-3 text-xs cursor-pointer" style={{ color: "var(--danger)" }}
+                                  onClick={() => setPagamentos((atual) => atual.filter((_, i) => i !== idx))}>
+                                  ×
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                  {falta > 1 && (
+                    <button type="button" className="btn-gold px-4 py-2 text-sm self-start" onClick={abrirDefinir}>
+                      {t("venda.definePay")}
+                    </button>
+                  )}
+                </>
+              )}
+              <Field label={t("caixa.note")}>
+                <input className="field max-w-sm" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+              </Field>
+            </div>
+          ) : pickingId != null && produtoPicking ? (
             <div className="pdv-chassi-panel">
               <div className="pdv-chassi-head">
                 <div className="min-w-0">
                   <p className="text-[11px] font-medium tracking-widest uppercase" style={{ color: v("--gold") }}>{t("venda.pickChassis")}</p>
                   <p className="text-sm font-medium truncate mt-0.5" style={{ color: v("--text") }}>{produtoPicking.nome}</p>
                   <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>
-                    {tf(t, "venda.chassisInCart", { n: String(linhas.find((l) => l.idProduto === pickingId)?.unidades.length ?? 0) })}
+                    {tf(t, "venda.chassisInCart", { n: String(linhas.filter((l) => l.idProduto === pickingId).length) })}
                   </p>
                 </div>
                 <button type="button" className="btn-gold px-3 py-1.5 text-xs shrink-0" onClick={fecharPicker}>
@@ -889,11 +1258,7 @@ function VendaForm({
                   onClick={() => lancarProduto(p.id)}
                 >
                   <div className="pdv-card-thumb" style={{ background: p.tipo === "moto" ? "var(--gold-bg)" : "var(--card2)" }}>
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ color: v("--gold") }}>
-                      {p.tipo === "moto"
-                        ? <><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M8 17l3-8h5l3 8"/><path d="M6 11h4"/></>
-                        : <><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M6.5 15l5-9 6 9"/><path d="M11.5 6v9"/></>}
-                    </svg>
+                    <ProdutoMiniatura produto={p} />
                   </div>
                   <p className="pdv-card-name">{p.nome}</p>
                   <p className="pdv-card-sku">{p.codigo}</p>
@@ -916,157 +1281,43 @@ function VendaForm({
         <aside className="pdv-cart" style={{ background: v("--card"), border: border1() }}>
           <div className="pdv-cart-head">
             <div>
-              <h2 className="pdv-cart-title">{passo === "pagamento" ? t("venda.pay") : t("venda.items")}</h2>
-              <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>{tf(t, "venda.itemsCount", { n: String(qtdItens) })}</p>
+              <h2 className="pdv-cart-title">{passo === "pagamento" ? t("venda.summary") : t("venda.items")}</h2>
+              <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>
+                {passo === "pagamento" && cliente ? `${cliente.pessoa.nomeRazaoSocial} · ` : ""}
+                {tf(t, "venda.itemsCount", { n: String(qtdItens) })}
+              </p>
             </div>
-            {passo === "pagamento" ? (
-              <button type="button" className="text-xs cursor-pointer" style={{ color: v("--gold") }}
-                onClick={() => setPasso("itens")}>
-                {t("venda.backItems")}
+            {passo !== "pagamento" && (
+              <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
+                onClick={pedirDescartar}>
+                {t("venda.clear")}
               </button>
-            ) : (
-              <div className="flex items-center gap-3">
-                {esperas.length > 0 && (
-                  <div className="relative">
-                    <button type="button" className="text-xs cursor-pointer" style={{ color: v("--gold") }}
-                      onClick={() => setListaEspera((x) => !x)}>
-                      {tf(t, "venda.heldCount", { n: String(esperas.length) })}
-                    </button>
-                    {listaEspera && (
-                      <>
-                        <div className="fixed inset-0 z-20" onClick={() => setListaEspera(false)} />
-                        <ul className="absolute right-0 mt-1 z-30 rounded-md shadow-lg overflow-hidden min-w-[12rem] max-h-48 overflow-y-auto"
-                          style={{ background: v("--card"), border: border1() }}>
-                          {esperas.map((e) => (
-                            <li key={e.id}>
-                              <button type="button" className="w-full text-left px-3 py-2 cursor-pointer"
-                                onClick={() => retomarEspera(e.id)}>
-                                <span className="block text-sm" style={{ color: v("--text") }}>{e.rotulo}</span>
-                                <span className="block text-xs" style={{ color: v("--text-muted") }}>
-                                  {tf(t, "venda.itemsCount", { n: String(e.linhas.reduce((a, l) => a + l.quantidade, 0)) })}
-                                </span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                  </div>
-                )}
-                {linhas.length > 0 && (
-                  <button type="button" className="text-xs cursor-pointer" style={{ color: v("--gold") }}
-                    onClick={segurarVenda}>
-                    {t("venda.hold")}
-                  </button>
-                )}
-                <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
-                  onClick={pedirDescartar}>
-                  {t("venda.clear")}
-                </button>
-              </div>
             )}
           </div>
 
           <div className="pdv-cart-body" ref={carrinhoRef}>
             {passo === "pagamento" ? (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  {finalizadores.map((f) => {
-                    const ativo = pagamentos.some((p) => p.idFinalizador === f.id);
-                    return (
-                      <button
-                        key={f.id}
-                        type="button"
-                        className="pdv-pay px-3 py-2 text-sm rounded-md cursor-pointer"
-                        style={{
-                          background: ativo ? "var(--gold-bg)" : v("--card2"),
-                          border: ativo ? `1px solid ${v("--gold-border")}` : border1(),
-                          color: ativo ? v("--gold") : v("--text-sub"),
-                        }}
-                        onClick={() => escolherFinalizador(f.id)}
-                      >
-                        {f.nome}
-                      </button>
-                    );
-                  })}
-                </div>
-                {pagamentos.map((p, idx) => {
-                  const fin = finalizadores.find((f) => f.id === p.idFinalizador);
-                  const pygLinha = paraPyg(parseGs(p.valor), p.moeda, cotacao);
+                {linhas.map((l) => {
+                  const p = produtos.find((x) => x.id === l.idProduto);
+                  const unit = p ? paraPyg(p.precoLista, p.moedaPreco, cotacao) : 0;
+                  const bruto = unit * l.quantidade;
+                  const descPct = l.descontoPct || 0;
+                  const liquido = Math.max(0, Math.round(bruto - bruto * descPct / 100));
+                  const linhaOp = converterMoeda(liquido, "pyg", moedaOp, cotacao);
                   return (
-                    <div key={`${p.idFinalizador}-${p.moeda}-${idx}`} className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs" style={{ color: v("--text-muted") }}>{t("venda.amount")} · {fin?.nome ?? ""}</p>
-                        {pagamentos.length > 1 && (
-                          <button type="button" className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
-                            onClick={() => setPagamentos((atual) => atual.filter((_, i) => i !== idx))}>
-                            {t("common.delete")}
-                          </button>
-                        )}
+                    <div key={l.linhaId} className="pdv-cart-item">
+                      <div className="flex justify-between gap-2">
+                        <p className="text-[13px] font-medium truncate" style={{ color: v("--text") }}>{p?.nome}</p>
+                        <span className="text-sm font-mono shrink-0" style={{ color: v("--gold") }}>{formatMoeda(linhaOp, moedaOp)}</span>
                       </div>
-                      <div className="grid grid-cols-3 gap-1">
-                        {MOEDAS.map((m) => {
-                          const ativo = p.moeda === m;
-                          const bloqueada = m !== "pyg" && !cotacao;
-                          return (
-                            <button
-                              key={m}
-                              type="button"
-                              disabled={bloqueada}
-                              className="pdv-pay px-2 py-1.5 text-xs rounded-md cursor-pointer"
-                              style={{
-                                background: ativo ? "var(--gold-bg)" : v("--card2"),
-                                border: ativo ? `1px solid ${v("--gold-border")}` : border1(),
-                                color: ativo ? v("--gold") : v("--text-sub"),
-                                opacity: bloqueada ? 0.45 : 1,
-                              }}
-                              onClick={() => mudarMoeda(idx, m)}
-                            >
-                              {m === "pyg" ? t("venda.currency.pyg") : m === "brl" ? t("venda.currency.brl") : t("venda.currency.usd")}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <input
-                        className="field font-mono"
-                        inputMode="decimal"
-                        value={p.valor}
-                        onChange={(e) => setPagamentos((atual) =>
-                          atual.map((x, i) => i === idx ? { ...x, valor: e.target.value } : x))}
-                      />
-                      {p.moeda !== "pyg" && pygLinha > 0 && (
-                        <p className="text-xs font-mono" style={{ color: v("--text-muted") }}>
-                          {tf(t, "venda.equivalent", { n: formatPyg(pygLinha) })}
-                        </p>
-                      )}
+                      <p className="text-[11px] font-mono mt-0.5 truncate" style={{ color: v("--text-muted") }}>
+                        {l.quantidade} · {l.unidades[0]?.numero ?? p?.codigo}
+                        {descPct > 0 ? ` · ${descPct}%` : ""}
+                      </p>
                     </div>
                   );
                 })}
-                {pagamentos.some((p) => finalizadores.find((f) => f.id === p.idFinalizador)?.geraContasReceber) && (
-                  <div className="space-y-2 rounded-md p-3" style={{ background: v("--card2"), border: border1() }}>
-                    <p className="text-xs font-medium" style={{ color: v("--text") }}>{t("venda.parcelas")}</p>
-                    <Field label={t("venda.qtdParcelas")}>
-                      <input className="field" inputMode="numeric" value={qtdParcelas}
-                        onChange={(e) => setQtdParcelas(e.target.value.replace(/\D/g, ""))} />
-                    </Field>
-                    <Field label={t("venda.modoVencimento")}>
-                      <select className="field" value={modoVencimento}
-                        onChange={(e) => setModoVencimento(e.target.value as "intervalo_30" | "dia_fixo")}>
-                        <option value="intervalo_30">{t("venda.modo.intervalo30")}</option>
-                        <option value="dia_fixo">{t("venda.modo.diaFixo")}</option>
-                      </select>
-                    </Field>
-                    {modoVencimento === "dia_fixo" && (
-                      <Field label={t("venda.diaVencimento")}>
-                        <input className="field" inputMode="numeric" value={diaVencimento}
-                          onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, "").slice(0, 2))} />
-                      </Field>
-                    )}
-                  </div>
-                )}
-                <Field label={t("caixa.note")}>
-                  <input className="field" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-                </Field>
               </div>
             ) : linhas.length === 0 ? (
               <div className="py-12 text-center">
@@ -1085,13 +1336,13 @@ function VendaForm({
                   const linhaOp = converterMoeda(liquido, "pyg", moedaOp, cotacao);
                   const brutoOp = converterMoeda(bruto, "pyg", moedaOp, cotacao);
                   return (
-                    <div key={l.idProduto} className="pdv-cart-item">
+                    <div key={l.linhaId} className="pdv-cart-item">
                       <div className="min-w-0 flex-1">
                         <div className="flex justify-between gap-2">
                           <p className="text-[13px] font-medium truncate" style={{ color: v("--text") }}>{p?.nome}</p>
                           <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: "var(--danger)" }}
                             title={t("common.delete")}
-                            onClick={() => setLinhas((atual) => atual.filter((x) => x.idProduto !== l.idProduto))}>
+                            onClick={() => setLinhas((atual) => atual.filter((x) => x.linhaId !== l.linhaId))}>
                             ×
                           </button>
                         </div>
@@ -1099,34 +1350,34 @@ function VendaForm({
                           {p?.codigo} · {formatMoeda(unitOp, moedaOp)}
                         </p>
                         {l.unidades.length > 0 && (
-                          <p className="text-[11px] font-mono mt-0.5 truncate" style={{ color: v("--text-sub") }}
-                            title={l.unidades.map((u) => u.numero).join("\n")}>
-                            {l.unidades.length <= 2
-                              ? l.unidades.map((u) => u.numero).join(" · ")
-                              : `${l.unidades[0]?.numero} · ${l.unidades[1]?.numero} · ${tf(t, "venda.chassisMore", { n: String(l.unidades.length - 2) })}`}
+                          <p className="text-[11px] font-mono mt-0.5 truncate" style={{ color: v("--text-sub") }}>
+                            {l.unidades[0]?.numero}
                           </p>
                         )}
                         <div className="flex items-center justify-between mt-2 gap-2">
+                          {l.unidades.length === 0 && (
                           <div className="flex items-center gap-1">
-                            <button type="button" className="pdv-qty" onClick={() => alterarQtd(l.idProduto, -1)}>−</button>
+                            <button type="button" className="pdv-qty" onClick={() => alterarQtd(l.linhaId, -1)}>−</button>
                             <span className="font-mono text-sm w-7 text-center" style={{ color: v("--text") }}>{l.quantidade}</span>
-                            <button type="button" className="pdv-qty" onClick={() => alterarQtd(l.idProduto, 1)}>+</button>
+                            <button type="button" className="pdv-qty" onClick={() => alterarQtd(l.linhaId, 1)}>+</button>
                           </div>
+                          )}
                           {podeDesconto && (
-                            <label className="flex items-center gap-1 shrink-0" title={t("venda.discount")}>
+                            <label className="pdv-discount">
+                              <span>{t("venda.discount")}</span>
                               <input
-                                className="field font-mono text-xs w-12 px-1 py-0.5 text-right"
                                 inputMode="decimal"
+                                aria-label={t("venda.discount")}
                                 value={descPct === 0 ? "" : String(descPct)}
-                                placeholder="%"
+                                placeholder="0"
                                 onChange={(e) => {
                                   const raw = e.target.value.replace(",", ".").replace(/[^\d.]/g, "");
                                   const n = Number.parseFloat(raw);
                                   const pct = !Number.isFinite(n) || raw === "" ? 0 : Math.min(100, Math.max(0, Math.round(n * 100) / 100));
-                                  setLinhas((atual) => atual.map((x) => x.idProduto === l.idProduto ? { ...x, descontoPct: pct } : x));
+                                  setLinhas((atual) => atual.map((x) => x.linhaId === l.linhaId ? { ...x, descontoPct: pct } : x));
                                 }}
                               />
-                              <span className="text-[11px]" style={{ color: v("--text-muted") }}>%</span>
+                              <span>%</span>
                             </label>
                           )}
                           <span className="text-sm font-mono text-right" style={{ color: v("--gold") }}>
@@ -1152,20 +1403,31 @@ function VendaForm({
                 <>
                   <div className="flex justify-between gap-3">
                     <span style={{ color: v("--text-muted") }}>{t("venda.paid")}</span>
-                    <span className="font-mono" style={{ color: v("--text") }}>Gs. {formatPyg(pago)}</span>
+                    <span className="font-mono" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(pago, "pyg", moedaOp, cotacao), moedaOp)}</span>
                   </div>
                   <div className="flex justify-between gap-3">
                     <span style={{ color: v("--text-muted") }}>{t("venda.remaining")}</span>
-                    <span className="font-mono" style={{ color: falta === 0 ? "var(--success)" : v("--gold") }}>
-                      Gs. {formatPyg(Math.max(0, falta))}
+                    <span className="font-mono" style={{ color: Math.abs(falta) <= 1 ? "var(--success)" : v("--gold") }}>
+                      {formatMoeda(converterMoeda(Math.max(0, falta), "pyg", moedaOp, cotacao), moedaOp)}
                     </span>
                   </div>
+                  {troco > 0 && (
+                    <div className="flex justify-between gap-3">
+                      <span style={{ color: v("--text-muted") }}>{t("venda.change")}</span>
+                      <span className="font-mono" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(troco, "pyg", moedaOp, cotacao), moedaOp)}</span>
+                    </div>
+                  )}
                 </>
               )}
               <div className={passo === "pagamento" ? "pt-2" : ""} style={passo === "pagamento" ? { borderTop: border1() } : undefined}>
                 <p className="text-[11px] font-medium tracking-widest uppercase mb-1" style={{ color: v("--text-muted") }}>{t("venda.total")}</p>
-                <p className="pdv-total font-mono">{formatMoeda(converterMoeda(totalPyg, "pyg", moedaOp, cotacao), moedaOp)}</p>
-                <EquivalentesMoeda valor={converterMoeda(totalPyg, "pyg", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
+                {descontoVenda > 0 && (
+                  <p className="text-xs font-mono line-through mb-1" style={{ color: v("--text-muted") }}>
+                    {formatMoeda(converterMoeda(totalPyg, "pyg", moedaOp, cotacao), moedaOp)}
+                  </p>
+                )}
+                <p className="pdv-total font-mono">{formatMoeda(converterMoeda(totalLiquido, "pyg", moedaOp, cotacao), moedaOp)}</p>
+                <EquivalentesMoeda valor={converterMoeda(totalLiquido, "pyg", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
               </div>
             </div>
             {passo === "pagamento" ? (
@@ -1183,6 +1445,49 @@ function VendaForm({
         </aside>
       </form>
 
+      <SearchPickerModal
+        open={listaFinalizador}
+        title={t("venda.pay")}
+        searchPlaceholder={t("venda.finalizerSearch")}
+        query={buscaFinalizador}
+        onQueryChange={setBuscaFinalizador}
+        items={finalizadores
+          .filter((f) => {
+            const q = buscaFinalizador.trim().toLowerCase();
+            return !q || f.nome.toLowerCase().includes(q);
+          })
+          .map((f) => ({
+            id: String(f.id),
+            label: f.nome,
+            selected: defId === f.id,
+          }))}
+        onPick={(id) => { setDefId(Number(id)); setListaFinalizador(false); setBuscaFinalizador(""); }}
+        onClose={() => { setListaFinalizador(false); setBuscaFinalizador(""); }}
+      />
+      <SearchPickerModal
+        open={listaCliente}
+        title={t("venda.client")}
+        searchPlaceholder={t("venda.clientSearchPlaceholder")}
+        query={buscaCliente}
+        onQueryChange={setBuscaCliente}
+        items={itensCliente}
+        onPick={(id) => { escolherCliente(Number(id)); setListaCliente(false); setBuscaCliente(""); }}
+        onClose={() => { setListaCliente(false); setBuscaCliente(""); clienteRef.current?.focus(); }}
+        emptyAction={{
+          label: `+ ${t("venda.clienteRapido.new")}`,
+          onClick: () => { setListaCliente(false); setModalCliente(true); },
+        }}
+      />
+      <SearchPickerModal
+        open={listaVendedor}
+        title={t("venda.seller")}
+        searchPlaceholder={t("venda.sellerSearchPlaceholder")}
+        query={buscaVendedor}
+        onQueryChange={setBuscaVendedor}
+        items={itensVendedor}
+        onPick={(id) => { setIdVendedor(Number(id)); setListaVendedor(false); setBuscaVendedor(""); }}
+        onClose={() => { setListaVendedor(false); setBuscaVendedor(""); }}
+      />
       {modalCliente && (
         <ClienteRapidoModal
           nomeInicial={buscaCliente}

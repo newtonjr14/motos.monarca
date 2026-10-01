@@ -6,6 +6,7 @@ import com.monarca.produto.domain.Produto
 import com.monarca.produto.domain.ProdutoBicicleta
 import com.monarca.produto.domain.ProdutoCompleto
 import com.monarca.produto.domain.ProdutoEstoqueSaldo
+import com.monarca.produto.domain.ProdutoFoto
 import com.monarca.produto.domain.ProdutoMoto
 import com.monarca.produto.domain.ProdutoSaldoTotal
 import com.monarca.produto.domain.ProdutoUnidade
@@ -41,4 +42,8 @@ interface ProdutoRepository {
     suspend fun inserirUnidades(idProduto: Long, idEstoque: Long, numeros: List<String>): List<Long>
     suspend fun excluirUnidade(id: Long): Boolean
     suspend fun produtoControlaChassi(id: Long): Boolean
+    suspend fun idsComFoto(ids: List<Long>): Set<Long>
+    suspend fun buscarFoto(id: Long): ProdutoFoto?
+    suspend fun salvarFoto(id: Long, contentType: String, conteudo: ByteArray)
+    suspend fun excluirFoto(id: Long): Boolean
 }

@@ -9,6 +9,7 @@ import com.monarca.produto.domain.Produto
 import com.monarca.produto.domain.ProdutoBicicleta
 import com.monarca.produto.domain.ProdutoCompleto
 import com.monarca.produto.domain.ProdutoEstoqueSaldo
+import com.monarca.produto.domain.ProdutoFoto
 import com.monarca.produto.domain.ProdutoMoto
 import com.monarca.produto.domain.ProdutoSaldoTotal
 import com.monarca.produto.domain.ProdutoUnidade
@@ -651,6 +652,46 @@ class ExposedProdutoRepository(
             .where { ProdutosTable.id eq id }
             .map { it[ProdutosTable.controlaChassi] }
             .singleOrNull() == true
+    }
+
+    override suspend fun idsComFoto(ids: List<Long>): Set<Long> = suspendTransaction(database) {
+        if (ids.isEmpty()) return@suspendTransaction emptySet()
+        ProdutoFotosTable.selectAll()
+            .where { ProdutoFotosTable.idProduto inList ids }
+            .map { it[ProdutoFotosTable.idProduto].value }
+            .toList()
+            .toSet()
+    }
+
+    override suspend fun buscarFoto(id: Long): ProdutoFoto? = suspendTransaction(database) {
+        ProdutoFotosTable.selectAll()
+            .where { ProdutoFotosTable.idProduto eq id }
+            .singleOrNull()
+            ?.let { ProdutoFoto(it[ProdutoFotosTable.contentType], it[ProdutoFotosTable.conteudo]) }
+    }
+
+    override suspend fun salvarFoto(id: Long, contentType: String, conteudo: ByteArray) {
+        suspendTransaction(database) {
+            val existe = ProdutoFotosTable.selectAll()
+                .where { ProdutoFotosTable.idProduto eq id }
+                .singleOrNull() != null
+            if (existe) {
+                ProdutoFotosTable.update({ ProdutoFotosTable.idProduto eq id }) {
+                    it[ProdutoFotosTable.contentType] = contentType
+                    it[ProdutoFotosTable.conteudo] = conteudo
+                }
+            } else {
+                ProdutoFotosTable.insert {
+                    it[idProduto] = id
+                    it[ProdutoFotosTable.contentType] = contentType
+                    it[ProdutoFotosTable.conteudo] = conteudo
+                }
+            }
+        }
+    }
+
+    override suspend fun excluirFoto(id: Long): Boolean = suspendTransaction(database) {
+        ProdutoFotosTable.deleteWhere { ProdutoFotosTable.idProduto eq id } > 0
     }
 
     private suspend fun estoquePadraoDaFilial(idFilial: Long): Long? =

@@ -16,12 +16,15 @@ import com.monarca.produto.dto.ProdutoStatusRequest
 import com.monarca.produto.dto.ProdutoUnidadeLoteRequest
 import com.monarca.produto.service.ProdutoService
 import com.monarca.produto.service.VinculoFilialProdutoConflito
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
+import io.ktor.server.request.contentType
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.resources.delete
 import io.ktor.server.resources.get
 import io.ktor.server.resources.post
@@ -78,6 +81,33 @@ fun Application.configureProduto() {
                     call.podeGerenciarProduto()
                     call.withAudit {
                         service.excluir(resource.id, resource.idFilial, call.usuarioAutenticado().id)
+                        call.respond(HttpStatusCode.NoContent)
+                    }
+                }
+            }
+            get<Produtos.Id.Foto> { resource ->
+                call.handleProduto(service) {
+                    call.podeConsultarProduto()
+                    val foto = service.obterFoto(resource.parent.id, call.usuarioAutenticado().id)
+                    call.respondBytes(foto.conteudo, ContentType.parse(foto.contentType))
+                }
+            }
+            put<Produtos.Id.Foto> { resource ->
+                call.handleProduto(service) {
+                    call.podeGerenciarProduto()
+                    val tipo = call.request.contentType().toString()
+                    val bytes = call.receive<ByteArray>()
+                    call.withAudit {
+                        service.salvarFoto(resource.parent.id, tipo, bytes, call.usuarioAutenticado().id)
+                        call.respond(HttpStatusCode.NoContent)
+                    }
+                }
+            }
+            delete<Produtos.Id.Foto> { resource ->
+                call.handleProduto(service) {
+                    call.podeGerenciarProduto()
+                    call.withAudit {
+                        service.removerFoto(resource.parent.id, call.usuarioAutenticado().id)
                         call.respond(HttpStatusCode.NoContent)
                     }
                 }

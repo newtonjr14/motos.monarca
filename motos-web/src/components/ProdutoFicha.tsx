@@ -1,4 +1,5 @@
 import EquivalentesMoeda from "@/components/EquivalentesMoeda";
+import ProdutoMiniatura from "@/components/ProdutoMiniatura";
 import { atualizarProdutoStatus, buscarProduto, excluirProduto, listarUnidades, type Produto, type ProdutoUnidade } from "@/api";
 import { useFilial, useFilialId } from "@/auth/FilialContext";
 import { useCotacaoHoje } from "@/components/CotacaoBanner";
@@ -162,7 +163,13 @@ export default function ProdutoFicha({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="ficha-modal-header px-6 py-4 flex items-start justify-between gap-4 shrink-0" style={{ borderBottom: border1() }}>
-          <div className="min-w-0 space-y-2">
+          <div className="flex items-start gap-3 min-w-0">
+            {item.temFoto && (
+              <div className="w-16 h-12 rounded-md overflow-hidden shrink-0 flex items-center justify-center" style={{ background: v("--card2") }}>
+                <ProdutoMiniatura produto={item} />
+              </div>
+            )}
+            <div className="min-w-0 space-y-2">
             <p id="produto-ficha-title" className="text-lg font-semibold leading-snug truncate" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
               {item.nome}
             </p>
@@ -174,6 +181,7 @@ export default function ProdutoFicha({
                   ? ` · ${item.marca} ${item.modelo}`
                   : ""}
               </span>
+            </div>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">

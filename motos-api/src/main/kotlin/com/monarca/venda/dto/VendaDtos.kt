@@ -30,6 +30,8 @@ data class VendaRequest(
     val idCaixaSessao: Long? = null,
     val itens: List<VendaItemRequest>,
     val negociacao: List<VendaNegociacaoRequest>,
+    /** Percentual 0–100 sobre o total dos itens. Exige permissão venda:desconto se > 0. */
+    val descontoPct: Double = 0.0,
     val parcelas: ParcelasConfigRequest? = null,
     val observacao: String? = null,
 )
@@ -81,6 +83,8 @@ data class VendaResponse(
     val idCaixaSessao: Long,
     val idCotacao: Long,
     val totalPyg: Double,
+    val descontoPct: Double = 0.0,
+    val descontoPyg: Double = 0.0,
     val observacao: String? = null,
     val criadoEm: Long,
     val status: StatusVenda,

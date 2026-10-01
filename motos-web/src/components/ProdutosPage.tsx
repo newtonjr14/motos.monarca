@@ -3,6 +3,7 @@ import EquivalentesMoeda from "@/components/EquivalentesMoeda";
 import { Field, FormTabs, navegarGuiaNoTeclado, Section } from "@/components/crud/Field";
 import { CatalogHeader, ListToolbar, StatusBadge, StatusFilter, TableHeadRow, TablePagination, Td, passaFiltroStatus, useListSort, type FiltroStatus } from "@/components/crud/ListUi";
 import ProdutoFicha from "@/components/ProdutoFicha";
+import { invalidarFotoProduto, prepararFoto, useFotoProduto } from "@/components/ProdutoMiniatura";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -18,6 +19,8 @@ import {
   criarProduto,
   excluirProduto,
   excluirUnidade,
+  excluirFotoProduto,
+  enviarFotoProduto,
   listarMarcas,
   listarModelos,
   listarEstoques,
@@ -210,6 +213,11 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
   const [salvando, setSalvando] = useState(false);
   const [statusBusyId, setStatusBusyId] = useState<number | null>(null);
   const [guia, setGuia] = useState<"cadastro" | "ficha" | "preco" | "estoque">("cadastro");
+  const [fotoNova, setFotoNova] = useState<Blob | null>(null);
+  const [fotoLocal, setFotoLocal] = useState<string | null>(null);
+  const [removerFoto, setRemoverFoto] = useState(false);
+  const fotoExistente = useFotoProduto(editando?.id ?? 0, Boolean(editando?.temFoto) && !removerFoto && !fotoNova);
+  const fotoPreview = fotoLocal ?? fotoExistente;
 
   const resetLista = useCallback(() => {
     setFormAberto(false);
@@ -284,6 +292,12 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       setCusto(item != null ? String(item.custo) : "");
     }
     setSpecs(specsDe(item));
+    setFotoNova(null);
+    setRemoverFoto(false);
+    setFotoLocal((atual) => {
+      if (atual) URL.revokeObjectURL(atual);
+      return null;
+    });
     setErro(null);
     setGuia("cadastro");
     setFormAberto(true);
@@ -437,8 +451,16 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
     }
     setSalvando(true);
     try {
-      if (editando) await atualizarProduto(editando.id, corpo());
-      else await criarProduto(corpo(confirmarVinculoFilial));
+      const salvo = editando
+        ? await atualizarProduto(editando.id, corpo())
+        : await criarProduto(corpo(confirmarVinculoFilial));
+      if (fotoNova) {
+        await enviarFotoProduto(salvo.id, fotoNova);
+        invalidarFotoProduto(salvo.id);
+      } else if (removerFoto && editando?.temFoto) {
+        await excluirFotoProduto(editando.id);
+        invalidarFotoProduto(editando.id);
+      }
       const lista = await listarProdutos(idFilial);
       setItens(lista);
       try { setCotacao(await buscarCotacaoHoje()); } catch { setCotacao(null); }
@@ -581,6 +603,56 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
           />
           <div role="tabpanel" id="form-panel-cadastro" aria-labelledby="form-tab-cadastro" hidden={guia !== "cadastro"} className="space-y-5">
           <Section title={t("produto.section.general")}>
+            <div className="flex items-center gap-4">
+              <div className="w-24 h-16 rounded-lg overflow-hidden flex items-center justify-center shrink-0" style={{ background: v("--card2"), border: `1px solid ${v("--border")}` }}>
+                {fotoPreview
+                  ? <img src={fotoPreview} alt="" className="w-full h-full object-cover" />
+                  : <span className="text-xs" style={{ color: v("--text-muted") }}>—</span>}
+              </div>
+              <div className="space-y-1 min-w-0">
+                <p className="text-xs" style={{ color: v("--text-muted") }}>{t("produto.fotoHint")}</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="btn-ghost px-3 py-1.5 text-xs cursor-pointer">
+                    {t("produto.fotoChoose")}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file) return;
+                        void prepararFoto(file).then((blob) => {
+                          setFotoNova(blob);
+                          setRemoverFoto(false);
+                          setFotoLocal((atual) => {
+                            if (atual) URL.revokeObjectURL(atual);
+                            return URL.createObjectURL(blob);
+                          });
+                        }).catch(() => setErro(t("api.PRODUTO_FOTO_TIPO")));
+                      }}
+                    />
+                  </label>
+                  {(fotoPreview || (editando?.temFoto && !removerFoto)) && (
+                    <button
+                      type="button"
+                      className="text-xs cursor-pointer"
+                      style={{ color: v("--text-muted") }}
+                      onClick={() => {
+                        setFotoNova(null);
+                        setRemoverFoto(true);
+                        setFotoLocal((atual) => {
+                          if (atual) URL.revokeObjectURL(atual);
+                          return null;
+                        });
+                      }}
+                    >
+                      {t("produto.fotoRemove")}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
             <div className="form-grid-2">
               <Field
                 label={t("produto.codigo")}

@@ -223,8 +223,13 @@ class CaixaService(
             throw invalido("CAIXA_SESSAO_FECHADA", "A sessão já está fechada")
         }
         val conferencia = validarValores(request.conferencia)
-        if (conferencia.isEmpty()) {
-            throw invalido("CAIXA_CONFERENCIA_OBRIGATORIA", "Informe a conferência de fechamento")
+        val esperadas = detalhe.saldos.map { it.idFinalizador to it.moeda }.toSet()
+        val informadas = conferencia.map { it.idFinalizador to it.moeda }.toSet()
+        if (informadas != esperadas) {
+            throw invalido(
+                "CAIXA_CONFERENCIA_FORA",
+                "A conferência deve listar só os finalizadores e moedas que já têm lançamento",
+            )
         }
         repository.fecharSessao(
             id,

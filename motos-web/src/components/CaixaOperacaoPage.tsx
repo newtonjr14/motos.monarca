@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Field, Section } from "@/components/crud/Field";
 import { CatalogHeader, TableHeadRow, TablePagination, Td } from "@/components/crud/ListUi";
 import { useCrudReset } from "@/hooks/useCrudReset";
@@ -58,6 +58,7 @@ function MoedaInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const placeholder = moeda === "pyg" ? "0" : "0,00";
   return (
     <div
       className="flex items-stretch w-full overflow-hidden rounded-lg"
@@ -73,7 +74,7 @@ function MoedaInput({
         className="min-w-0 flex-1 font-mono text-sm outline-none px-2.5 py-[0.6rem]"
         style={{ background: "transparent", color: v("--text"), border: "none" }}
         inputMode="decimal"
-        placeholder="0"
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -141,14 +142,14 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
     return map;
   }, [sessao]);
 
-  function valoresBody() {
+  function valoresBody(incluirZero = false) {
     return linhas
       .map((l) => ({
         idFinalizador: l.idFinalizador,
         moeda: l.moeda,
         valor: parseValor(valores[chaveValor(l.idFinalizador, l.moeda)]),
       }))
-      .filter((l) => l.valor > 0);
+      .filter((l) => incluirZero || l.valor > 0);
   }
 
   function setValorLinha(idFinalizador: number, moeda: Moeda, valor: string) {
@@ -162,6 +163,16 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
   function adicionarLinha(idFinalizador: number, moeda: Moeda) {
     if (temLinha(idFinalizador, moeda)) return;
     setLinhas((atual) => [...atual, { idFinalizador, moeda }]);
+  }
+
+  function removerLinha(idFinalizador: number, moeda: Moeda) {
+    const chave = chaveValor(idFinalizador, moeda);
+    setLinhas((atual) => atual.filter((l) => !(l.idFinalizador === idFinalizador && l.moeda === moeda)));
+    setValores((atual) => {
+      const next = { ...atual };
+      delete next[chave];
+      return next;
+    });
   }
 
   async function iniciar(caixa: Caixa, next: Modo) {
@@ -203,15 +214,18 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
           return;
         }
         if (next === "fechar" || next === "transferir") {
-          const comSaldo = atual.saldos.filter((s) => Math.abs(s.valor) > 1e-9);
-          const nextLinhas = comSaldo.map((s) => ({
+          const base = next === "fechar"
+            ? atual.saldos
+            : atual.saldos.filter((s) => s.valor > 1e-9);
+          const nextLinhas = base.map((s) => ({
             idFinalizador: s.idFinalizador,
             moeda: (s.moeda ?? "pyg") as Moeda,
           }));
           setLinhas(nextLinhas);
           const preset: Record<string, string> = {};
-          for (const s of comSaldo) {
-            preset[chaveValor(s.idFinalizador, s.moeda ?? "pyg")] = String(s.valor);
+          for (const s of base) {
+            const informado = s.valor < 0 ? 0 : s.valor;
+            preset[chaveValor(s.idFinalizador, s.moeda ?? "pyg")] = String(informado);
           }
           setValores(preset);
         }
@@ -241,11 +255,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
 
   async function salvarFechar() {
     if (!sessao) return;
-    const conferencia = valoresBody();
-    if (!conferencia.length) {
-      setErro(t("caixa.error.conferencia"));
-      return;
-    }
+    const conferencia = valoresBody(true);
     setSalvando(true);
     try {
       await fecharCaixaSessao(sessao.id, { conferencia, observacao: observacao.trim() || null });
@@ -322,24 +332,33 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
     }));
   }, [linhas, nomeFinalizador]);
 
+  const gruposConferencia = useMemo(() => {
+    const ids = [...new Set(linhas.map((l) => l.idFinalizador))];
+    return ids.map((id) => ({
+      id,
+      nome: nomeFinalizador(id),
+      linhas: MOEDAS
+        .filter((m) => linhas.some((l) => l.idFinalizador === id && l.moeda === m))
+        .map((moeda) => ({ moeda, chave: chaveValor(id, moeda) })),
+      moedasFaltando: MOEDAS.filter((m) => !linhas.some((l) => l.idFinalizador === id && l.moeda === m)),
+    }));
+  }, [linhas, nomeFinalizador]);
+
   const resumoMoedas = useMemo(() => {
     if (modo !== "fechar" && modo !== "transferir") return [];
     const moedas = new Set<Moeda>();
     for (const l of linhas) moedas.add(l.moeda);
-    for (const s of sessao?.saldos ?? []) {
-      if (Math.abs(s.valor) > 1e-9) moedas.add(s.moeda ?? "pyg");
-    }
     return MOEDAS.filter((m) => moedas.has(m)).map((moeda) => {
       const informado = linhas
         .filter((l) => l.moeda === moeda)
         .reduce((acc, l) => acc + parseValor(valores[chaveValor(l.idFinalizador, l.moeda)]), 0);
-      const esperado = [...esperadoMap.entries()]
-        .filter(([k]) => k.endsWith(`:${moeda}`))
-        .reduce((acc, [, val]) => acc + val, 0);
+      const esperado = linhas
+        .filter((l) => l.moeda === moeda)
+        .reduce((acc, l) => acc + (esperadoMap.get(chaveValor(l.idFinalizador, l.moeda)) ?? 0), 0);
       const diff = informado - esperado;
       return { moeda, informado, esperado, diff };
     });
-  }, [modo, linhas, valores, sessao, esperadoMap]);
+  }, [modo, linhas, valores, esperadoMap]);
 
   function corDiff(diff: number): string {
     if (Math.abs(diff) < 1e-6) return "#16a34a";
@@ -467,46 +486,93 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
                 </Section>
               ) : (
                 <Section title={t("caixa.conferencia")}>
+                  <p className="text-xs" style={{ color: v("--text-muted") }}>{t("caixa.conferenciaHint")}</p>
+                  {modo === "fechar" && (
+                    <p className="text-xs" style={{ color: v("--text-muted") }}>{t("caixa.conferenciaLock")}</p>
+                  )}
                   <div className="rounded-md overflow-hidden" style={{ border: `1px solid ${v("--border")}` }}>
                     <table className="drive-table w-full">
                       <thead>
                         <tr>
-                          <th className="drive-th text-left">{t("common.name")}</th>
                           <th className="drive-th text-left w-28">{t("produto.currency")}</th>
-                          <th className="drive-th text-right">{t("caixa.informed")}</th>
+                          <th className="drive-th text-left">{t("caixa.informed")}</th>
                           {modo === "fechar" && (
                             <th className="drive-th text-right">{t("caixa.expected")}</th>
                           )}
+                          {modo !== "fechar" && <th className="drive-th w-10" />}
                         </tr>
                       </thead>
                       <tbody>
-                        {linhas.map((l) => {
-                          const chave = chaveValor(l.idFinalizador, l.moeda);
-                          const esperado = esperadoMap.get(chave) ?? 0;
-                          return (
-                            <tr key={chave} style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                              <Td>{nomeFinalizador(l.idFinalizador)}</Td>
-                              <Td sub>{t(labelMoedaKey(l.moeda))}</Td>
-                              <td className="drive-td">
-                                <MoedaInput
-                                  moeda={l.moeda}
-                                  value={valores[chave] ?? ""}
-                                  onChange={(val) => setValorLinha(l.idFinalizador, l.moeda, val)}
-                                />
+                        {gruposConferencia.map((g) => (
+                          <Fragment key={g.id}>
+                            <tr style={{ borderBottom: `1px solid ${v("--border")}` }}>
+                              <td className="drive-td" colSpan={3}>
+                                <span className="text-sm font-medium" style={{ color: v("--text") }}>{g.nome}</span>
                               </td>
-                              {modo === "fechar" && (
-                                <Td mono right>{formatMoeda(esperado, l.moeda)}</Td>
-                              )}
                             </tr>
-                          );
-                        })}
+                            {g.linhas.map((linha) => {
+                              const esperado = esperadoMap.get(linha.chave) ?? 0;
+                              return (
+                                <tr key={linha.chave} style={{ borderBottom: `1px solid ${v("--border")}` }}>
+                                  <Td sub>{t(labelMoedaKey(linha.moeda))}</Td>
+                                  <td className="drive-td">
+                                    <MoedaInput
+                                      moeda={linha.moeda}
+                                      value={valores[linha.chave] ?? ""}
+                                      onChange={(val) => setValorLinha(g.id, linha.moeda, val)}
+                                    />
+                                  </td>
+                                  {modo === "fechar" && (
+                                    <Td mono right>{formatMoeda(esperado, linha.moeda)}</Td>
+                                  )}
+                                  {modo !== "fechar" && (
+                                    <td className="drive-td">
+                                      <button
+                                        type="button"
+                                        className="text-sm cursor-pointer px-1"
+                                        style={{ color: v("--text-muted") }}
+                                        title={t("caixa.removeLine")}
+                                        aria-label={t("caixa.removeLine")}
+                                        onClick={() => removerLinha(g.id, linha.moeda)}
+                                      >
+                                        ×
+                                      </button>
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                            {modo !== "fechar" && g.moedasFaltando.length > 0 && (
+                              <tr style={{ borderBottom: `1px solid ${v("--border")}` }}>
+                                <td className="drive-td" colSpan={3}>
+                                  <div className="flex flex-wrap gap-3">
+                                    {g.moedasFaltando.map((m) => (
+                                      <button
+                                        key={m}
+                                        type="button"
+                                        className="text-xs cursor-pointer"
+                                        style={{ color: v("--gold") }}
+                                        onClick={() => adicionarLinha(g.id, m)}
+                                      >
+                                        {t("caixa.addCurrency")} · {prefixoMoeda(m)}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        ))}
                       </tbody>
                     </table>
                     {!linhas.length && (
-                      <div className="py-8 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>
+                      <div className="py-8 text-center text-sm" style={{ color: v("--text-muted") }}>
+                        {modo === "fechar" ? t("caixa.conferenciaEmpty") : t("common.noRecords")}
+                      </div>
                     )}
                   </div>
 
+                  {modo !== "fechar" && (
                   <div className="flex flex-wrap items-center gap-2 mt-3">
                     <select
                       className="field text-sm w-auto min-w-[12rem]"
@@ -537,27 +603,8 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
                     >
                       {t("caixa.include")}
                     </button>
-                    {linhas.length > 0 && (
-                      <button
-                        type="button"
-                        className="text-xs cursor-pointer"
-                        style={{ color: v("--gold") }}
-                        onClick={() => {
-                          const id = addFinId !== ""
-                            ? addFinId
-                            : [...new Set(linhas.map((l) => l.idFinalizador))].find((fid) =>
-                              MOEDAS.some((m) => !temLinha(fid, m)),
-                            );
-                          if (id == null) return;
-                          const prox = MOEDAS.find((m) => !temLinha(id, m));
-                          if (prox) adicionarLinha(id, prox);
-                          setAddFinId("");
-                        }}
-                      >
-                        {t("caixa.addCurrency")}
-                      </button>
-                    )}
                   </div>
+                  )}
                 </Section>
               )}
                 </>

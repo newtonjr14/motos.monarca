@@ -2,6 +2,7 @@ package com.monarca.produto.repository
 
 import com.monarca.empresa.repository.FiliaisTable
 import com.monarca.estoque.repository.EstoquesTable
+import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
 
 object MarcasTable : LongIdTable("marca") {
@@ -94,4 +95,11 @@ object ProdutoBicicletasTable : LongIdTable("produto_bicicleta") {
     init {
         uniqueIndex(idProduto)
     }
+}
+
+object ProdutoFotosTable : Table("produto_foto") {
+    val idProduto = reference("id_produto", ProdutosTable)
+    val contentType = varchar("content_type", 40)
+    val conteudo = binary("conteudo")
+    override val primaryKey = PrimaryKey(idProduto)
 }

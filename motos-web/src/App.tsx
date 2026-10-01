@@ -285,6 +285,7 @@ const navGrupos: NavGrupo[] = [
     id: "financeiro",
     items: [
       { id: "caixa", label: "Caixa", icon: "caixa", permissao: Permissao.CAIXA_OPERAR },
+      { id: "cotacoes", label: "Cotações", icon: "cotacoes", permissao: Permissao.COTACAO_GERENCIAR },
       { id: "contasReceber", label: "Contas a receber", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
       { id: "contasPagar", label: "Contas a pagar", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
       { id: "entradaNota", label: "Entrada de nota", icon: "entradaNota", permissao: Permissao.FINANCEIRO_OPERAR },
@@ -297,7 +298,6 @@ const navGrupos: NavGrupo[] = [
       { id: "marcas", label: "Marcas", icon: "marcas", permissao: Permissao.PRODUTO_GERENCIAR },
       { id: "modelos", label: "Modelos", icon: "modelos", permissao: Permissao.PRODUTO_GERENCIAR },
       { id: "estoques", label: "Estoques", icon: "estoques", permissao: Permissao.ESTOQUE_GERENCIAR },
-      { id: "cotacoes", label: "Cotações", icon: "cotacoes", permissao: Permissao.COTACAO_GERENCIAR },
     ],
   },
   {

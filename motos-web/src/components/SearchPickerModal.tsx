@@ -20,6 +20,7 @@ export default function SearchPickerModal({
   items,
   onPick,
   onClose,
+  emptyAction,
 }: {
   open: boolean;
   title: string;
@@ -29,6 +30,7 @@ export default function SearchPickerModal({
   items: SearchPickerItem[];
   onPick: (id: string) => void;
   onClose: () => void;
+  emptyAction?: { label: string; onClick: () => void };
 }) {
   const { t } = useI18n();
   const titleId = useId();
@@ -141,8 +143,18 @@ export default function SearchPickerModal({
 
         <ul ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 pb-3">
           {items.length === 0 && (
-            <li className="px-3 py-6 text-center text-sm" style={{ color: v("--text-muted") }}>
-              {t("common.noRecords")}
+            <li className="px-3 py-6 text-center space-y-2">
+              <p className="text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</p>
+              {emptyAction && (
+                <button
+                  type="button"
+                  className="text-sm font-medium cursor-pointer"
+                  style={{ color: v("--gold") }}
+                  onClick={emptyAction.onClick}
+                >
+                  {emptyAction.label}
+                </button>
+              )}
             </li>
           )}
           {items.map((item, idx) => {

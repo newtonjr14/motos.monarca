@@ -492,6 +492,10 @@ export type TranslationKey =
   | "produto.modelo"
   | "produto.descricao"
   | "produto.section.general"
+  | "produto.foto"
+  | "produto.fotoHint"
+  | "produto.fotoChoose"
+  | "produto.fotoRemove"
   | "produto.section.price"
   | "produto.section.estoque"
   | "produto.section.moto"
@@ -675,6 +679,10 @@ export type TranslationKey =
   | "caixa.error.noFundoTroco"
   | "caixa.addFinalizer"
   | "caixa.addCurrency"
+  | "caixa.conferenciaHint"
+  | "caixa.conferenciaLock"
+  | "caixa.conferenciaEmpty"
+  | "caixa.removeLine"
   | "caixa.include"
   | "caixa.informed"
   | "caixa.difference"
@@ -793,6 +801,7 @@ export type TranslationKey =
   | "entrada.error.pagamento"
   | "api.VENDA_CREDITO_UNICO"
   | "api.PARCELAS_QTD"
+  | "api.DIA_VENCIMENTO_INVALIDO"
   | "api.PARCELAS_OBRIGATORIAS"
   | "api.FINALIZADOR_NAO_LIQUIDA"
   | "api.BAIXA_SEM_PARCELA"
@@ -815,6 +824,14 @@ export type TranslationKey =
   | "venda.paid"
   | "venda.remaining"
   | "venda.noTill"
+  | "venda.tillClosed"
+  | "venda.changeTill"
+  | "venda.definePay"
+  | "venda.payEmpty"
+  | "venda.confirmPay"
+  | "venda.payOver"
+  | "venda.change"
+  | "venda.due"
   | "venda.unit"
   | "venda.itemsCount"
   | "venda.clear"
@@ -824,6 +841,9 @@ export type TranslationKey =
   | "venda.hold"
   | "venda.heldCount"
   | "venda.heldNoClient"
+  | "venda.open"
+  | "venda.openEmpty"
+  | "venda.summary"
   | "venda.discardConfirm"
   | "venda.emptyHint"
   | "venda.filter.all"
@@ -837,6 +857,10 @@ export type TranslationKey =
   | "venda.chassisMore"
   | "venda.chassisInCart"
   | "venda.discount"
+  | "venda.saleDiscount"
+  | "venda.remainingValue"
+  | "venda.payAmount"
+  | "venda.finalizerSearch"
   | "venda.recibo.title"
   | "venda.recibo.print"
   | "venda.recibo.footer"
@@ -852,6 +876,7 @@ export type TranslationKey =
   | "api.CAIXA_INATIVO"
   | "api.CAIXA_SESSAO_FECHADA"
   | "api.CAIXA_CONFERENCIA_OBRIGATORIA"
+  | "api.CAIXA_CONFERENCIA_FORA"
   | "api.CAIXA_TRANSFERENCIA_MESMO"
   | "api.CAIXA_TRANSFERENCIA_FILIAL"
   | "api.CAIXA_DESTINO_FECHADO"
@@ -883,6 +908,8 @@ export type TranslationKey =
   | "api.ESTOQUE_FILIAL"
   | "api.ESTOQUE_PRODUTO_AUSENTE"
   | "api.PRODUTO_INATIVO"
+  | "api.PRODUTO_FOTO_TIPO"
+  | "api.PRODUTO_FOTO_TAMANHO"
   | "empresa.branchParameters"
   | "empresa.section.parametersListagem"
   | "empresa.seed.title"
@@ -1342,6 +1369,7 @@ const pt: Record<TranslationKey, string> = {
   "api.CAIXA_INATIVO": "O caixa não está ativo",
   "api.CAIXA_SESSAO_FECHADA": "A sessão do caixa está fechada",
   "api.CAIXA_CONFERENCIA_OBRIGATORIA": "Informe a conferência de fechamento",
+  "api.CAIXA_CONFERENCIA_FORA": "A conferência deve listar só os finalizadores e moedas que já têm lançamento",
   "api.CAIXA_TRANSFERENCIA_MESMO": "Origem e destino precisam ser caixas diferentes",
   "api.CAIXA_TRANSFERENCIA_FILIAL": "A transferência precisa ser na mesma filial",
   "api.CAIXA_DESTINO_FECHADO": "Abra o caixa de destino antes de transferir",
@@ -1373,6 +1401,8 @@ const pt: Record<TranslationKey, string> = {
   "api.ESTOQUE_FILIAL": "O estoque não pertence a esta filial",
   "api.ESTOQUE_PRODUTO_AUSENTE": "Produto sem saldo neste estoque",
   "api.PRODUTO_INATIVO": "O produto não está ativo",
+  "api.PRODUTO_FOTO_TIPO": "Use uma foto JPG, PNG ou WEBP",
+  "api.PRODUTO_FOTO_TAMANHO": "A foto deve ter no máximo 1,5 MB",
   "api.IVA_ALIQUOTA_INVALIDA": "A alíquota de IVA deve ser 0, 5 ou 10",
   "api.QTD_NEGATIVA": "A quantidade não pode ser negativa",
   "api.QTD_RESERVADA_NEGATIVA": "A quantidade reservada não pode ser negativa",
@@ -1462,6 +1492,10 @@ const pt: Record<TranslationKey, string> = {
   "produto.modelo": "Modelo",
   "produto.descricao": "Descrição",
   "produto.section.general": "Dados do produto",
+  "produto.foto": "Foto",
+  "produto.fotoHint": "Aparece na venda. Sem foto, continua o ícone.",
+  "produto.fotoChoose": "Escolher foto",
+  "produto.fotoRemove": "Remover foto",
   "produto.section.price": "Preço e IVA",
   "produto.section.estoque": "Estoque nesta filial",
   "produto.section.moto": "Ficha da moto",
@@ -1617,6 +1651,10 @@ const pt: Record<TranslationKey, string> = {
   "caixa.lancamento.valor": "Valor",
   "caixa.addFinalizer": "+ Adicionar outro finalizador",
   "caixa.addCurrency": "+ Adicionar moeda",
+  "caixa.conferenciaHint": "Digite só números. Gs.: 100000 · US$/R$: 2000 ou 2000,50 — sem ponto de milhar.",
+  "caixa.conferenciaLock": "Só entram finalizadores e moedas que já têm lançamento. Falta ou sobra se ajusta em Lançamento, antes de fechar.",
+  "caixa.conferenciaEmpty": "Nenhum lançamento neste caixa. Dá para fechar assim, ou lançar antes se precisar.",
+  "caixa.removeLine": "Remover",
   "caixa.include": "Incluir",
   "caixa.informed": "Informado",
   "caixa.difference": "Diferença",
@@ -1728,6 +1766,7 @@ const pt: Record<TranslationKey, string> = {
   "entrada.error.pagamento": "Informe ao menos uma forma de pagamento",
   "api.VENDA_CREDITO_UNICO": "Use só uma forma a prazo por venda",
   "api.PARCELAS_QTD": "Informe entre 1 e 120 parcelas",
+  "api.DIA_VENCIMENTO_INVALIDO": "O dia de vencimento deve ser entre 1 e 28",
   "api.PARCELAS_OBRIGATORIAS": "Informe as parcelas do crediário",
   "api.FINALIZADOR_NAO_LIQUIDA": "Use uma forma de caixa para liquidar a parcela",
   "api.BAIXA_SEM_PARCELA": "Selecione ao menos uma parcela",
@@ -1751,9 +1790,12 @@ const pt: Record<TranslationKey, string> = {
   "venda.clienteRapido.title": "Novo cliente",
   "venda.clienteRapido.hint": "Cadastro rápido para concluir a venda sem sair do PDV",
   "venda.clienteRapido.new": "Cadastrar novo cliente",
-  "venda.hold": "Segurar",
+  "venda.hold": "Deixar em aberto",
   "venda.heldCount": "{n} em espera",
   "venda.heldNoClient": "Sem cliente",
+  "venda.open": "Em aberto",
+  "venda.openEmpty": "Nenhuma",
+  "venda.summary": "Resumo",
   "venda.discardConfirm": "Há uma venda em andamento. Deseja descartá-la?",
   "venda.filter.all": "Todos",
   "venda.units": "{n} un.",
@@ -1765,14 +1807,26 @@ const pt: Record<TranslationKey, string> = {
   "venda.error.chassisRequired": "Escolha o chassi da moto",
   "venda.chassisMore": "+{n}",
   "venda.chassisInCart": "{n} no carrinho",
-  "venda.discount": "Desconto %",
+  "venda.discount": "Desconto",
+  "venda.saleDiscount": "Desconto da venda",
+  "venda.remainingValue": "Valor restante",
+  "venda.payAmount": "Valor para finalizar",
+  "venda.finalizerSearch": "Buscar finalizador",
   "venda.recibo.title": "Recibo de venda",
   "venda.recibo.print": "Imprimir",
   "venda.recibo.footer": "Documento não fiscal — comprovante interno",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pago",
   "venda.remaining": "Falta",
-  "venda.noTill": "Nenhum caixa aberto nesta filial",
+  "venda.noTill": "Nenhum caixa padrão para este usuário",
+  "venda.tillClosed": "Caixa padrão fechado",
+  "venda.changeTill": "Trocar",
+  "venda.definePay": "Definir pagamento",
+  "venda.payEmpty": "Nenhuma forma definida",
+  "venda.confirmPay": "Confirmar",
+  "venda.payOver": "O valor passa do restante",
+  "venda.change": "Troco",
+  "venda.due": "Vencimento",
   "venda.unit": "Unit.",
   "venda.itemsCount": "{n} itens",
   "usuario.caixas": "Caixas",
@@ -2237,6 +2291,7 @@ const es: Record<TranslationKey, string> = {
   "api.CAIXA_INATIVO": "La caja no está activa",
   "api.CAIXA_SESSAO_FECHADA": "La sesión de la caja está cerrada",
   "api.CAIXA_CONFERENCIA_OBRIGATORIA": "Indique el conteo de cierre",
+  "api.CAIXA_CONFERENCIA_FORA": "El conteo debe listar solo los finalizadores y monedas que ya tienen movimiento",
   "api.CAIXA_TRANSFERENCIA_MESMO": "Origen y destino deben ser cajas distintas",
   "api.CAIXA_TRANSFERENCIA_FILIAL": "La transferencia debe ser en la misma sucursal",
   "api.CAIXA_DESTINO_FECHADO": "Abra la caja de destino antes de transferir",
@@ -2268,6 +2323,8 @@ const es: Record<TranslationKey, string> = {
   "api.ESTOQUE_FILIAL": "El depósito no pertenece a esta sucursal",
   "api.ESTOQUE_PRODUTO_AUSENTE": "Producto sin saldo en este depósito",
   "api.PRODUTO_INATIVO": "El producto no está activo",
+  "api.PRODUTO_FOTO_TIPO": "Use una foto JPG, PNG o WEBP",
+  "api.PRODUTO_FOTO_TAMANHO": "La foto debe tener como máximo 1,5 MB",
   "api.IVA_ALIQUOTA_INVALIDA": "La alícuota de IVA debe ser 0, 5 o 10",
   "api.QTD_NEGATIVA": "La cantidad no puede ser negativa",
   "api.QTD_RESERVADA_NEGATIVA": "La cantidad reservada no puede ser negativa",
@@ -2367,6 +2424,10 @@ const es: Record<TranslationKey, string> = {
   "produto.modelo": "Modelo",
   "produto.descricao": "Descripción",
   "produto.section.general": "Datos del producto",
+  "produto.foto": "Foto",
+  "produto.fotoHint": "Aparece en la venta. Sin foto, sigue el ícono.",
+  "produto.fotoChoose": "Elegir foto",
+  "produto.fotoRemove": "Quitar foto",
   "produto.section.price": "Precio e IVA",
   "produto.section.estoque": "Stock en esta sucursal",
   "produto.section.moto": "Ficha de la moto",
@@ -2522,6 +2583,10 @@ const es: Record<TranslationKey, string> = {
   "caixa.lancamento.valor": "Valor",
   "caixa.addFinalizer": "+ Agregar otro finalizador",
   "caixa.addCurrency": "+ Agregar moneda",
+  "caixa.conferenciaHint": "Escriba solo números. Gs.: 100000 · US$/R$: 2000 o 2000,50 — sin punto de miles.",
+  "caixa.conferenciaLock": "Solo entran finalizadores y monedas que ya tienen movimiento. La falta o el sobrante se ajusta en Movimiento, antes de cerrar.",
+  "caixa.conferenciaEmpty": "Ningún movimiento en esta caja. Puede cerrar así, o registrar antes si hace falta.",
+  "caixa.removeLine": "Quitar",
   "caixa.include": "Incluir",
   "caixa.informed": "Informado",
   "caixa.difference": "Diferencia",
@@ -2633,6 +2698,7 @@ const es: Record<TranslationKey, string> = {
   "entrada.error.pagamento": "Indique al menos una forma de pago",
   "api.VENDA_CREDITO_UNICO": "Use solo una forma a plazo por venta",
   "api.PARCELAS_QTD": "Indique entre 1 y 120 cuotas",
+  "api.DIA_VENCIMENTO_INVALIDO": "El día de vencimiento debe estar entre 1 y 28",
   "api.PARCELAS_OBRIGATORIAS": "Indique las cuotas del crédito",
   "api.FINALIZADOR_NAO_LIQUIDA": "Use una forma de caja para liquidar la cuota",
   "api.BAIXA_SEM_PARCELA": "Seleccione al menos una cuota",
@@ -2656,9 +2722,12 @@ const es: Record<TranslationKey, string> = {
   "venda.clienteRapido.title": "Nuevo cliente",
   "venda.clienteRapido.hint": "Alta rápida para cerrar la venta sin salir del PDV",
   "venda.clienteRapido.new": "Registrar nuevo cliente",
-  "venda.hold": "Retener",
+  "venda.hold": "Dejar en abierto",
   "venda.heldCount": "{n} en espera",
   "venda.heldNoClient": "Sin cliente",
+  "venda.open": "En abierto",
+  "venda.openEmpty": "Ninguna",
+  "venda.summary": "Resumen",
   "venda.discardConfirm": "Hay una venta en curso. ¿Desea descartarla?",
   "venda.filter.all": "Todos",
   "venda.units": "{n} un.",
@@ -2670,14 +2739,26 @@ const es: Record<TranslationKey, string> = {
   "venda.error.chassisRequired": "Elija el chasis de la moto",
   "venda.chassisMore": "+{n}",
   "venda.chassisInCart": "{n} en el carrito",
-  "venda.discount": "Descuento %",
+  "venda.discount": "Descuento",
+  "venda.saleDiscount": "Descuento de la venta",
+  "venda.remainingValue": "Valor restante",
+  "venda.payAmount": "Valor para finalizar",
+  "venda.finalizerSearch": "Buscar finalizador",
   "venda.recibo.title": "Recibo de venta",
   "venda.recibo.print": "Imprimir",
   "venda.recibo.footer": "Documento no fiscal — comprobante interno",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pagado",
   "venda.remaining": "Falta",
-  "venda.noTill": "Ninguna caja abierta en esta sucursal",
+  "venda.noTill": "Ninguna caja predeterminada para este usuario",
+  "venda.tillClosed": "Caja predeterminada cerrada",
+  "venda.changeTill": "Cambiar",
+  "venda.definePay": "Definir pago",
+  "venda.payEmpty": "Ninguna forma definida",
+  "venda.confirmPay": "Confirmar",
+  "venda.payOver": "El valor supera el restante",
+  "venda.change": "Vuelto",
+  "venda.due": "Vencimiento",
   "venda.unit": "Unit.",
   "venda.itemsCount": "{n} ítems",
   "usuario.caixas": "Cajas",

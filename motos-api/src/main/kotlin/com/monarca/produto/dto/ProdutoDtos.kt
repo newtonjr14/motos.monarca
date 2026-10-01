@@ -161,6 +161,7 @@ data class ProdutoResponse(
     val quantidadeReservada: Int = 0,
     val quantidadeDisponivel: Int = 0,
     val estoques: List<ProdutoEstoqueSaldoResponse> = emptyList(),
+    val temFoto: Boolean = false,
 )
 
 @Serializable

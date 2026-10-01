@@ -56,8 +56,9 @@ class ProdutoService(
         val idFilialResolvida = resolverFilialComAcesso(idUsuario, idFilial)
         val filial = empresaService.buscarFilial(idFilialResolvida)
         val saldos = repository.somarEstoquePorFilial(idFilialResolvida)
-        return repository.listar(idFilialResolvida, filial.listarApenasProdutosFilial, tipo)
-            .map { it.toResponse(saldo = saldos[it.produto.id]) }
+        val lista = repository.listar(idFilialResolvida, filial.listarApenasProdutosFilial, tipo)
+        val fotos = repository.idsComFoto(lista.map { it.produto.id })
+        return lista.map { it.toResponse(saldo = saldos[it.produto.id], temFoto = it.produto.id in fotos) }
     }
 
     suspend fun buscar(id: Long, idFilial: Long? = null, idUsuario: Long? = null): ProdutoResponse {
@@ -68,7 +69,34 @@ class ProdutoService(
             else -> detalhe.produto.idFilialCadastro
         }
         val estoques = if (filial != null) repository.listarEstoqueDoProduto(id, filial) else emptyList()
-        return detalhe.toResponse(estoques = estoques)
+        return detalhe.toResponse(estoques = estoques, temFoto = id in repository.idsComFoto(listOf(id)))
+    }
+
+    suspend fun salvarFoto(id: Long, contentType: String, conteudo: ByteArray, idUsuario: Long) {
+        val detalhe = repository.buscar(id) ?: throw RecursoNaoEncontrado("Produto $id não encontrado")
+        resolverFilialComAcesso(idUsuario, detalhe.produto.idFilialCadastro)
+        val tipo = contentType.substringBefore(";").trim().lowercase()
+        if (tipo !in setOf("image/jpeg", "image/png", "image/webp")) {
+            throw invalido("PRODUTO_FOTO_TIPO", "Use uma foto JPG, PNG ou WEBP")
+        }
+        if (conteudo.isEmpty() || conteudo.size > 1_500_000) {
+            throw invalido("PRODUTO_FOTO_TAMANHO", "A foto deve ter no máximo 1,5 MB")
+        }
+        repository.salvarFoto(id, tipo, conteudo)
+    }
+
+    suspend fun obterFoto(id: Long, idUsuario: Long): com.monarca.produto.domain.ProdutoFoto {
+        val detalhe = repository.buscar(id) ?: throw RecursoNaoEncontrado("Produto $id não encontrado")
+        resolverFilialComAcesso(idUsuario, detalhe.produto.idFilialCadastro)
+        return repository.buscarFoto(id) ?: throw RecursoNaoEncontrado("Foto do produto $id não encontrada")
+    }
+
+    suspend fun removerFoto(id: Long, idUsuario: Long) {
+        val detalhe = repository.buscar(id) ?: throw RecursoNaoEncontrado("Produto $id não encontrado")
+        resolverFilialComAcesso(idUsuario, detalhe.produto.idFilialCadastro)
+        if (!repository.excluirFoto(id)) {
+            throw RecursoNaoEncontrado("Foto do produto $id não encontrada")
+        }
     }
 
     suspend fun criar(request: ProdutoRequest, idUsuario: Long): ProdutoResponse {
@@ -470,6 +498,7 @@ class ProdutoService(
     private fun ProdutoCompleto.toResponse(
         saldo: ProdutoSaldoTotal? = null,
         estoques: List<ProdutoEstoqueSaldo> = emptyList(),
+        temFoto: Boolean = false,
     ): ProdutoResponse {
         val quantidade = saldo?.quantidade ?: estoques.sumOf { it.quantidade }
         val reservada = saldo?.quantidadeReservada ?: estoques.sumOf { it.quantidadeReservada }
@@ -498,6 +527,7 @@ class ProdutoService(
             quantidadeReservada = reservada,
             quantidadeDisponivel = quantidade - reservada,
             estoques = estoques.map { it.toResponse() },
+            temFoto = temFoto,
         )
     }
 

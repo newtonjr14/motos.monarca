@@ -639,6 +639,7 @@ export interface Produto {
   quantidadeReservada?: number;
   quantidadeDisponivel?: number;
   estoques?: ProdutoEstoqueSaldo[];
+  temFoto?: boolean;
 }
 
 export interface VinculoFilialProdutoConflito {
@@ -696,6 +697,36 @@ export const excluirProduto = (id: number, idFilial?: number) => {
   const q = idFilial != null ? `?idFilial=${idFilial}` : "";
   return api<void>(`/produtos/${id}${q}`, { method: "DELETE" });
 };
+
+export async function buscarFotoProduto(id: number): Promise<string | null> {
+  const token = getAccessToken();
+  const res = await fetch(`/produtos/${id}/foto`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) return null;
+  return URL.createObjectURL(await res.blob());
+}
+
+export async function enviarFotoProduto(id: number, blob: Blob): Promise<void> {
+  const token = getAccessToken();
+  const res = await fetch(`/produtos/${id}/foto`, {
+    method: "PUT",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      "Content-Type": blob.type || "image/jpeg",
+    },
+    body: blob,
+  });
+  if (res.status === 204 || res.ok) return;
+  const text = await res.text();
+  let data: unknown = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { message: text }; }
+  throw new ApiError(res.status, data);
+}
+
+export const excluirFotoProduto = (id: number) =>
+  api<void>(`/produtos/${id}/foto`, { method: "DELETE" });
+
 export const listarUnidades = (idProduto: number, idFilial?: number, situacao?: SituacaoUnidade) => {
   const q = new URLSearchParams();
   if (idFilial != null) q.set("idFilial", String(idFilial));
@@ -893,6 +924,8 @@ export interface Venda {
   idCaixaSessao: number;
   idCotacao: number;
   totalPyg: number;
+  descontoPct?: number;
+  descontoPyg?: number;
   observacao?: string | null;
   criadoEm: number;
   status: StatusVenda;

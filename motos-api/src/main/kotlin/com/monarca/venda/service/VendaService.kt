@@ -82,7 +82,20 @@ class VendaService(
         val operador = usuarioRepository.buscar(idUsuario)
             ?: throw RecursoNaoEncontrado("Usuário $idUsuario não encontrado")
         val itens = montarItens(request, idFilial, cotacao, operador.perfil)
-        val totalPyg = itens.sumOf { it.totalPyg }
+        val subtotalPyg = itens.sumOf { it.totalPyg }
+        val descontoPct = round(request.descontoPct * 100.0) / 100.0
+        if (descontoPct < 0.0 || descontoPct > 100.0) {
+            throw invalido("VENDA_DESCONTO_INVALIDO", "O desconto deve estar entre 0 e 100%")
+        }
+        if (descontoPct > 0.0 && !Rbac.possui(operador.perfil, Permissao.VENDA_DESCONTO)) {
+            throw acesso(
+                "PERMISSAO_INSUFICIENTE",
+                "Permissão insuficiente: ${Permissao.VENDA_DESCONTO.codigo}",
+                "permissao" to Permissao.VENDA_DESCONTO.codigo,
+            )
+        }
+        val descontoPyg = round(subtotalPyg * descontoPct / 100.0)
+        val totalPyg = (subtotalPyg - descontoPyg).coerceAtLeast(0.0)
         if (totalPyg <= 0) {
             throw invalido("VENDA_TOTAL_INVALIDO", "O total da venda deve ser maior que zero")
         }
@@ -137,6 +150,8 @@ class VendaService(
             idCaixaSessao = sessao.sessao.id,
             idCotacao = cotacao.id,
             totalPyg = totalPyg,
+            descontoPct = descontoPct,
+            descontoPyg = descontoPyg,
             observacao = request.observacao?.trim()?.ifBlank { null },
             itens = itens,
             negociacao = negociacao,
@@ -363,6 +378,8 @@ class VendaService(
         idCaixaSessao = idCaixaSessao,
         idCotacao = idCotacao,
         totalPyg = totalPyg,
+        descontoPct = descontoPct,
+        descontoPyg = descontoPyg,
         observacao = observacao,
         criadoEm = criadoEm,
         status = StatusVenda.valueOf(status.uppercase()),
