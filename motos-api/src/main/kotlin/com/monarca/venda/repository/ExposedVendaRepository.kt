@@ -10,6 +10,7 @@ import com.monarca.common.enums.Status
 import com.monarca.empresa.repository.FiliaisTable
 import com.monarca.estoque.repository.EstoqueProdutosTable
 import com.monarca.estoque.repository.EstoquesTable
+import com.monarca.estoque.repository.registrarMovimentoEstoque
 import com.monarca.pessoa.repository.ClientesTable
 import com.monarca.pessoa.repository.PessoasTable
 import com.monarca.produto.domain.SituacaoUnidade
@@ -133,9 +134,19 @@ class ExposedVendaRepository(
             if (qtd - reservada < item.quantidade) {
                 throw invalido("ESTOQUE_INSUFICIENTE", "Saldo insuficiente para vender")
             }
+            val saldoDepois = qtd - item.quantidade
             EstoqueProdutosTable.update({ EstoqueProdutosTable.id eq saldo[EstoqueProdutosTable.id].value }) {
-                it[quantidade] = qtd - item.quantidade
+                it[quantidade] = saldoDepois
             }
+            registrarMovimentoEstoque(
+                idEstoque = item.idEstoque,
+                idProduto = item.idProduto,
+                tipo = "venda",
+                quantidade = -item.quantidade,
+                saldoDepois = saldoDepois,
+                idDocumento = idVenda,
+                idUsuario = idUsuario,
+            )
         }
         for (linha in negociacao) {
             VendaNegociacoesTable.insert {

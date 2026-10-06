@@ -13,6 +13,7 @@ import com.monarca.entrada.domain.StatusEntrada
 import com.monarca.entrada.domain.TipoDocumentoEntrada
 import com.monarca.estoque.repository.EstoqueProdutosTable
 import com.monarca.estoque.repository.EstoquesTable
+import com.monarca.estoque.repository.registrarMovimentoEstoque
 import com.monarca.pessoa.repository.FornecedoresTable
 import com.monarca.pessoa.repository.PessoasTable
 import com.monarca.produto.domain.Moeda
@@ -139,9 +140,9 @@ class ExposedEntradaRepository(
                         it[idProdutoUnidade] = idUnidade
                     }
                 }
-                sincronizarQtdChassi(item.idProduto, item.idEstoque)
+                sincronizarQtdChassi(item.idProduto, item.idEstoque, idEntrada, entrada.idUsuario)
             } else {
-                aumentarEstoque(item.idProduto, item.idEstoque, item.quantidade)
+                aumentarEstoque(item.idProduto, item.idEstoque, item.quantidade, idEntrada, entrada.idUsuario)
             }
         }
 
@@ -211,7 +212,7 @@ class ExposedEntradaRepository(
         idEntrada
     }
 
-    private suspend fun aumentarEstoque(idProduto: Long, idEstoque: Long, qtd: Int) {
+    private suspend fun aumentarEstoque(idProduto: Long, idEstoque: Long, qtd: Int, idEntrada: Long, idUsuario: Long) {
         val saldo = EstoqueProdutosTable.selectAll()
             .where {
                 (EstoqueProdutosTable.idEstoque eq idEstoque) and
@@ -219,7 +220,7 @@ class ExposedEntradaRepository(
                     (EstoqueProdutosTable.status neq Status.DELETADO.name.lowercase())
             }
             .singleOrNull()
-        if (saldo == null) {
+        val saldoDepois = if (saldo == null) {
             EstoqueProdutosTable.insert {
                 it[EstoqueProdutosTable.idEstoque] = idEstoque
                 it[EstoqueProdutosTable.idProduto] = idProduto
@@ -227,15 +228,27 @@ class ExposedEntradaRepository(
                 it[quantidadeReservada] = 0
                 it[status] = Status.ATIVO.name.lowercase()
             }
+            qtd
         } else {
             val atual = saldo[EstoqueProdutosTable.quantidade]
+            val depois = atual + qtd
             EstoqueProdutosTable.update({ EstoqueProdutosTable.id eq saldo[EstoqueProdutosTable.id].value }) {
-                it[quantidade] = atual + qtd
+                it[quantidade] = depois
             }
+            depois
         }
+        registrarMovimentoEstoque(
+            idEstoque = idEstoque,
+            idProduto = idProduto,
+            tipo = "entrada",
+            quantidade = qtd,
+            saldoDepois = saldoDepois,
+            idDocumento = idEntrada,
+            idUsuario = idUsuario,
+        )
     }
 
-    private suspend fun sincronizarQtdChassi(idProduto: Long, idEstoque: Long) {
+    private suspend fun sincronizarQtdChassi(idProduto: Long, idEstoque: Long, idEntrada: Long, idUsuario: Long) {
         val qtd = ProdutoUnidadesTable.selectAll()
             .where {
                 (ProdutoUnidadesTable.idProduto eq idProduto) and
@@ -251,7 +264,7 @@ class ExposedEntradaRepository(
                     (EstoqueProdutosTable.status neq Status.DELETADO.name.lowercase())
             }
             .singleOrNull()
-        if (item == null) {
+        val antes = if (item == null) {
             EstoqueProdutosTable.insert {
                 it[EstoqueProdutosTable.idEstoque] = idEstoque
                 it[EstoqueProdutosTable.idProduto] = idProduto
@@ -259,13 +272,25 @@ class ExposedEntradaRepository(
                 it[quantidadeReservada] = 0
                 it[status] = Status.ATIVO.name.lowercase()
             }
+            0
         } else {
             val reservada = item[EstoqueProdutosTable.quantidadeReservada].coerceAtMost(qtd)
+            val atual = item[EstoqueProdutosTable.quantidade]
             EstoqueProdutosTable.update({ EstoqueProdutosTable.id eq item[EstoqueProdutosTable.id].value }) {
                 it[quantidade] = qtd
                 it[quantidadeReservada] = reservada
             }
+            atual
         }
+        registrarMovimentoEstoque(
+            idEstoque = idEstoque,
+            idProduto = idProduto,
+            tipo = "entrada",
+            quantidade = qtd - antes,
+            saldoDepois = qtd,
+            idDocumento = idEntrada,
+            idUsuario = idUsuario,
+        )
     }
 
     private fun queryCabecalho() = EntradasTable

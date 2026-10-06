@@ -71,6 +71,18 @@ fun Application.configureEstoque() {
                     }
                 }
             }
+            get<EstoqueMovimentos> { resource ->
+                call.handleEstoque {
+                    call.podeConsultarEstoque()
+                    call.respond(
+                        service.listarMovimentos(
+                            resource.idFilial,
+                            resource.idProduto,
+                            call.usuarioAutenticado().id,
+                        ),
+                    )
+                }
+            }
             get<EstoqueProdutos> { resource ->
                 call.handleEstoque {
                     call.podeConsultarEstoque()

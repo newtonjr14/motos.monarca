@@ -264,8 +264,8 @@ export function formatarDataEpoch(ms: number, timeZone = "America/Asuncion"): st
   }).format(new Date(ms));
 }
 
-export function formatarDataHoraEpoch(ms: number, timeZone = "America/Asuncion"): string {
-  return new Intl.DateTimeFormat("pt-BR", {
+export function formatarDataHoraEpoch(ms: number, locale = "pt-BR", timeZone = "America/Asuncion"): string {
+  return new Intl.DateTimeFormat(locale, {
     timeZone,
     day: "2-digit",
     month: "2-digit",

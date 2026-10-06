@@ -29,6 +29,8 @@ export const Permissao = {
   CAIXA_GERENCIAR: "caixa:gerenciar",
   CAIXA_OPERAR: "caixa:operar",
   FINANCEIRO_OPERAR: "financeiro:operar",
+  ESTOQUE_CONSULTAR: "estoque:consultar",
+  RELATORIO_FINANCEIRO: "relatorio:financeiro",
 } as const;
 
 export interface TokenResponse {
@@ -784,6 +786,29 @@ export const atualizarEstoque = (id: number, body: unknown) =>
   api<Estoque>(`/estoques/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const excluirEstoque = (id: number) => api<void>(`/estoques/${id}`, { method: "DELETE" });
 
+export interface EstoqueMovimento {
+  id: number;
+  criadoEm: number;
+  idProduto: number;
+  produtoCodigo: string;
+  produtoNome: string;
+  idEstoque: number;
+  estoqueNome: string;
+  tipo: string;
+  quantidade: number;
+  saldoDepois: number;
+  idDocumento?: number | null;
+  observacao?: string | null;
+}
+
+export const listarMovimentosEstoque = (idFilial?: number, idProduto?: number) => {
+  const q = new URLSearchParams();
+  if (idFilial != null) q.set("idFilial", String(idFilial));
+  if (idProduto != null) q.set("idProduto", String(idProduto));
+  const suffix = q.toString() ? `?${q}` : "";
+  return api<EstoqueMovimento[]>(`/estoque-movimentos${suffix}`);
+};
+
 export const listarEstoqueProdutos = (idEstoque?: number, idFilial?: number) => {
   const q = new URLSearchParams();
   if (idEstoque != null) q.set("idEstoque", String(idEstoque));
@@ -1157,6 +1182,29 @@ export const criarTituloPagar = (body: unknown) =>
   api<TituloPagar>("/titulos-pagar", { method: "POST", body: JSON.stringify(body) });
 export const baixarPagamento = (body: unknown) =>
   api<TituloPagar>("/pagamentos", { method: "POST", body: JSON.stringify(body) });
+
+export interface BaixaRelatorio {
+  id: number;
+  criadoEm: number;
+  pessoaNome: string;
+  moeda: Moeda;
+  valor: number;
+  valorPyg: number;
+  desconto: number;
+  descontoPyg: number;
+  acrescimo: number;
+  acrescimoPyg: number;
+  finalizadorNome: string;
+}
+
+export const listarBaixasReceber = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<BaixaRelatorio[]>(`/baixas-receber${q}`);
+};
+export const listarBaixasPagar = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<BaixaRelatorio[]>(`/baixas-pagar${q}`);
+};
 
 export type TipoDocumentoEntrada = "py_factura" | "exterior";
 export type CondicionEntrada = "contado" | "credito";

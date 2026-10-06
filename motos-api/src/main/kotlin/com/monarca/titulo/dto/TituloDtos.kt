@@ -151,3 +151,18 @@ data class TituloPagarResumoResponse(
     val status: StatusTitulo,
     val proximoVencimento: String? = null,
 )
+
+@Serializable
+data class BaixaRelatorioResponse(
+    val id: Long,
+    val criadoEm: Long,
+    val pessoaNome: String,
+    val moeda: Moeda,
+    val valor: Double,
+    val valorPyg: Double,
+    val desconto: Double,
+    val descontoPyg: Double,
+    val acrescimo: Double,
+    val acrescimoPyg: Double,
+    val finalizadorNome: String,
+)

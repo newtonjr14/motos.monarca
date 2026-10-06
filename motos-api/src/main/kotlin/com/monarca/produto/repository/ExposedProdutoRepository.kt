@@ -2,8 +2,10 @@ package com.monarca.produto.repository
 
 import com.monarca.common.enums.Status
 import com.monarca.empresa.repository.FiliaisTable
+import com.monarca.audit.AuditContext
 import com.monarca.estoque.repository.EstoqueProdutosTable
 import com.monarca.estoque.repository.EstoquesTable
+import com.monarca.estoque.repository.registrarMovimentoEstoque
 import com.monarca.pessoa.domain.FilialVinculo
 import com.monarca.produto.domain.Produto
 import com.monarca.produto.domain.ProdutoBicicleta
@@ -731,11 +733,20 @@ class ExposedProdutoRepository(
                     (EstoqueProdutosTable.status neq Status.DELETADO.name.lowercase())
             }
             .singleOrNull() ?: return
+        val antes = item[EstoqueProdutosTable.quantidade]
         val reservada = item[EstoqueProdutosTable.quantidadeReservada].coerceAtMost(qtd)
         EstoqueProdutosTable.update({ EstoqueProdutosTable.id eq item[EstoqueProdutosTable.id].value }) {
             it[quantidade] = qtd
             it[quantidadeReservada] = reservada
         }
+        registrarMovimentoEstoque(
+            idEstoque = idEstoque,
+            idProduto = idProduto,
+            tipo = "ajuste",
+            quantidade = qtd - antes,
+            saldoDepois = qtd,
+            idUsuario = AuditContext.userId(),
+        )
     }
 
     private fun ResultRow.toUnidade() = ProdutoUnidade(

@@ -130,6 +130,20 @@ data class BaixaParcelaAplicacao(
     val acrescimoPyg: Double = 0.0,
 )
 
+data class BaixaRelatorioLinha(
+    val id: Long,
+    val criadoEm: Long,
+    val pessoaNome: String,
+    val moeda: Moeda,
+    val valor: Double,
+    val valorPyg: Double,
+    val desconto: Double,
+    val descontoPyg: Double,
+    val acrescimo: Double,
+    val acrescimoPyg: Double,
+    val finalizadorNome: String,
+)
+
 interface TituloRepository {
     suspend fun listarReceber(idFilial: Long): List<TituloReceberCompleto>
     suspend fun buscarReceber(id: Long): TituloReceberCompleto?
@@ -155,4 +169,7 @@ interface TituloRepository {
 
     suspend fun buscarParcelaReceber(idParcela: Long): Pair<TituloReceberCompleto, ParcelaPersistida>?
     suspend fun buscarParcelaPagar(idParcela: Long): Pair<TituloPagarCompleto, ParcelaPersistida>?
+
+    suspend fun listarBaixasReceber(idFilial: Long): List<BaixaRelatorioLinha>
+    suspend fun listarBaixasPagar(idFilial: Long): List<BaixaRelatorioLinha>
 }

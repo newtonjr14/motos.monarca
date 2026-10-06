@@ -530,4 +530,64 @@ class ExposedTituloRepository(
             baixas = baixas,
         )
     }
+
+    override suspend fun listarBaixasReceber(idFilial: Long): List<BaixaRelatorioLinha> = suspendTransaction(database) {
+        BaixasReceberTable
+            .join(ParcelasReceberTable, JoinType.INNER, BaixasReceberTable.idParcela, ParcelasReceberTable.id)
+            .join(TitulosReceberTable, JoinType.INNER, ParcelasReceberTable.idTitulo, TitulosReceberTable.id)
+            .join(ClientesTable, JoinType.INNER, TitulosReceberTable.idCliente, ClientesTable.id)
+            .join(PessoasTable, JoinType.INNER, ClientesTable.idPessoa, PessoasTable.id)
+            .join(FinalizadoresTable, JoinType.INNER, BaixasReceberTable.idFinalizador, FinalizadoresTable.id)
+            .selectAll()
+            .where {
+                (TitulosReceberTable.idFilial eq idFilial) and (BaixasReceberTable.status eq "ativo")
+            }
+            .orderBy(BaixasReceberTable.criadoEm to SortOrder.DESC)
+            .map { row ->
+                BaixaRelatorioLinha(
+                    id = row[BaixasReceberTable.id].value,
+                    criadoEm = row[BaixasReceberTable.criadoEm],
+                    pessoaNome = row[PessoasTable.nomeRazaoSocial],
+                    moeda = Moeda.valueOf(row[BaixasReceberTable.moeda].uppercase()),
+                    valor = row[BaixasReceberTable.valor],
+                    valorPyg = row[BaixasReceberTable.valorPyg],
+                    desconto = row[BaixasReceberTable.desconto],
+                    descontoPyg = row[BaixasReceberTable.descontoPyg],
+                    acrescimo = row[BaixasReceberTable.acrescimo],
+                    acrescimoPyg = row[BaixasReceberTable.acrescimoPyg],
+                    finalizadorNome = row[FinalizadoresTable.nome],
+                )
+            }
+            .toList()
+    }
+
+    override suspend fun listarBaixasPagar(idFilial: Long): List<BaixaRelatorioLinha> = suspendTransaction(database) {
+        BaixasPagarTable
+            .join(ParcelasPagarTable, JoinType.INNER, BaixasPagarTable.idParcela, ParcelasPagarTable.id)
+            .join(TitulosPagarTable, JoinType.INNER, ParcelasPagarTable.idTitulo, TitulosPagarTable.id)
+            .join(FornecedoresTable, JoinType.INNER, TitulosPagarTable.idFornecedor, FornecedoresTable.id)
+            .join(PessoasTable, JoinType.INNER, FornecedoresTable.idPessoa, PessoasTable.id)
+            .join(FinalizadoresTable, JoinType.INNER, BaixasPagarTable.idFinalizador, FinalizadoresTable.id)
+            .selectAll()
+            .where {
+                (TitulosPagarTable.idFilial eq idFilial) and (BaixasPagarTable.status eq "ativo")
+            }
+            .orderBy(BaixasPagarTable.criadoEm to SortOrder.DESC)
+            .map { row ->
+                BaixaRelatorioLinha(
+                    id = row[BaixasPagarTable.id].value,
+                    criadoEm = row[BaixasPagarTable.criadoEm],
+                    pessoaNome = row[PessoasTable.nomeRazaoSocial],
+                    moeda = Moeda.valueOf(row[BaixasPagarTable.moeda].uppercase()),
+                    valor = row[BaixasPagarTable.valor],
+                    valorPyg = row[BaixasPagarTable.valorPyg],
+                    desconto = row[BaixasPagarTable.desconto],
+                    descontoPyg = row[BaixasPagarTable.descontoPyg],
+                    acrescimo = row[BaixasPagarTable.acrescimo],
+                    acrescimoPyg = row[BaixasPagarTable.acrescimoPyg],
+                    finalizadorNome = row[FinalizadoresTable.nome],
+                )
+            }
+            .toList()
+    }
 }

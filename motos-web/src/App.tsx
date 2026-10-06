@@ -13,6 +13,7 @@ import CaixasPage from "@/components/CaixasPage";
 import CaixaOperacaoPage from "@/components/CaixaOperacaoPage";
 import VendasPage from "@/components/VendasPage";
 import HistoricoVendasPage from "@/components/HistoricoVendasPage";
+import RelatoriosPage from "@/components/RelatoriosPage";
 import { CotacaoAlerta, CotacaoChip, CotacaoHojeProvider } from "@/components/CotacaoBanner";
 import { FilialGate, FilialSwitcher } from "@/components/FilialUi";
 import CidadeSearchSelect from "@/components/CidadeSearchSelect";
@@ -215,6 +216,7 @@ const Icon = {
   entradaNota: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>,
   contas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/></svg>,
   caixa: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M12 14h.01"/></svg>,
+  relatorios: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5"/><path d="M12 16V8"/><path d="M16 16v-3"/></svg>,
   finalizadores: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>,
   chevron: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
   search: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
@@ -226,10 +228,15 @@ const Icon = {
   more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "vendas" | "historico" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "vendas" | "historico" | "relatorios" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
-type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: string };
-type NavGrupoId = "vendas" | "financeiro" | "catalogo" | "pessoas" | "configuracao" | "localidade";
+type NavPermissao = string | readonly string[];
+type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: NavPermissao };
+type NavGrupoId = "vendas" | "financeiro" | "relatorios" | "catalogo" | "pessoas" | "configuracao" | "localidade";
+
+function navPermitido(permissao: NavPermissao, has: (codigo: string) => boolean) {
+  return typeof permissao === "string" ? has(permissao) : permissao.some((codigo) => has(codigo));
+}
 type NavGrupo = { id: NavGrupoId; items: NavItem[] };
 
 const NAV_GRUPOS_STORAGE_KEY = "monarca.nav.grupos";
@@ -238,6 +245,7 @@ function padraoAbertos(): Record<NavGrupoId, boolean> {
   return {
     vendas: false,
     financeiro: false,
+    relatorios: false,
     catalogo: false,
     pessoas: false,
     configuracao: false,
@@ -289,6 +297,17 @@ const navGrupos: NavGrupo[] = [
       { id: "contasReceber", label: "Contas a receber", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
       { id: "contasPagar", label: "Contas a pagar", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
       { id: "entradaNota", label: "Entrada de nota", icon: "entradaNota", permissao: Permissao.FINANCEIRO_OPERAR },
+    ],
+  },
+  {
+    id: "relatorios",
+    items: [
+      {
+        id: "relatorios",
+        label: "Relatórios",
+        icon: "relatorios",
+        permissao: [Permissao.VENDA_REGISTRAR, Permissao.FINANCEIRO_OPERAR, Permissao.ESTOQUE_CONSULTAR, Permissao.ESTOQUE_GERENCIAR],
+      },
     ],
   },
   {
@@ -353,7 +372,7 @@ function Sidebar({ view, onNavigate, systemStatus }: {
   const { hasPermission } = useAuth();
   const [abertos, setAbertos] = useState<Record<NavGrupoId, boolean>>(lerAbertosSalvos);
 
-  const dashboardOk = hasPermission(navDashboard.permissao)
+  const dashboardOk = navPermitido(navDashboard.permissao, hasPermission)
     ? { ...navDashboard, label: t("nav.dashboard") }
     : null;
 
@@ -361,7 +380,7 @@ function Sidebar({ view, onNavigate, systemStatus }: {
     .map((g) => ({
       ...g,
       items: g.items
-        .filter((item) => hasPermission(item.permissao))
+        .filter((item) => navPermitido(item.permissao, hasPermission))
         .map((item) => ({ ...item, label: t(`nav.${item.id}` as const) })),
     }))
     .filter((g) => g.items.length > 0);
@@ -2858,7 +2877,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
   const { filial } = useFilial();
   const systemOnline = systemStatus === "online";
   const viewsOk = useMemo(
-    () => navTodas.filter((item) => hasPermission(item.permissao)).map((item) => item.id),
+    () => navTodas.filter((item) => navPermitido(item.permissao, hasPermission)).map((item) => item.id),
     [hasPermission],
   );
   const [view, setView] = useState<View | null>(viewsOk[0] ?? null);
@@ -2912,6 +2931,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
     dashboard: t("nav.dashboard"),
     vendas: t("nav.vendas"),
     historico: t("nav.historico"),
+    relatorios: t("nav.relatorios"),
     contasReceber: t("nav.contasReceber"),
     contasPagar: t("nav.contasPagar"),
     entradaNota: t("nav.entradaNota"),
@@ -2973,6 +2993,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
           )}
           {view === "vendas" && <VendasPage navReset={navReset} />}
           {view === "historico" && <HistoricoVendasPage navReset={navReset} />}
+          {view === "relatorios" && <RelatoriosPage navReset={navReset} />}
           {view === "contasReceber" && <ContasReceberPage navReset={navReset} />}
           {view === "contasPagar" && <ContasPagarPage navReset={navReset} />}
           {view === "entradaNota" && <EntradaNotaPage navReset={navReset} />}

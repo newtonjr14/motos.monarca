@@ -15,6 +15,34 @@ export type TranslationKey =
   | "nav.group.pessoas"
   | "nav.group.configuracao"
   | "nav.group.localidade"
+  | "nav.group.relatorios"
+  | "nav.relatorios"
+  | "relatorio.vendas"
+  | "relatorio.receber"
+  | "relatorio.pagar"
+  | "relatorio.estoque"
+  | "relatorio.posicao"
+  | "relatorio.baixas"
+  | "relatorio.movimentos"
+  | "relatorio.de"
+  | "relatorio.ate"
+  | "relatorio.total"
+  | "relatorio.registros"
+  | "relatorio.movimentoInicio"
+  | "relatorio.tipo"
+  | "relatorio.tipo.venda"
+  | "relatorio.tipo.entrada"
+  | "relatorio.tipo.ajuste"
+  | "relatorio.atraso"
+  | "relatorio.saldoDepois"
+  | "relatorio.comSaldo"
+  | "relatorio.todosSaldos"
+  | "relatorio.finalizador"
+  | "relatorio.dias"
+  | "estoque.ajusteObs"
+  | "estoque.ajusteObsHint"
+  | "produto.movimentos"
+  | "produto.movimentosEmpty"
   | "nav.dashboard"
   | "nav.clientes"
   | "nav.fornecedores"
@@ -950,6 +978,34 @@ const pt: Record<TranslationKey, string> = {
   "nav.group.pessoas": "Pessoas",
   "nav.group.configuracao": "Configuração",
   "nav.group.localidade": "Localidade",
+  "nav.group.relatorios": "Relatórios",
+  "nav.relatorios": "Relatórios",
+  "relatorio.vendas": "Vendas",
+  "relatorio.receber": "A receber",
+  "relatorio.pagar": "A pagar",
+  "relatorio.estoque": "Estoque",
+  "relatorio.posicao": "Posição",
+  "relatorio.baixas": "Baixas",
+  "relatorio.movimentos": "Movimentos",
+  "relatorio.de": "De",
+  "relatorio.ate": "Até",
+  "relatorio.total": "Total",
+  "relatorio.registros": "{n} registros",
+  "relatorio.movimentoInicio": "O histórico começa no dia em que o log passou a existir. Movimentos anteriores não são reconstruídos.",
+  "relatorio.tipo": "Tipo",
+  "relatorio.tipo.venda": "Venda",
+  "relatorio.tipo.entrada": "Entrada",
+  "relatorio.tipo.ajuste": "Ajuste",
+  "relatorio.atraso": "Atraso",
+  "relatorio.saldoDepois": "Saldo depois",
+  "relatorio.comSaldo": "Com saldo",
+  "relatorio.todosSaldos": "Todos",
+  "relatorio.finalizador": "Finalizador",
+  "relatorio.dias": "{n} d",
+  "estoque.ajusteObs": "Observação do ajuste",
+  "estoque.ajusteObsHint": "Entra no log de estoque quando a quantidade muda.",
+  "produto.movimentos": "Movimentos",
+  "produto.movimentosEmpty": "Ainda não há movimentos deste produto. O log começa a partir de agora.",
   "nav.dashboard": "Dashboard",
   "nav.clientes": "Clientes",
   "nav.fornecedores": "Fornecedores",
@@ -1886,6 +1942,34 @@ const es: Record<TranslationKey, string> = {
   "nav.group.pessoas": "Personas",
   "nav.group.configuracao": "Configuración",
   "nav.group.localidade": "Localidad",
+  "nav.group.relatorios": "Informes",
+  "nav.relatorios": "Informes",
+  "relatorio.vendas": "Ventas",
+  "relatorio.receber": "A cobrar",
+  "relatorio.pagar": "A pagar",
+  "relatorio.estoque": "Stock",
+  "relatorio.posicao": "Posición",
+  "relatorio.baixas": "Bajas",
+  "relatorio.movimentos": "Movimientos",
+  "relatorio.de": "Desde",
+  "relatorio.ate": "Hasta",
+  "relatorio.total": "Total",
+  "relatorio.registros": "{n} registros",
+  "relatorio.movimentoInicio": "El historial empieza el día en que el registro pasó a existir. Los movimientos anteriores no se reconstruyen.",
+  "relatorio.tipo": "Tipo",
+  "relatorio.tipo.venda": "Venta",
+  "relatorio.tipo.entrada": "Entrada",
+  "relatorio.tipo.ajuste": "Ajuste",
+  "relatorio.atraso": "Atraso",
+  "relatorio.saldoDepois": "Saldo después",
+  "relatorio.comSaldo": "Con saldo",
+  "relatorio.todosSaldos": "Todos",
+  "relatorio.finalizador": "Forma de pago",
+  "relatorio.dias": "{n} d",
+  "estoque.ajusteObs": "Observación del ajuste",
+  "estoque.ajusteObsHint": "Queda en el registro de stock cuando cambia la cantidad.",
+  "produto.movimentos": "Movimientos",
+  "produto.movimentosEmpty": "Todavía no hay movimientos de este producto. El registro empieza a partir de ahora.",
   "nav.dashboard": "Panel",
   "nav.clientes": "Clientes",
   "nav.fornecedores": "Proveedores",

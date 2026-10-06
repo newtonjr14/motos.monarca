@@ -23,3 +23,10 @@ class EstoqueProdutos(
     @Resource("{id}")
     class Id(val parent: EstoqueProdutos = EstoqueProdutos(), val id: Long)
 }
+
+@Serializable
+@Resource("/estoque-movimentos")
+class EstoqueMovimentos(
+    val idFilial: Long? = null,
+    val idProduto: Long? = null,
+)

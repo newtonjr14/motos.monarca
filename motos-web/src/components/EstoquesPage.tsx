@@ -50,6 +50,7 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
   const [idProduto, setIdProduto] = useState<number | "">("");
   const [quantidade, setQuantidade] = useState("0");
   const [reservada, setReservada] = useState("0");
+  const [observacao, setObservacao] = useState("");
 
   const resetLista = useCallback(() => {
     setFormAberto(false);
@@ -152,6 +153,7 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
     setIdProduto(item?.idProduto ?? "");
     setQuantidade(item ? String(item.quantidade) : "0");
     setReservada(item ? String(item.quantidadeReservada) : "0");
+    setObservacao("");
     setErro(null);
     setItemForm(true);
   }
@@ -188,6 +190,7 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
         quantidade: qtd,
         quantidadeReservada: res,
         status: "ativo" as const,
+        observacao: observacao.trim() || null,
       };
       if (editandoItem) await atualizarEstoqueProduto(editandoItem.id, body);
       else await criarEstoqueProduto(body);
@@ -251,6 +254,9 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
                   {t("estoque.available")}: {disponivel}
                 </p>
               )}
+              <Field label={t("estoque.ajusteObs")} hint={t("estoque.ajusteObsHint")}>
+                <input className="field" value={observacao} onChange={(e) => setObservacao(e.target.value)} maxLength={240} />
+              </Field>
             </>
           )}
           <div className="flex justify-end gap-2 pt-2">

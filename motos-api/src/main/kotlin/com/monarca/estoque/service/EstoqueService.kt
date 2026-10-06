@@ -7,10 +7,12 @@ import com.monarca.estoque.domain.Estoque
 import com.monarca.estoque.domain.EstoqueDetalhe
 import com.monarca.estoque.domain.EstoqueProduto
 import com.monarca.estoque.domain.EstoqueProdutoDetalhe
+import com.monarca.estoque.dto.EstoqueMovimentoResponse
 import com.monarca.estoque.dto.EstoqueProdutoRequest
 import com.monarca.estoque.dto.EstoqueProdutoResponse
 import com.monarca.estoque.dto.EstoqueRequest
 import com.monarca.estoque.dto.EstoqueResponse
+import com.monarca.estoque.repository.EstoqueMovimentoLinha
 import com.monarca.estoque.repository.EstoqueRepository
 import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.acesso
@@ -100,6 +102,7 @@ class EstoqueService(
             throw invalido("ESTOQUE_QTD_CHASSI", "A quantidade deste produto vem dos chassis. Inclua os chassis no cadastro do produto.")
         }
         val existente = repository.buscarItemPorEstoqueProduto(item.idEstoque, item.idProduto)
+        val antes = if (existente?.item?.status == Status.DELETADO) existente.item.quantidade else 0
         val id = when {
             existente == null -> repository.inserirItem(item)
             existente.item.status == Status.DELETADO -> {
@@ -108,6 +111,7 @@ class EstoqueService(
             }
             else -> throw invalido("ESTOQUE_PRODUTO_DUPLICADO", "Este produto já está neste estoque")
         }
+        registrarAjuste(item.idEstoque, item.idProduto, antes, item.quantidade, request.observacao, idUsuario)
         return buscarItem(id, idUsuario)
     }
 
@@ -122,7 +126,35 @@ class EstoqueService(
             throw invalido("ESTOQUE_QTD_CHASSI", "A quantidade deste produto vem dos chassis. Inclua os chassis no cadastro do produto.")
         }
         repository.atualizarItem(id, item)
+        registrarAjuste(item.idEstoque, item.idProduto, atual.item.quantidade, item.quantidade, request.observacao, idUsuario)
         return buscarItem(id, idUsuario)
+    }
+
+    suspend fun listarMovimentos(idFilial: Long?, idProduto: Long?, idUsuario: Long): List<EstoqueMovimentoResponse> {
+        val filial = resolverFilialComAcesso(idUsuario, idFilial)
+        return repository.listarMovimentos(filial, idProduto).map { it.toResponse() }
+    }
+
+    private suspend fun registrarAjuste(
+        idEstoque: Long,
+        idProduto: Long,
+        antes: Int,
+        depois: Int,
+        observacao: String?,
+        idUsuario: Long,
+    ) {
+        val delta = depois - antes
+        if (delta == 0) return
+        repository.registrarMovimento(
+            idEstoque = idEstoque,
+            idProduto = idProduto,
+            tipo = "ajuste",
+            quantidade = delta,
+            saldoDepois = depois,
+            idDocumento = null,
+            observacao = observacao,
+            idUsuario = idUsuario,
+        )
     }
 
     suspend fun excluirItem(id: Long, idUsuario: Long) {
@@ -197,5 +229,20 @@ class EstoqueService(
         quantidadeReservada = item.quantidadeReservada,
         quantidadeDisponivel = item.quantidade - item.quantidadeReservada,
         status = item.status,
+    )
+
+    private fun EstoqueMovimentoLinha.toResponse() = EstoqueMovimentoResponse(
+        id = id,
+        criadoEm = criadoEm,
+        idProduto = idProduto,
+        produtoCodigo = produtoCodigo,
+        produtoNome = produtoNome,
+        idEstoque = idEstoque,
+        estoqueNome = estoqueNome,
+        tipo = tipo,
+        quantidade = quantidade,
+        saldoDepois = saldoDepois,
+        idDocumento = idDocumento,
+        observacao = observacao,
     )
 }

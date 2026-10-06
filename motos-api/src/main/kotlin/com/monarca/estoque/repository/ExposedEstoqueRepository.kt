@@ -212,6 +212,60 @@ class ExposedEstoqueRepository(
             .isNotEmpty()
     }
 
+    override suspend fun listarMovimentos(idFilial: Long, idProduto: Long?): List<EstoqueMovimentoLinha> =
+        suspendTransaction(database) {
+            val filtro = if (idProduto == null) {
+                EstoqueMovimentosTable.idFilial eq idFilial
+            } else {
+                (EstoqueMovimentosTable.idFilial eq idFilial) and (EstoqueMovimentosTable.idProduto eq idProduto)
+            }
+            EstoqueMovimentosTable
+                .join(ProdutosTable, JoinType.INNER, EstoqueMovimentosTable.idProduto, ProdutosTable.id)
+                .join(EstoquesTable, JoinType.INNER, EstoqueMovimentosTable.idEstoque, EstoquesTable.id)
+                .selectAll()
+                .where { filtro }
+                .orderBy(EstoqueMovimentosTable.criadoEm to SortOrder.DESC)
+                .map { row ->
+                    EstoqueMovimentoLinha(
+                        id = row[EstoqueMovimentosTable.id].value,
+                        criadoEm = row[EstoqueMovimentosTable.criadoEm],
+                        idProduto = row[EstoqueMovimentosTable.idProduto].value,
+                        produtoCodigo = row[ProdutosTable.codigo],
+                        produtoNome = row[ProdutosTable.nome],
+                        idEstoque = row[EstoqueMovimentosTable.idEstoque].value,
+                        estoqueNome = row[EstoquesTable.nome],
+                        tipo = row[EstoqueMovimentosTable.tipo],
+                        quantidade = row[EstoqueMovimentosTable.quantidade],
+                        saldoDepois = row[EstoqueMovimentosTable.saldoDepois],
+                        idDocumento = row[EstoqueMovimentosTable.idDocumento],
+                        observacao = row[EstoqueMovimentosTable.observacao],
+                    )
+                }
+                .toList()
+        }
+
+    override suspend fun registrarMovimento(
+        idEstoque: Long,
+        idProduto: Long,
+        tipo: String,
+        quantidade: Int,
+        saldoDepois: Int,
+        idDocumento: Long?,
+        observacao: String?,
+        idUsuario: Long?,
+    ) = suspendTransaction(database) {
+        registrarMovimentoEstoque(
+            idEstoque = idEstoque,
+            idProduto = idProduto,
+            tipo = tipo,
+            quantidade = quantidade,
+            saldoDepois = saldoDepois,
+            idDocumento = idDocumento,
+            observacao = observacao,
+            idUsuario = idUsuario,
+        )
+    }
+
     private fun queryEstoques() = EstoquesTable.innerJoin(FiliaisTable).selectAll()
 
     private fun queryItens() = EstoqueProdutosTable

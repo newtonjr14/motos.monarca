@@ -1,11 +1,11 @@
 import EquivalentesMoeda from "@/components/EquivalentesMoeda";
 import ProdutoMiniatura from "@/components/ProdutoMiniatura";
-import { atualizarProdutoStatus, buscarProduto, excluirProduto, listarUnidades, type Produto, type ProdutoUnidade } from "@/api";
+import { atualizarProdutoStatus, buscarProduto, excluirProduto, listarMovimentosEstoque, listarUnidades, type EstoqueMovimento, type Produto, type ProdutoUnidade } from "@/api";
 import { useFilial, useFilialId } from "@/auth/FilialContext";
 import { useCotacaoHoje } from "@/components/CotacaoBanner";
 import { FormTabs, Section } from "@/components/crud/Field";
 import { StatusTexto, Td } from "@/components/crud/ListUi";
-import { converterMoeda, formatMoeda, moedaOperacaoDe } from "@/format";
+import { converterMoeda, formatMoeda, formatarDataHoraEpoch, moedaOperacaoDe } from "@/format";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import { useEffect, useState, type ReactNode } from "react";
@@ -56,13 +56,14 @@ export default function ProdutoFicha({
   onEdit: (item: Produto) => void;
   onChanged: () => Promise<void>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const idFilial = useFilialId();
   const { filial } = useFilial();
   const moedaOp = moedaOperacaoDe(filial?.moedaOperacao);
   const { cotacao } = useCotacaoHoje();
   const [item, setItem] = useState<Produto>(fallback);
   const [unidades, setUnidades] = useState<ProdutoUnidade[]>([]);
+  const [movimentos, setMovimentos] = useState<EstoqueMovimento[]>([]);
   const [guia, setGuia] = useState<"dados" | "estoque">("dados");
   const [carregando, setCarregando] = useState(() => fallback.moto == null && fallback.bicicleta == null);
   const [loading, setLoading] = useState<"status" | "delete" | null>(null);
@@ -93,6 +94,15 @@ export default function ProdutoFicha({
       .catch(() => { if (ativo) setUnidades([]); });
     return () => { ativo = false; };
   }, [id, idFilial, item.controlaChassi]);
+
+  useEffect(() => {
+    if (guia !== "estoque") return;
+    let ativo = true;
+    void listarMovimentosEstoque(idFilial, id)
+      .then((lista) => { if (ativo) setMovimentos(lista); })
+      .catch(() => { if (ativo) setMovimentos([]); });
+    return () => { ativo = false; };
+  }, [guia, id, idFilial]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -350,6 +360,42 @@ export default function ProdutoFicha({
                             <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{e.quantidade}</td>
                             <td className="drive-td font-mono" style={{ color: v("--text-muted") }}>{e.quantidadeReservada}</td>
                             <td className="drive-td font-mono" style={{ color: v("--text") }}>{e.quantidadeDisponivel}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Section>
+              <Section title={t("produto.movimentos")}>
+                {movimentos.length === 0 ? (
+                  <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("produto.movimentosEmpty")}</p>
+                ) : (
+                  <div className="rounded-md overflow-auto max-h-56" style={{ border: border1() }}>
+                    <table className="drive-table w-full">
+                      <thead>
+                        <tr>
+                          <th className="drive-th">{t("col.date")}</th>
+                          <th className="drive-th">{t("nav.estoques")}</th>
+                          <th className="drive-th">{t("relatorio.tipo")}</th>
+                          <th className="drive-th">{t("estoque.qty")}</th>
+                          <th className="drive-th">{t("relatorio.saldoDepois")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {movimentos.map((m) => (
+                          <tr key={m.id} style={{ borderBottom: border1() }}>
+                            <td className="drive-td font-mono text-xs" style={{ color: v("--text-sub") }}>
+                              {formatarDataHoraEpoch(m.criadoEm, locale === "es" ? "es-PY" : "pt-BR")}
+                            </td>
+                            <td className="drive-td text-xs" style={{ color: v("--text") }}>{m.estoqueNome}</td>
+                            <td className="drive-td text-xs" style={{ color: v("--text-sub") }}>
+                              {t(m.tipo === "venda" ? "relatorio.tipo.venda" : m.tipo === "entrada" ? "relatorio.tipo.entrada" : "relatorio.tipo.ajuste")}
+                            </td>
+                            <td className="drive-td font-mono text-xs" style={{ color: m.quantidade < 0 ? "#ef4444" : "#16a34a" }}>
+                              {m.quantidade > 0 ? `+${m.quantidade}` : m.quantidade}
+                            </td>
+                            <td className="drive-td font-mono text-xs" style={{ color: v("--text") }}>{m.saldoDepois}</td>
                           </tr>
                         ))}
                       </tbody>

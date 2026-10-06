@@ -24,4 +24,31 @@ interface EstoqueRepository {
     suspend fun atualizarItem(id: Long, item: EstoqueProduto): Boolean
     suspend fun excluirItem(id: Long): Boolean
     suspend fun produtoEmEstoque(idProduto: Long): Boolean
+
+    suspend fun listarMovimentos(idFilial: Long, idProduto: Long?): List<EstoqueMovimentoLinha>
+    suspend fun registrarMovimento(
+        idEstoque: Long,
+        idProduto: Long,
+        tipo: String,
+        quantidade: Int,
+        saldoDepois: Int,
+        idDocumento: Long?,
+        observacao: String?,
+        idUsuario: Long?,
+    )
 }
+
+data class EstoqueMovimentoLinha(
+    val id: Long,
+    val criadoEm: Long,
+    val idProduto: Long,
+    val produtoCodigo: String,
+    val produtoNome: String,
+    val idEstoque: Long,
+    val estoqueNome: String,
+    val tipo: String,
+    val quantidade: Int,
+    val saldoDepois: Int,
+    val idDocumento: Long?,
+    val observacao: String?,
+)

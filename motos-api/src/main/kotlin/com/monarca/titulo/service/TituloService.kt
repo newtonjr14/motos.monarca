@@ -15,6 +15,7 @@ import com.monarca.titulo.domain.ModoVencimento
 import com.monarca.titulo.domain.OrigemTitulo
 import com.monarca.titulo.domain.StatusParcela
 import com.monarca.titulo.domain.StatusTitulo
+import com.monarca.titulo.dto.BaixaRelatorioResponse
 import com.monarca.titulo.dto.BaixaResponse
 import com.monarca.titulo.dto.BaixaTituloRequest
 import com.monarca.titulo.dto.ParcelaResponse
@@ -25,6 +26,7 @@ import com.monarca.titulo.dto.TituloPagarResumoResponse
 import com.monarca.titulo.dto.TituloReceberRequest
 import com.monarca.titulo.dto.TituloReceberResponse
 import com.monarca.titulo.dto.TituloReceberResumoResponse
+import com.monarca.titulo.repository.BaixaRelatorioLinha
 import com.monarca.titulo.repository.BaixaNova
 import com.monarca.titulo.repository.BaixaParcelaAplicacao
 import com.monarca.titulo.repository.BaixaPersistida
@@ -175,6 +177,16 @@ class TituloService(
     suspend fun listarPagar(idFilial: Long?, idUsuario: Long): List<TituloPagarResumoResponse> {
         val filial = resolverFilial(idUsuario, idFilial)
         return repository.listarPagar(filial).map { it.toResumo() }
+    }
+
+    suspend fun listarBaixasReceber(idFilial: Long?, idUsuario: Long): List<BaixaRelatorioResponse> {
+        val filial = resolverFilial(idUsuario, idFilial)
+        return repository.listarBaixasReceber(filial).map { it.toRelatorio() }
+    }
+
+    suspend fun listarBaixasPagar(idFilial: Long?, idUsuario: Long): List<BaixaRelatorioResponse> {
+        val filial = resolverFilial(idUsuario, idFilial)
+        return repository.listarBaixasPagar(filial).map { it.toRelatorio() }
     }
 
     suspend fun buscarPagar(id: Long, idUsuario: Long): TituloPagarResponse {
@@ -570,6 +582,20 @@ class TituloService(
         criadoEm = criadoEm,
         status = status,
         proximoVencimento = parcelas.filter { it.saldo > 0 }.minByOrNull { it.vencimento }?.vencimento,
+    )
+
+    private fun BaixaRelatorioLinha.toRelatorio() = BaixaRelatorioResponse(
+        id = id,
+        criadoEm = criadoEm,
+        pessoaNome = pessoaNome,
+        moeda = moeda,
+        valor = valor,
+        valorPyg = valorPyg,
+        desconto = desconto,
+        descontoPyg = descontoPyg,
+        acrescimo = acrescimo,
+        acrescimoPyg = acrescimoPyg,
+        finalizadorNome = finalizadorNome,
     )
 
     private fun TituloReceberCompleto.toResponse() = TituloReceberResponse(

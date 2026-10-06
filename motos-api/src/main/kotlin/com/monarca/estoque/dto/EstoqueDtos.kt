@@ -27,6 +27,7 @@ data class EstoqueProdutoRequest(
     val quantidade: Int,
     val quantidadeReservada: Int = 0,
     val status: Status = Status.ATIVO,
+    val observacao: String? = null,
 )
 
 @Serializable
@@ -44,4 +45,20 @@ data class EstoqueProdutoResponse(
     val quantidadeReservada: Int,
     val quantidadeDisponivel: Int,
     val status: Status,
+)
+
+@Serializable
+data class EstoqueMovimentoResponse(
+    val id: Long,
+    val criadoEm: Long,
+    val idProduto: Long,
+    val produtoCodigo: String,
+    val produtoNome: String,
+    val idEstoque: Long,
+    val estoqueNome: String,
+    val tipo: String,
+    val quantidade: Int,
+    val saldoDepois: Int,
+    val idDocumento: Long? = null,
+    val observacao: String? = null,
 )
