@@ -328,22 +328,39 @@ class VendaService(
         }
         val montado = agrupado.map { (chave, valor) ->
             val (idFinalizador, moeda) = chave
-            Triple(idFinalizador, moeda, valor to paraPyg(valor, moeda, cotacao))
-        }
-        val soma = montado.sumOf { it.third.second }
-        if (abs(soma - totalPyg) > 1.0) {
+            LinhaNegociacao(idFinalizador, moeda, valor, paraPyg(valor, moeda, cotacao))
+        }.toMutableList()
+        val soma = montado.sumOf { it.valorPyg }
+        val diff = totalPyg - soma
+        if (abs(diff) > toleranciaFechamento(cotacao)) {
             throw invalido("VENDA_NEGOCIACAO_DIVERGENTE", "A soma das formas de pagamento deve igualar o total")
         }
+        if (diff != 0.0 && montado.isNotEmpty()) {
+            val ultima = montado.last()
+            montado[montado.lastIndex] = ultima.copy(valorPyg = ultima.valorPyg + diff)
+        }
         val nomes = caixaService.listarFinalizadores().associate { it.id to it.nome }
-        return montado.map { (idFinalizador, moeda, valores) ->
+        return montado.map { linha ->
             VendaNegociacaoPersistencia(
-                idFinalizador = idFinalizador,
-                finalizadorNome = nomes[idFinalizador] ?: "",
-                moeda = moeda.name.lowercase(),
-                valor = valores.first,
-                valorPyg = valores.second,
+                idFinalizador = linha.idFinalizador,
+                finalizadorNome = nomes[linha.idFinalizador] ?: "",
+                moeda = linha.moeda.name.lowercase(),
+                valor = linha.valor,
+                valorPyg = linha.valorPyg,
             )
         }
+    }
+
+    private data class LinhaNegociacao(
+        val idFinalizador: Long,
+        val moeda: Moeda,
+        val valor: Double,
+        val valorPyg: Double,
+    )
+
+    private fun toleranciaFechamento(cotacao: CotacaoResponse): Double {
+        val centavos = maxOf(cotacao.usdPyg, cotacao.brlPyg) * 0.02
+        return maxOf(1.0, centavos)
     }
 
     private fun paraPyg(valor: Double, moeda: Moeda, cotacao: CotacaoResponse): Double {

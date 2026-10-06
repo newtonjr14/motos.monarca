@@ -56,6 +56,10 @@ data class BaixaPersistida(
     val moeda: Moeda,
     val valor: Double,
     val valorPyg: Double,
+    val desconto: Double = 0.0,
+    val descontoPyg: Double = 0.0,
+    val acrescimo: Double = 0.0,
+    val acrescimoPyg: Double = 0.0,
     val idUsuario: Long,
     val criadoEm: Long,
     val observacao: String?,
@@ -120,6 +124,10 @@ data class BaixaParcelaAplicacao(
     val valorPyg: Double,
     val saldoRestante: Double,
     val statusParcela: StatusParcela,
+    val desconto: Double = 0.0,
+    val descontoPyg: Double = 0.0,
+    val acrescimo: Double = 0.0,
+    val acrescimoPyg: Double = 0.0,
 )
 
 interface TituloRepository {

@@ -1079,6 +1079,10 @@ export interface BaixaTitulo {
   moeda: Moeda;
   valor: number;
   valorPyg: number;
+  desconto?: number;
+  descontoPyg?: number;
+  acrescimo?: number;
+  acrescimoPyg?: number;
   criadoEm: number;
   observacao?: string | null;
 }

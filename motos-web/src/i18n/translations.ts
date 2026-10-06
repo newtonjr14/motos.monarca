@@ -745,6 +745,7 @@ export type TranslationKey =
   | "venda.error.items"
   | "venda.error.pay"
   | "venda.parcelas"
+  | "venda.parcelasEmpty"
   | "venda.qtdParcelas"
   | "venda.modoVencimento"
   | "venda.diaVencimento"
@@ -764,6 +765,15 @@ export type TranslationKey =
   | "titulo.cotacaoTravada"
   | "titulo.fifoHint"
   | "titulo.searchPlaceholder"
+  | "titulo.filtro.abertos"
+  | "titulo.filtro.quitados"
+  | "titulo.filtro.abertas"
+  | "titulo.filtro.pagas"
+  | "titulo.filtro.vazio"
+  | "titulo.desconto"
+  | "titulo.acrescimo"
+  | "titulo.quitaSaldo"
+  | "titulo.ajusteValor"
   | "titulo.error.cliente"
   | "titulo.error.fornecedor"
   | "titulo.error.valor"
@@ -809,6 +819,9 @@ export type TranslationKey =
   | "api.BAIXA_CLIENTE_MISTO"
   | "api.BAIXA_FORNECEDOR_MISTO"
   | "api.BAIXA_MAIOR_SALDO"
+  | "api.BAIXA_VALOR_AJUSTE"
+  | "api.BAIXA_DESCONTO_MAIOR"
+  | "api.BAIXA_AJUSTE_INVALIDO"
   | "api.PARCELA_JA_PAGA"
   | "api.ENTRADA_PY_DUPLICADA"
   | "api.ENTRADA_PY_CAMPOS"
@@ -844,6 +857,7 @@ export type TranslationKey =
   | "venda.open"
   | "venda.openEmpty"
   | "venda.summary"
+  | "venda.seeSummary"
   | "venda.discardConfirm"
   | "venda.emptyHint"
   | "venda.filter.all"
@@ -1710,6 +1724,7 @@ const pt: Record<TranslationKey, string> = {
   "venda.error.items": "Adicione ao menos um item",
   "venda.error.pay": "Informe o pagamento",
   "venda.parcelas": "Parcelas do crediário",
+  "venda.parcelasEmpty": "Informe a quantidade para ver os vencimentos",
   "venda.qtdParcelas": "Quantidade de parcelas",
   "venda.modoVencimento": "Vencimentos",
   "venda.diaVencimento": "Dia do mês",
@@ -1728,6 +1743,15 @@ const pt: Record<TranslationKey, string> = {
   "titulo.selecionarTodas": "Selecionar todas as parcelas abertas",
   "titulo.cotacaoTravada": "Cotação travada",
   "titulo.fifoHint": "Se o valor for menor que o saldo, quita primeiro as parcelas com vencimento mais próximo.",
+  "titulo.filtro.abertos": "Abertos",
+  "titulo.filtro.quitados": "Quitados",
+  "titulo.filtro.abertas": "Abertas",
+  "titulo.filtro.pagas": "Pagas",
+  "titulo.filtro.vazio": "Nenhuma parcela neste filtro",
+  "titulo.desconto": "Desconto",
+  "titulo.acrescimo": "Acréscimo",
+  "titulo.quitaSaldo": "Quita o saldo de",
+  "titulo.ajusteValor": "Para quitar com este ajuste, o valor tem de ser",
   "titulo.searchPlaceholder": "Cliente, status...",
   "titulo.error.cliente": "Selecione o cliente",
   "titulo.error.fornecedor": "Selecione o fornecedor",
@@ -1774,6 +1798,9 @@ const pt: Record<TranslationKey, string> = {
   "api.BAIXA_CLIENTE_MISTO": "Não é possível misturar clientes no mesmo recebimento",
   "api.BAIXA_FORNECEDOR_MISTO": "Não é possível misturar fornecedores no mesmo pagamento",
   "api.BAIXA_MAIOR_SALDO": "O valor não pode exceder o saldo das parcelas selecionadas",
+  "api.BAIXA_VALOR_AJUSTE": "Com desconto ou acréscimo, o valor tem de quitar o saldo selecionado",
+  "api.BAIXA_DESCONTO_MAIOR": "O desconto não pode exceder o saldo",
+  "api.BAIXA_AJUSTE_INVALIDO": "Desconto e acréscimo não podem ser negativos",
   "api.PARCELA_JA_PAGA": "A parcela já está quitada",
   "api.ENTRADA_PY_DUPLICADA": "Esta fatura já foi lançada para o fornecedor",
   "api.ENTRADA_PY_CAMPOS": "Informe timbrado, establecimiento, punto e número",
@@ -1796,6 +1823,7 @@ const pt: Record<TranslationKey, string> = {
   "venda.open": "Em aberto",
   "venda.openEmpty": "Nenhuma",
   "venda.summary": "Resumo",
+  "venda.seeSummary": "Ver resumo",
   "venda.discardConfirm": "Há uma venda em andamento. Deseja descartá-la?",
   "venda.filter.all": "Todos",
   "venda.units": "{n} un.",
@@ -2642,6 +2670,7 @@ const es: Record<TranslationKey, string> = {
   "venda.error.items": "Agregue al menos un ítem",
   "venda.error.pay": "Indique el pago",
   "venda.parcelas": "Cuotas del crédito",
+  "venda.parcelasEmpty": "Indique la cantidad para ver los vencimientos",
   "venda.qtdParcelas": "Cantidad de cuotas",
   "venda.modoVencimento": "Vencimientos",
   "venda.diaVencimento": "Día del mes",
@@ -2660,6 +2689,15 @@ const es: Record<TranslationKey, string> = {
   "titulo.selecionarTodas": "Seleccionar todas las cuotas abiertas",
   "titulo.cotacaoTravada": "Cotización fijada",
   "titulo.fifoHint": "Si el valor es menor que el saldo, liquida primero las cuotas con vencimiento más próximo.",
+  "titulo.filtro.abertos": "Abiertos",
+  "titulo.filtro.quitados": "Liquidados",
+  "titulo.filtro.abertas": "Abiertas",
+  "titulo.filtro.pagas": "Pagadas",
+  "titulo.filtro.vazio": "Ninguna cuota en este filtro",
+  "titulo.desconto": "Descuento",
+  "titulo.acrescimo": "Recargo",
+  "titulo.quitaSaldo": "Liquida el saldo de",
+  "titulo.ajusteValor": "Para liquidar con este ajuste, el valor tiene que ser",
   "titulo.searchPlaceholder": "Cliente, estado...",
   "titulo.error.cliente": "Seleccione el cliente",
   "titulo.error.fornecedor": "Seleccione el proveedor",
@@ -2706,6 +2744,9 @@ const es: Record<TranslationKey, string> = {
   "api.BAIXA_CLIENTE_MISTO": "No se pueden mezclar clientes en el mismo cobro",
   "api.BAIXA_FORNECEDOR_MISTO": "No se pueden mezclar proveedores en el mismo pago",
   "api.BAIXA_MAIOR_SALDO": "El valor no puede superar el saldo de las cuotas seleccionadas",
+  "api.BAIXA_VALOR_AJUSTE": "Con descuento o recargo, el valor tiene que liquidar el saldo seleccionado",
+  "api.BAIXA_DESCONTO_MAIOR": "El descuento no puede superar el saldo",
+  "api.BAIXA_AJUSTE_INVALIDO": "El descuento y el recargo no pueden ser negativos",
   "api.PARCELA_JA_PAGA": "La cuota ya está liquidada",
   "api.ENTRADA_PY_DUPLICADA": "Esta factura ya fue registrada para el proveedor",
   "api.ENTRADA_PY_CAMPOS": "Indique timbrado, establecimiento, punto y número",
@@ -2728,6 +2769,7 @@ const es: Record<TranslationKey, string> = {
   "venda.open": "En abierto",
   "venda.openEmpty": "Ninguna",
   "venda.summary": "Resumen",
+  "venda.seeSummary": "Ver resumen",
   "venda.discardConfirm": "Hay una venta en curso. ¿Desea descartarla?",
   "venda.filter.all": "Todos",
   "venda.units": "{n} un.",

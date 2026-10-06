@@ -68,8 +68,13 @@ export default function SearchPickerModal({
 
   useEffect(() => {
     if (!open || !listRef.current) return;
-    const el = listRef.current.querySelector<HTMLElement>(`[data-idx="${destaque}"]`);
-    el?.scrollIntoView({ block: "nearest" });
+    const list = listRef.current;
+    const el = list.querySelector<HTMLElement>(`[data-idx="${destaque}"]`);
+    if (!el) return;
+    const listRect = list.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    if (elRect.top < listRect.top) list.scrollTop -= listRect.top - elRect.top;
+    else if (elRect.bottom > listRect.bottom) list.scrollTop += elRect.bottom - listRect.bottom;
   }, [destaque, open, items.length]);
 
   if (!open) return null;
@@ -81,19 +86,19 @@ export default function SearchPickerModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[220] flex items-start justify-center p-4 sm:p-6 overflow-y-auto"
-      style={{ background: "rgba(0,0,0,0.5)", paddingTop: "12vh" }}
+      className="fixed inset-0 z-[220] flex items-start justify-center overflow-hidden px-4 sm:px-6"
+      style={{ background: "rgba(0,0,0,0.5)", paddingTop: "8vh", paddingBottom: "2rem" }}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
     >
       <div
-        className="w-full max-w-lg rounded-xl shadow-2xl flex flex-col overflow-hidden"
+        className="w-full max-w-lg rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0"
         style={{
           background: v("--card"),
           border: border1(),
-          maxHeight: "min(28rem, calc(100vh - 16vh))",
+          maxHeight: "100%",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -141,7 +146,7 @@ export default function SearchPickerModal({
           />
         </div>
 
-        <ul ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 pb-3">
+        <ul ref={listRef} className="search-picker-list px-2 pb-3">
           {items.length === 0 && (
             <li className="px-3 py-6 text-center space-y-2">
               <p className="text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</p>

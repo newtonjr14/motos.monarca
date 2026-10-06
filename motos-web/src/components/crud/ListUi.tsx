@@ -239,6 +239,41 @@ export function StatusFilter({ value, onChange }: {
   );
 }
 
+export type FiltroTitulo = "todos" | "abertos" | "quitados";
+
+export function passaFiltroTitulo(status: string, filtro: FiltroTitulo): boolean {
+  if (filtro === "todos") return true;
+  if (filtro === "quitados") return status === "quitado";
+  return status === "aberto" || status === "parcial";
+}
+
+export function TituloFiltro({ value, onChange }: {
+  value: FiltroTitulo;
+  onChange: (v: FiltroTitulo) => void;
+}) {
+  const { t } = useI18n();
+  const opcoes: { id: FiltroTitulo; label: TranslationKey }[] = [
+    { id: "abertos", label: "titulo.filtro.abertos" },
+    { id: "quitados", label: "titulo.filtro.quitados" },
+    { id: "todos", label: "filter.status.all" },
+  ];
+  return (
+    <div className="status-filter" role="group" aria-label={t("filter.status.label")}>
+      {opcoes.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          className={`status-filter-btn${value === o.id ? " is-on" : ""}`}
+          aria-pressed={value === o.id}
+          onClick={() => onChange(o.id)}
+        >
+          {t(o.label)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function ListToolbar({ children }: { children: ReactNode }) {
   return <div className="list-toolbar">{children}</div>;
 }

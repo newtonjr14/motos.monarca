@@ -42,6 +42,8 @@ data class BaixaTituloRequest(
     val idCaixaSessao: Long? = null,
     val moeda: Moeda = Moeda.PYG,
     val valor: Double,
+    val desconto: Double = 0.0,
+    val acrescimo: Double = 0.0,
     val observacao: String? = null,
 )
 
@@ -66,6 +68,10 @@ data class BaixaResponse(
     val moeda: Moeda,
     val valor: Double,
     val valorPyg: Double,
+    val desconto: Double = 0.0,
+    val descontoPyg: Double = 0.0,
+    val acrescimo: Double = 0.0,
+    val acrescimoPyg: Double = 0.0,
     val criadoEm: Long,
     val observacao: String? = null,
 )

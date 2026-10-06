@@ -147,6 +147,10 @@ class ExposedTituloRepository(
                 it[moeda] = comum.moeda.name.lowercase()
                 it[valor] = ap.valor
                 it[valorPyg] = ap.valorPyg
+                it[desconto] = ap.desconto
+                it[descontoPyg] = ap.descontoPyg
+                it[acrescimo] = ap.acrescimo
+                it[acrescimoPyg] = ap.acrescimoPyg
                 it[idUsuario] = comum.idUsuario
                 it[criadoEm] = agora
                 it[observacao] = comum.observacao
@@ -163,6 +167,7 @@ class ExposedTituloRepository(
         }
         val total = aplicacoes.sumOf { it.valor }
         val totalPyg = aplicacoes.sumOf { it.valorPyg }
+        if (total > 0.0000001) {
         val mov = CaixaMovimentacoesTable.insert {
             it[idCaixaSessao] = comum.idCaixaSessao
             it[tipo] = TipoMovimentacaoCaixa.RECEBIMENTO.name.lowercase()
@@ -179,6 +184,7 @@ class ExposedTituloRepository(
             it[moeda] = comum.moeda.name.lowercase()
             it[valor] = total
             it[valorPyg] = totalPyg
+        }
         }
         gravarAuditLog(
             "baixa_receber",
@@ -301,6 +307,10 @@ class ExposedTituloRepository(
                 it[moeda] = comum.moeda.name.lowercase()
                 it[valor] = ap.valor
                 it[valorPyg] = ap.valorPyg
+                it[desconto] = ap.desconto
+                it[descontoPyg] = ap.descontoPyg
+                it[acrescimo] = ap.acrescimo
+                it[acrescimoPyg] = ap.acrescimoPyg
                 it[idUsuario] = comum.idUsuario
                 it[criadoEm] = agora
                 it[observacao] = comum.observacao
@@ -317,6 +327,7 @@ class ExposedTituloRepository(
         }
         val total = aplicacoes.sumOf { it.valor }
         val totalPyg = aplicacoes.sumOf { it.valorPyg }
+        if (total > 0.0000001) {
         val mov = CaixaMovimentacoesTable.insert {
             it[idCaixaSessao] = comum.idCaixaSessao
             it[tipo] = TipoMovimentacaoCaixa.PAGAMENTO.name.lowercase()
@@ -333,6 +344,7 @@ class ExposedTituloRepository(
             it[moeda] = comum.moeda.name.lowercase()
             it[valor] = -total
             it[valorPyg] = -totalPyg
+        }
         }
         gravarAuditLog(
             "baixa_pagar",
@@ -414,6 +426,10 @@ class ExposedTituloRepository(
                         moeda = Moeda.valueOf(it[BaixasReceberTable.moeda].uppercase()),
                         valor = it[BaixasReceberTable.valor],
                         valorPyg = it[BaixasReceberTable.valorPyg],
+                        desconto = it[BaixasReceberTable.desconto],
+                        descontoPyg = it[BaixasReceberTable.descontoPyg],
+                        acrescimo = it[BaixasReceberTable.acrescimo],
+                        acrescimoPyg = it[BaixasReceberTable.acrescimoPyg],
                         idUsuario = it[BaixasReceberTable.idUsuario].value,
                         criadoEm = it[BaixasReceberTable.criadoEm],
                         observacao = it[BaixasReceberTable.observacao],
@@ -483,6 +499,10 @@ class ExposedTituloRepository(
                         moeda = Moeda.valueOf(it[BaixasPagarTable.moeda].uppercase()),
                         valor = it[BaixasPagarTable.valor],
                         valorPyg = it[BaixasPagarTable.valorPyg],
+                        desconto = it[BaixasPagarTable.desconto],
+                        descontoPyg = it[BaixasPagarTable.descontoPyg],
+                        acrescimo = it[BaixasPagarTable.acrescimo],
+                        acrescimoPyg = it[BaixasPagarTable.acrescimoPyg],
                         idUsuario = it[BaixasPagarTable.idUsuario].value,
                         criadoEm = it[BaixasPagarTable.criadoEm],
                         observacao = it[BaixasPagarTable.observacao],

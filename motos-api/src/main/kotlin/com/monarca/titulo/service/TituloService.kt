@@ -37,6 +37,8 @@ import com.monarca.titulo.repository.TituloRepository
 import com.monarca.usuario.repository.UsuarioRepository
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.round
 
 class TituloService(
@@ -139,11 +141,6 @@ class TituloService(
                 throw invalido("PARCELA_JA_PAGA", "A parcela ${p.numero} já está quitada")
             }
         }
-        if (request.valor <= 0) throw invalido("BAIXA_VALOR_INVALIDO", "O valor da baixa deve ser maior que zero")
-        val saldoSelecionado = parcelas.sumOf { it.saldo }
-        if (request.valor > saldoSelecionado + 0.009) {
-            throw invalido("BAIXA_MAIOR_SALDO", "O valor da baixa não pode exceder o saldo das parcelas selecionadas")
-        }
         val finalizador = caixaService.buscarFinalizador(request.idFinalizador)
         if (finalizador.geraContasReceber || finalizador.geraContasPagar) {
             throw invalido("FINALIZADOR_NAO_LIQUIDA", "Use uma forma de caixa para liquidar a parcela")
@@ -152,7 +149,7 @@ class TituloService(
             throw invalido("FINALIZADOR_INATIVO", "O finalizador não está ativo")
         }
         val sessao = caixaService.resolverSessaoVenda(idUsuario, titulo.idFilial, request.idCaixaSessao)
-        val aplicacoes = ratearFifo(parcelas, request.valor, request.moeda, titulo.moeda, titulo.usdPyg, titulo.brlPyg)
+        val aplicacoes = montarAplicacoes(parcelas, request, titulo.moeda, titulo.usdPyg, titulo.brlPyg)
         val saldosApos = titulo.parcelas.associate { it.id to it.saldo }.toMutableMap()
         for (ap in aplicacoes) saldosApos[ap.idParcela] = ap.saldoRestante
         val statusTitulo = statusTituloApos(titulo.parcelas, saldosApos)
@@ -235,11 +232,6 @@ class TituloService(
                 throw invalido("PARCELA_JA_PAGA", "A parcela ${p.numero} já está quitada")
             }
         }
-        if (request.valor <= 0) throw invalido("BAIXA_VALOR_INVALIDO", "O valor da baixa deve ser maior que zero")
-        val saldoSelecionado = parcelas.sumOf { it.saldo }
-        if (request.valor > saldoSelecionado + 0.009) {
-            throw invalido("BAIXA_MAIOR_SALDO", "O valor da baixa não pode exceder o saldo das parcelas selecionadas")
-        }
         val finalizador = caixaService.buscarFinalizador(request.idFinalizador)
         if (finalizador.geraContasReceber || finalizador.geraContasPagar) {
             throw invalido("FINALIZADOR_NAO_LIQUIDA", "Use uma forma de caixa para liquidar a parcela")
@@ -248,7 +240,7 @@ class TituloService(
             throw invalido("FINALIZADOR_INATIVO", "O finalizador não está ativo")
         }
         val sessao = caixaService.resolverSessaoVenda(idUsuario, titulo.idFilial, request.idCaixaSessao)
-        val aplicacoes = ratearFifo(parcelas, request.valor, request.moeda, titulo.moeda, titulo.usdPyg, titulo.brlPyg)
+        val aplicacoes = montarAplicacoes(parcelas, request, titulo.moeda, titulo.usdPyg, titulo.brlPyg)
         val saldosApos = titulo.parcelas.associate { it.id to it.saldo }.toMutableMap()
         for (ap in aplicacoes) saldosApos[ap.idParcela] = ap.saldoRestante
         val statusTitulo = statusTituloApos(titulo.parcelas, saldosApos)
@@ -277,6 +269,118 @@ class TituloService(
         return ids
     }
 
+    private fun montarAplicacoes(
+        parcelas: List<ParcelaPersistida>,
+        request: BaixaTituloRequest,
+        moedaTitulo: Moeda,
+        usdPyg: Double,
+        brlPyg: Double,
+    ): List<BaixaParcelaAplicacao> {
+        val desconto = if (request.desconto.isNaN()) 0.0 else request.desconto
+        val acrescimo = if (request.acrescimo.isNaN()) 0.0 else request.acrescimo
+        if (desconto < -0.0000001 || acrescimo < -0.0000001) {
+            throw invalido("BAIXA_AJUSTE_INVALIDO", "Desconto e acréscimo não podem ser negativos")
+        }
+        val saldoSelecionado = parcelas.sumOf { it.saldo }
+        val temAjuste = desconto > 0.0000001 || acrescimo > 0.0000001
+        if (!temAjuste) {
+            if (request.valor <= 0) throw invalido("BAIXA_VALOR_INVALIDO", "O valor da baixa deve ser maior que zero")
+            val saldoPyg = parcelas.sumOf { pygDoSaldo(it) }
+            val valorPyg = paraPygTravado(request.valor, request.moeda, usdPyg, brlPyg)
+            val tol = toleranciaPyg(usdPyg, brlPyg)
+            val mesmaMoeda = request.moeda == moedaTitulo
+            if (mesmaMoeda && request.valor > saldoSelecionado + 0.009) {
+                throw invalido("BAIXA_MAIOR_SALDO", "O valor da baixa não pode exceder o saldo das parcelas selecionadas")
+            }
+            if (!mesmaMoeda && valorPyg > saldoPyg + tol) {
+                throw invalido("BAIXA_MAIOR_SALDO", "O valor da baixa não pode exceder o saldo das parcelas selecionadas")
+            }
+            if (!mesmaMoeda && abs(valorPyg - saldoPyg) <= tol) {
+                return ratearQuitacao(parcelas, request.valor, 0.0, 0.0, request.moeda, usdPyg, brlPyg)
+            }
+            return ratearFifo(parcelas, request.valor, request.moeda, moedaTitulo, usdPyg, brlPyg)
+        }
+        val tol = toleranciaPyg(usdPyg, brlPyg)
+        val saldoPyg = parcelas.sumOf { pygDoSaldo(it) }
+        val valorPyg = paraPygTravado(max(0.0, request.valor), request.moeda, usdPyg, brlPyg)
+        val descontoPyg = paraPygTravado(desconto, request.moeda, usdPyg, brlPyg)
+        val acrescimoPyg = paraPygTravado(acrescimo, request.moeda, usdPyg, brlPyg)
+        if (descontoPyg > saldoPyg + tol) {
+            throw invalido("BAIXA_DESCONTO_MAIOR", "O desconto não pode exceder o saldo")
+        }
+        val quitaPyg = valorPyg + descontoPyg - acrescimoPyg
+        if (abs(quitaPyg - saldoPyg) > tol) {
+            throw invalido("BAIXA_VALOR_AJUSTE", "Com desconto ou acréscimo, o valor tem de quitar o saldo selecionado")
+        }
+        if (request.valor < -0.0000001) {
+            throw invalido("BAIXA_VALOR_INVALIDO", "O valor da baixa deve ser maior que zero")
+        }
+        return ratearQuitacao(parcelas, max(0.0, request.valor), desconto, acrescimo, request.moeda, usdPyg, brlPyg)
+    }
+
+    private fun toleranciaPyg(usdPyg: Double, brlPyg: Double): Double =
+        max(1.0, max(usdPyg, brlPyg) * 0.02)
+
+    private fun pygDoSaldo(p: ParcelaPersistida): Double =
+        if (p.valor <= 0.0) 0.0 else round(p.saldo * (p.valorPyg / p.valor))
+
+    private fun ratearQuitacao(
+        parcelas: List<ParcelaPersistida>,
+        valor: Double,
+        desconto: Double,
+        acrescimo: Double,
+        moeda: Moeda,
+        usdPyg: Double,
+        brlPyg: Double,
+    ): List<BaixaParcelaAplicacao> {
+        val saldoTotal = parcelas.sumOf { it.saldo }
+        var valorRest = valor
+        var descRest = desconto
+        var acrRest = acrescimo
+        val linhas = parcelas.mapIndexed { i, p ->
+            val ultimo = i == parcelas.lastIndex
+            val v: Double
+            val d: Double
+            val a: Double
+            if (ultimo || saldoTotal <= 0.0) {
+                v = valorRest
+                d = descRest
+                a = acrRest
+            } else {
+                val peso = p.saldo / saldoTotal
+                v = arredondarMoeda(valor * peso, moeda)
+                d = arredondarMoeda(desconto * peso, moeda)
+                a = arredondarMoeda(acrescimo * peso, moeda)
+                valorRest = arredondarMoeda(valorRest - v, moeda)
+                descRest = arredondarMoeda(descRest - d, moeda)
+                acrRest = arredondarMoeda(acrRest - a, moeda)
+            }
+            BaixaParcelaAplicacao(
+                idParcela = p.id,
+                valor = v,
+                valorPyg = paraPygTravado(v, moeda, usdPyg, brlPyg),
+                desconto = d,
+                descontoPyg = paraPygTravado(d, moeda, usdPyg, brlPyg),
+                acrescimo = a,
+                acrescimoPyg = paraPygTravado(a, moeda, usdPyg, brlPyg),
+                saldoRestante = 0.0,
+                statusParcela = StatusParcela.PAGA,
+            )
+        }.toMutableList()
+        if (linhas.isNotEmpty()) {
+            val alvoValor = paraPygTravado(valor, moeda, usdPyg, brlPyg)
+            val alvoDesc = paraPygTravado(desconto, moeda, usdPyg, brlPyg)
+            val alvoAcr = paraPygTravado(acrescimo, moeda, usdPyg, brlPyg)
+            val last = linhas.last()
+            linhas[linhas.lastIndex] = last.copy(
+                valorPyg = last.valorPyg + (alvoValor - linhas.sumOf { it.valorPyg }),
+                descontoPyg = last.descontoPyg + (alvoDesc - linhas.sumOf { it.descontoPyg }),
+                acrescimoPyg = last.acrescimoPyg + (alvoAcr - linhas.sumOf { it.acrescimoPyg }),
+            )
+        }
+        return linhas
+    }
+
     private fun ratearFifo(
         parcelas: List<ParcelaPersistida>,
         valorPago: Double,
@@ -285,6 +389,9 @@ class TituloService(
         usdPyg: Double,
         brlPyg: Double,
     ): List<BaixaParcelaAplicacao> {
+        if (moedaBaixa != moedaTitulo) {
+            return ratearFifoConvertido(parcelas, valorPago, moedaBaixa, moedaTitulo, usdPyg, brlPyg)
+        }
         var restante = valorPago
         val out = mutableListOf<BaixaParcelaAplicacao>()
         for (p in parcelas) {
@@ -300,6 +407,48 @@ class TituloService(
                 statusParcela = if (saldoRestante <= 0.009) StatusParcela.PAGA else StatusParcela.PARCIAL,
             )
             restante = arredondarMoeda(restante - aplica, moedaTitulo)
+        }
+        return out
+    }
+
+    private fun ratearFifoConvertido(
+        parcelas: List<ParcelaPersistida>,
+        valorPago: Double,
+        moedaBaixa: Moeda,
+        moedaTitulo: Moeda,
+        usdPyg: Double,
+        brlPyg: Double,
+    ): List<BaixaParcelaAplicacao> {
+        val pygPago = paraPygTravado(valorPago, moedaBaixa, usdPyg, brlPyg)
+        if (pygPago <= 0.0) return emptyList()
+        var restantePyg = pygPago
+        var caixaRestante = valorPago
+        val out = mutableListOf<BaixaParcelaAplicacao>()
+        for (p in parcelas) {
+            if (restantePyg <= 0.5) break
+            val saldoPyg = pygDoSaldo(p)
+            if (saldoPyg <= 0.5) continue
+            val aplicaPyg = minOf(restantePyg, saldoPyg)
+            val quita = aplicaPyg >= saldoPyg - 0.5
+            val aplicaTitulo = if (quita) p.saldo else arredondarMoeda(p.saldo * (aplicaPyg / saldoPyg), moedaTitulo)
+            val saldoBruto = arredondarMoeda(p.saldo - aplicaTitulo, moedaTitulo)
+            val saldoRestante = if (quita || saldoBruto <= 0.009) 0.0 else saldoBruto
+            val fechaCaixa = restantePyg - aplicaPyg <= 0.5
+            val caixa = if (fechaCaixa) caixaRestante else arredondarMoeda(valorPago * (aplicaPyg / pygPago), moedaBaixa)
+            caixaRestante = arredondarMoeda(max(0.0, caixaRestante - caixa), moedaBaixa)
+            restantePyg -= aplicaPyg
+            out += BaixaParcelaAplicacao(
+                idParcela = p.id,
+                valor = caixa,
+                valorPyg = paraPygTravado(caixa, moedaBaixa, usdPyg, brlPyg),
+                saldoRestante = saldoRestante,
+                statusParcela = if (saldoRestante <= 0.009) StatusParcela.PAGA else StatusParcela.PARCIAL,
+            )
+        }
+        if (out.isNotEmpty() && caixaRestante <= 0.009) {
+            val alvoPyg = paraPygTravado(valorPago, moedaBaixa, usdPyg, brlPyg)
+            val last = out.last()
+            out[out.lastIndex] = last.copy(valorPyg = last.valorPyg + (alvoPyg - out.sumOf { it.valorPyg }))
         }
         return out
     }
@@ -483,6 +632,10 @@ class TituloService(
         moeda = moeda,
         valor = valor,
         valorPyg = valorPyg,
+        desconto = desconto,
+        descontoPyg = descontoPyg,
+        acrescimo = acrescimo,
+        acrescimoPyg = acrescimoPyg,
         criadoEm = criadoEm,
         observacao = observacao,
     )

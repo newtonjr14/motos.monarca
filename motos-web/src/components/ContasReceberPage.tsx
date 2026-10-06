@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/crud/Field";
-import { CatalogHeader, ListToolbar, TableHeadRow, TablePagination, Td, useListSort } from "@/components/crud/ListUi";
+import { CatalogHeader, ListToolbar, TableHeadRow, TablePagination, Td, TituloFiltro, passaFiltroTitulo, useListSort, type FiltroTitulo } from "@/components/crud/ListUi";
 import TituloFicha from "@/components/TituloFicha";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
@@ -34,6 +34,7 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
   const [finalizadores, setFinalizadores] = useState<Finalizador[]>([]);
   const [caixas, setCaixas] = useState<Caixa[]>([]);
   const [search, setSearch] = useState("");
+  const [filtroTitulo, setFiltroTitulo] = useState<FiltroTitulo>("abertos");
   const [page, setPage] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
   const [formAberto, setFormAberto] = useState(false);
@@ -73,6 +74,7 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
   useEffect(() => { void carregar(); }, [idFilial]);
 
   const filtered = itens.filter((e) =>
+    passaFiltroTitulo(e.status, filtroTitulo) &&
     `${e.clienteNome} ${e.status} ${e.origem}`.toLowerCase().includes(search.toLowerCase()));
   const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => {
     if (k === "cliente") return e.clienteNome;
@@ -81,7 +83,7 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
     if (k === "status") return e.status;
     return e.criadoEm;
   }, "criadoEm", "desc");
-  useEffect(() => { setPage(1); }, [search, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [search, filtroTitulo, sortKey, sortDir]);
 
   const navIndex = detalhe ? ordenados.findIndex((e) => e.id === detalhe.id) : -1;
 
@@ -212,6 +214,7 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("titulo.searchPlaceholder")}
           className="px-3 py-2 text-sm rounded-md outline-none w-64"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}`, color: v("--text") }} />
+        <TituloFiltro value={filtroTitulo} onChange={setFiltroTitulo} />
       </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
         <table className="drive-table w-full">

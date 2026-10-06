@@ -46,6 +46,65 @@ function parcelaAberta(p: ParcelaTitulo) {
   return p.saldo > 0 && p.status !== "paga" && p.status !== "cancelada";
 }
 
+type FiltroParcela = "abertas" | "pagas" | "todas";
+
+function arredondarMoeda(n: number, moeda: Moeda): number {
+  if (!Number.isFinite(n)) return 0;
+  if (moeda === "pyg") return Math.round(n);
+  return Math.round(n * 100) / 100;
+}
+
+function textoAjuste(n: number, moeda: Moeda, vazioSeZero = true): string {
+  if (!Number.isFinite(n) || n < 0) return "";
+  if (n === 0) return vazioSeZero ? "" : moeda === "pyg" ? "0" : "0.00";
+  if (moeda === "pyg") return String(Math.round(n));
+  return (Math.round(n * 100) / 100).toFixed(2);
+}
+
+function moedaCurta(moeda: Moeda, t: (key: TranslationKey) => string): string {
+  if (moeda === "pyg") return t("venda.currency.pyg");
+  if (moeda === "brl") return t("venda.currency.brl");
+  return t("venda.currency.usd");
+}
+
+function AjusteLinha({
+  label, pct, valorTxt, moedaLabel, onPct, onValor, onBlurValor,
+}: {
+  label: string;
+  pct: number;
+  valorTxt: string;
+  moedaLabel: string;
+  onPct: (raw: string) => void;
+  onValor: (raw: string) => void;
+  onBlurValor: () => void;
+}) {
+  return (
+    <div className="titulo-ajuste">
+      <span className="titulo-ajuste-label">{label}</span>
+      <label className="pdv-discount">
+        <input
+          inputMode="decimal"
+          aria-label={`${label} %`}
+          value={pct === 0 ? "" : String(pct)}
+          placeholder="0"
+          onChange={(e) => onPct(e.target.value)}
+        />
+        <span>%</span>
+        <input
+          className="pdv-discount-value"
+          inputMode="decimal"
+          aria-label={label}
+          value={valorTxt}
+          placeholder="0"
+          onChange={(e) => onValor(e.target.value)}
+          onBlur={onBlurValor}
+        />
+        <span>{moedaLabel}</span>
+      </label>
+    </div>
+  );
+}
+
 function Equivalentes({
   valor,
   moeda,
@@ -96,6 +155,11 @@ export default function TituloFicha({
   const [baixaFin, setBaixaFin] = useState<number | "">("");
   const [baixaSessao, setBaixaSessao] = useState<number | "">("");
   const [baixaMoeda, setBaixaMoeda] = useState<Moeda>(item.moeda);
+  const [filtroParcela, setFiltroParcela] = useState<FiltroParcela>("abertas");
+  const [descPct, setDescPct] = useState(0);
+  const [acrPct, setAcrPct] = useState(0);
+  const [descTxt, setDescTxt] = useState("");
+  const [acrTxt, setAcrTxt] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -103,6 +167,11 @@ export default function TituloFicha({
     setSelecionadas([]);
     setPainelBaixa(false);
     setErro(null);
+    setFiltroParcela("abertas");
+    setDescPct(0);
+    setAcrPct(0);
+    setDescTxt("");
+    setAcrTxt("");
     setBaixaMoeda(item.moeda);
     setBaixaFin(finalizadores[0]?.id ?? "");
     setBaixaSessao(caixasAbertos.find((c) => c.padrao)?.sessaoAbertaId ?? caixasAbertos[0]?.sessaoAbertaId ?? "");
@@ -110,7 +179,17 @@ export default function TituloFicha({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (painelBaixa) {
+          setPainelBaixa(false);
+          setErro(null);
+          return;
+        }
+        onClose();
+        return;
+      }
+      if (painelBaixa) return;
       if (nav && !salvando) {
         if (e.key === "ArrowUp" && nav.index > 0) {
           e.preventDefault();
@@ -129,14 +208,71 @@ export default function TituloFicha({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose, nav, salvando]);
+  }, [onClose, nav, salvando, painelBaixa]);
 
   const abertas = useMemo(() => item.parcelas.filter(parcelaAberta), [item.parcelas]);
+  const parcelasVisiveis = useMemo(() => item.parcelas.filter((p) => {
+    if (filtroParcela === "todas") return true;
+    if (filtroParcela === "pagas") return p.status === "paga";
+    return parcelaAberta(p);
+  }), [item.parcelas, filtroParcela]);
+  const abertasVisiveis = useMemo(() => parcelasVisiveis.filter(parcelaAberta), [parcelasVisiveis]);
   const parcelasSel = useMemo(
     () => item.parcelas.filter((p) => selecionadas.includes(p.id)),
     [item.parcelas, selecionadas],
   );
   const saldoSelecionado = parcelasSel.reduce((acc, p) => acc + p.saldo, 0);
+  const cotacao = { usdPyg: item.usdPyg, brlPyg: item.brlPyg } as Cotacao;
+
+  function saldoNa(moeda: Moeda) {
+    return arredondarMoeda(converterMoeda(saldoSelecionado, item.moeda, moeda, cotacao), moeda);
+  }
+
+  function ajusteDe(desc: number, acr: number, moeda: Moeda) {
+    const saldo = saldoNa(moeda);
+    const descValor = arredondarMoeda(saldo * desc / 100, moeda);
+    const acrValor = arredondarMoeda(saldo * acr / 100, moeda);
+    const liquido = arredondarMoeda(Math.max(0, saldo - descValor + acrValor), moeda);
+    return { saldo, descValor, acrValor, liquido };
+  }
+
+  const ajuste = ajusteDe(descPct, acrPct, baixaMoeda);
+  const temAjuste = descPct > 0 || acrPct > 0;
+  const valorDigitado = Number(baixaValor.replace(",", ".")) || 0;
+  const tolMoeda = baixaMoeda === "pyg" ? 1 : 0.02;
+  const valorConfere = !temAjuste || Math.abs(valorDigitado - ajuste.liquido) <= tolMoeda;
+
+  function aplicarAjuste(desc: number, acr: number, moeda: Moeda) {
+    const d = Math.min(100, Math.max(0, Math.round(desc * 100) / 100));
+    const a = Math.min(100, Math.max(0, Math.round(acr * 100) / 100));
+    const calc = ajusteDe(d, a, moeda);
+    setDescPct(d);
+    setAcrPct(a);
+    setDescTxt(d <= 0 ? "" : textoAjuste(calc.descValor, moeda));
+    setAcrTxt(a <= 0 ? "" : textoAjuste(calc.acrValor, moeda));
+    setBaixaValor(textoAjuste(calc.liquido, moeda, false));
+  }
+
+  function mudarValorAjuste(qual: "desc" | "acr", raw: string) {
+    const limpo = raw.replace(",", ".").replace(/[^\d.]/g, "");
+    if (qual === "desc") setDescTxt(limpo);
+    else setAcrTxt(limpo);
+    const n = Number.parseFloat(limpo);
+    const saldo = saldoNa(baixaMoeda);
+    if (!limpo || !Number.isFinite(n) || n <= 0 || saldo <= 0) {
+      aplicarAjuste(qual === "desc" ? 0 : descPct, qual === "acr" ? 0 : acrPct, baixaMoeda);
+      if (qual === "desc") setDescTxt(limpo);
+      else setAcrTxt(limpo);
+      return;
+    }
+    const pct = Math.min(100, Math.round((Math.min(saldo, n) / saldo) * 10000) / 100);
+    const desc = qual === "desc" ? pct : descPct;
+    const acr = qual === "acr" ? pct : acrPct;
+    const calc = ajusteDe(desc, acr, baixaMoeda);
+    setDescPct(desc);
+    setAcrPct(acr);
+    setBaixaValor(textoAjuste(calc.liquido, baixaMoeda, false));
+  }
 
   function toggleParcela(id: number) {
     const p = item.parcelas.find((x) => x.id === id);
@@ -145,8 +281,10 @@ export default function TituloFicha({
   }
 
   function toggleTodas() {
-    if (selecionadas.length === abertas.length) setSelecionadas([]);
-    else setSelecionadas(abertas.map((p) => p.id));
+    const ids = abertasVisiveis.map((p) => p.id);
+    const todos = ids.length > 0 && ids.every((id) => selecionadas.includes(id));
+    if (todos) setSelecionadas((prev) => prev.filter((id) => !ids.includes(id)));
+    else setSelecionadas((prev) => [...new Set([...prev, ...ids])]);
   }
 
   function abrirBaixa() {
@@ -155,8 +293,12 @@ export default function TituloFicha({
       return;
     }
     setErro(null);
+    setDescPct(0);
+    setAcrPct(0);
+    setDescTxt("");
+    setAcrTxt("");
     setBaixaMoeda(item.moeda);
-    setBaixaValor(String(saldoSelecionado));
+    setBaixaValor(textoAjuste(arredondarMoeda(saldoSelecionado, item.moeda), item.moeda, false));
     setBaixaFin(finalizadores[0]?.id ?? "");
     setBaixaSessao(caixasAbertos.find((c) => c.padrao)?.sessaoAbertaId ?? caixasAbertos[0]?.sessaoAbertaId ?? "");
     setPainelBaixa(true);
@@ -165,8 +307,12 @@ export default function TituloFicha({
   async function confirmarBaixa() {
     if (selecionadas.length === 0 || baixaFin === "") return;
     const vlr = Number(baixaValor.replace(",", ".")) || 0;
-    if (vlr <= 0) {
+    if (vlr < 0 || (vlr <= 0 && ajuste.liquido > tolMoeda)) {
       setErro(t("titulo.error.valor"));
+      return;
+    }
+    if (temAjuste && Math.abs(vlr - ajuste.liquido) > tolMoeda) {
+      setErro(`${t("titulo.ajusteValor")} ${formatMoeda(ajuste.liquido, baixaMoeda)}`);
       return;
     }
     setSalvando(true);
@@ -178,6 +324,8 @@ export default function TituloFicha({
         idCaixaSessao: baixaSessao === "" ? null : baixaSessao,
         moeda: baixaMoeda,
         valor: vlr,
+        desconto: temAjuste ? ajuste.descValor : 0,
+        acrescimo: temAjuste ? ajuste.acrValor : 0,
       };
       const atualizado = modo === "receber"
         ? await baixarRecebimento(body)
@@ -192,7 +340,11 @@ export default function TituloFicha({
     }
   }
 
-  return createPortal(
+  const acaoBaixa = modo === "receber" ? t("titulo.receberSelecionadas") : t("titulo.pagarSelecionadas");
+
+  return (
+    <>
+    {createPortal(
     <div
       className="ficha-modal-overlay fixed inset-0 z-[200] flex items-start justify-center p-4 sm:p-6 overflow-y-auto"
       style={{ background: "rgba(0,0,0,0.5)" }}
@@ -248,17 +400,35 @@ export default function TituloFicha({
         </div>
 
         <div className="ficha-modal-body px-6 py-5 space-y-4">
-          {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+          {erro && !painelBaixa && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+
+          <div className="status-filter" role="group" aria-label={t("filter.status.label")}>
+            {([
+              ["abertas", "titulo.filtro.abertas"],
+              ["pagas", "titulo.filtro.pagas"],
+              ["todas", "filter.status.all"],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`status-filter-btn${filtroParcela === id ? " is-on" : ""}`}
+                aria-pressed={filtroParcela === id}
+                onClick={() => setFiltroParcela(id)}
+              >
+                {t(label)}
+              </button>
+            ))}
+          </div>
 
           <div className="rounded-lg overflow-hidden" style={{ border: border1() }}>
             <table className="drive-table w-full">
               <thead>
                 <tr>
                   <th className="w-10">
-                    {abertas.length > 0 && (
+                    {abertasVisiveis.length > 0 && (
                       <input
                         type="checkbox"
-                        checked={selecionadas.length === abertas.length && abertas.length > 0}
+                        checked={abertasVisiveis.every((p) => selecionadas.includes(p.id))}
                         onChange={toggleTodas}
                         aria-label={t("titulo.selecionarTodas")}
                       />
@@ -272,7 +442,14 @@ export default function TituloFicha({
                 </tr>
               </thead>
               <tbody>
-                {item.parcelas.map((p) => {
+                {parcelasVisiveis.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="text-sm py-6 text-center" style={{ color: v("--text-muted") }}>
+                      {t("titulo.filtro.vazio")}
+                    </td>
+                  </tr>
+                )}
+                {parcelasVisiveis.map((p) => {
                   const aberta = parcelaAberta(p);
                   const checked = selecionadas.includes(p.id);
                   return (
@@ -326,53 +503,6 @@ export default function TituloFicha({
             </div>
           )}
 
-          {painelBaixa && (
-            <div className="rounded-lg p-4 space-y-3" style={{ background: v("--card2"), border: border1() }}>
-              <p className="text-sm font-medium" style={{ color: v("--text") }}>
-                {modo === "receber" ? t("titulo.receberSelecionadas") : t("titulo.pagarSelecionadas")}
-              </p>
-              <Field label={t("finalizador.type")}>
-                <select
-                  className="field"
-                  value={baixaFin === "" ? "" : String(baixaFin)}
-                  onChange={(e) => setBaixaFin(e.target.value ? Number(e.target.value) : "")}
-                >
-                  {finalizadores.map((f) => (
-                    <option key={f.id} value={f.id}>{f.nome}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t("nav.caixa")}>
-                <select
-                  className="field"
-                  value={baixaSessao === "" ? "" : String(baixaSessao)}
-                  onChange={(e) => setBaixaSessao(e.target.value ? Number(e.target.value) : "")}
-                >
-                  {caixasAbertos.map((c) => (
-                    <option key={c.id} value={c.sessaoAbertaId!}>{c.nome}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t("titulo.moeda")}>
-                <select className="field" value={baixaMoeda} onChange={(e) => setBaixaMoeda(e.target.value as Moeda)}>
-                  <option value="pyg">Gs.</option>
-                  <option value="usd">US$</option>
-                  <option value="brl">R$</option>
-                </select>
-              </Field>
-              <Field label={t("titulo.valor")}>
-                <input className="field font-mono" value={baixaValor} onChange={(e) => setBaixaValor(e.target.value)} />
-              </Field>
-              <div className="flex gap-2 justify-end">
-                <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setPainelBaixa(false)}>
-                  {t("common.cancel")}
-                </button>
-                <button type="button" className="btn-gold px-5 py-2 text-sm" disabled={salvando} onClick={() => void confirmarBaixa()}>
-                  {salvando ? t("common.saving") : t("common.save")}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="ficha-modal-actions px-6 py-3 shrink-0" style={{ borderTop: border1(), background: v("--card2") }}>
@@ -393,5 +523,143 @@ export default function TituloFicha({
       </div>
     </div>,
     document.body,
+    )}
+    {painelBaixa && createPortal(
+      <div
+        className="pdv-def-overlay"
+        style={{ zIndex: 230 }}
+        onClick={() => { setPainelBaixa(false); setErro(null); }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={acaoBaixa}
+      >
+        <div className="pdv-def-dialog titulo-baixa-dialog" onClick={(e) => e.stopPropagation()}>
+          <div className="pdv-def-head">
+            <div className="min-w-0">
+              <h2 className="pdv-cart-title">{acaoBaixa}</h2>
+              <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>
+                {t("titulo.selecionadas")}: {selecionadas.length} · {t("titulo.saldo")}:{" "}
+                <span className="font-mono">{formatMoeda(saldoSelecionado, item.moeda)}</span>
+              </p>
+              <Equivalentes valor={saldoSelecionado} moeda={item.moeda} usdPyg={item.usdPyg} brlPyg={item.brlPyg} />
+            </div>
+            <button
+              type="button"
+              onClick={() => { setPainelBaixa(false); setErro(null); }}
+              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-lg leading-none"
+              style={{ color: v("--text-muted"), background: v("--card2"), border: border1() }}
+              aria-label={t("common.cancel")}
+            >
+              ×
+            </button>
+          </div>
+          <div className="pdv-def-body">
+            {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+            <Field label={t("finalizador.type")}>
+              <select
+                className="field"
+                value={baixaFin === "" ? "" : String(baixaFin)}
+                onChange={(e) => setBaixaFin(e.target.value ? Number(e.target.value) : "")}
+              >
+                {finalizadores.map((f) => (
+                  <option key={f.id} value={f.id}>{f.nome}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t("nav.caixa")}>
+              <select
+                className="field"
+                value={baixaSessao === "" ? "" : String(baixaSessao)}
+                onChange={(e) => setBaixaSessao(e.target.value ? Number(e.target.value) : "")}
+              >
+                {caixasAbertos.map((c) => (
+                  <option key={c.id} value={c.sessaoAbertaId!}>{c.nome}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t("titulo.moeda")}>
+              <select
+                className="field"
+                value={baixaMoeda}
+                onChange={(e) => {
+                  const moeda = e.target.value as Moeda;
+                  setBaixaMoeda(moeda);
+                  aplicarAjuste(descPct, acrPct, moeda);
+                }}
+              >
+                <option value="pyg">Gs.</option>
+                <option value="usd">US$</option>
+                <option value="brl">R$</option>
+              </select>
+            </Field>
+            <AjusteLinha
+              label={t("titulo.desconto")}
+              pct={descPct}
+              valorTxt={descTxt}
+              moedaLabel={moedaCurta(baixaMoeda, t)}
+              onPct={(raw) => {
+                const limpo = raw.replace(",", ".").replace(/[^\d.]/g, "");
+                const n = Number.parseFloat(limpo);
+                const pct = !Number.isFinite(n) || limpo === "" ? 0 : Math.min(100, Math.max(0, Math.round(n * 100) / 100));
+                aplicarAjuste(pct, acrPct, baixaMoeda);
+              }}
+              onValor={(raw) => mudarValorAjuste("desc", raw)}
+              onBlurValor={() => setDescTxt(descPct <= 0 ? "" : textoAjuste(ajuste.descValor, baixaMoeda))}
+            />
+            <AjusteLinha
+              label={t("titulo.acrescimo")}
+              pct={acrPct}
+              valorTxt={acrTxt}
+              moedaLabel={moedaCurta(baixaMoeda, t)}
+              onPct={(raw) => {
+                const limpo = raw.replace(",", ".").replace(/[^\d.]/g, "");
+                const n = Number.parseFloat(limpo);
+                const pct = !Number.isFinite(n) || limpo === "" ? 0 : Math.min(100, Math.max(0, Math.round(n * 100) / 100));
+                aplicarAjuste(descPct, pct, baixaMoeda);
+              }}
+              onValor={(raw) => mudarValorAjuste("acr", raw)}
+              onBlurValor={() => setAcrTxt(acrPct <= 0 ? "" : textoAjuste(ajuste.acrValor, baixaMoeda))}
+            />
+            <Field label={t("titulo.valor")}>
+              <input
+                className="field font-mono"
+                inputMode="decimal"
+                autoFocus
+                value={baixaValor}
+                onFocus={(e) => e.currentTarget.select()}
+                onMouseUp={(e) => e.preventDefault()}
+                onChange={(e) => setBaixaValor(e.target.value.replace(/[^\d.,]/g, ""))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && valorConfere) {
+                    e.preventDefault();
+                    void confirmarBaixa();
+                  }
+                }}
+              />
+              {valorDigitado > 0 && (
+                <Equivalentes valor={valorDigitado} moeda={baixaMoeda} usdPyg={item.usdPyg} brlPyg={item.brlPyg} />
+              )}
+              {temAjuste && (
+                <p className="titulo-quita" style={{ color: valorConfere ? "var(--success)" : "#ef4444" }}>
+                  {valorConfere
+                    ? `${t("titulo.quitaSaldo")} ${formatMoeda(saldoSelecionado, item.moeda)}`
+                    : `${t("titulo.ajusteValor")} ${formatMoeda(ajuste.liquido, baixaMoeda)}`}
+                </p>
+              )}
+            </Field>
+          </div>
+          <div className="pdv-def-foot">
+            <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => { setPainelBaixa(false); setErro(null); }}>
+              {t("common.cancel")}
+            </button>
+            <button type="button" className="btn-gold px-5 py-2 text-sm" disabled={salvando || !valorConfere} onClick={() => void confirmarBaixa()}>
+              {salvando ? t("common.saving") : acaoBaixa}
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    )}
+    </>
   );
 }

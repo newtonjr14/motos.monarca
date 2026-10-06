@@ -176,6 +176,21 @@ export function moedaOperacaoDe(valor: string | null | undefined): Moeda {
   return valor === "pyg" || valor === "brl" || valor === "usd" ? valor : "usd";
 }
 
+/** Dois centavos da cotação mais alta, em guaranis. Cobre a ida e a volta de dólar ou real. */
+export function toleranciaFechamentoPyg(cotacao: Cotacao | null): number {
+  if (!cotacao) return 1;
+  const centavos = Math.max(cotacao.usdPyg, cotacao.brlPyg) * 0.02;
+  return Math.max(1, centavos);
+}
+
+/** O valor informado é o saldo inteiro nessa moeda, no centavo que a tela mostra. */
+export function quitaSaldoNaMoeda(valor: number, moeda: Moeda, faltaPyg: number, cotacao: Cotacao | null): boolean {
+  if (!Number.isFinite(valor) || valor <= 0 || faltaPyg <= 0) return false;
+  if (moeda === "pyg") return Math.abs(Math.round(valor) - Math.round(faltaPyg)) <= 1;
+  if (!cotacao) return false;
+  return Math.abs(valor - dePyg(faltaPyg, moeda, cotacao)) < 0.005;
+}
+
 export function paraPyg(preco: number, moeda: string, cotacao: Cotacao | null): number {
   if (moeda === "pyg") return Math.round(preco);
   if (!cotacao) return 0;

@@ -33,6 +33,7 @@ import { tf } from "@/i18n/format";
 import { useAuth } from "@/auth/AuthContext";
 import { useFilial, useFilialId } from "@/auth/FilialContext";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   converterMoeda,
   formatarDocumentoExibicao,
@@ -41,6 +42,8 @@ import {
   moedaOperacaoDe,
   normalizarChassi,
   paraPyg,
+  quitaSaldoNaMoeda,
+  toleranciaFechamentoPyg,
   dePyg,
 } from "@/format";
 
@@ -216,6 +219,7 @@ function VendaForm({
   const [recibo, setRecibo] = useState<Venda | null>(null);
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>("todos");
   const [passo, setPasso] = useState<"itens" | "pagamento">("itens");
+  const [resumoAberto, setResumoAberto] = useState(false);
 
   const [buscaCliente, setBuscaCliente] = useState("");
   const [listaCliente, setListaCliente] = useState(false);
@@ -232,7 +236,6 @@ function VendaForm({
   const [carregandoChassi, setCarregandoChassi] = useState(false);
   const [modalCliente, setModalCliente] = useState(false);
   const [esperas, setEsperas] = useState<VendaEmEspera[]>([]);
-  const [listaCaixa, setListaCaixa] = useState(false);
   const [definindo, setDefinindo] = useState(false);
   const [descontoVenda, setDescontoVenda] = useState(0);
   const [descontoValorTxt, setDescontoValorTxt] = useState("");
@@ -248,10 +251,6 @@ function VendaForm({
     ? undefined
     : vendedores.find((vdd) => vdd.id === idVendedor)
       ?? (user && user.id === idVendedor ? { id: user.id, nome: user.nome } : undefined);
-  const caixaEmUso = caixas.find((c) => c.sessaoAbertaId != null && c.sessaoAbertaId === idSessao) ?? caixaPadrao;
-  const outrosAbertos = sessaoPadrao
-    ? caixas.filter((c) => c.sessaoAbertaId && c.id !== caixaEmUso?.id)
-    : [];
 
   const limparCarrinho = useCallback(() => {
     setLinhas([]);
@@ -300,12 +299,7 @@ function VendaForm({
   useEffect(() => {
     const padrao = caixas.find((c) => c.padrao) ?? (caixas.length === 1 ? caixas[0] : undefined);
     const sessao = padrao?.sessaoAbertaId ?? null;
-    setIdSessao((atual) => {
-      if (!sessao) return "";
-      if (atual !== "" && caixas.some((c) => c.sessaoAbertaId === atual)) return atual;
-      return sessao;
-    });
-    if (!sessao) setListaCaixa(false);
+    setIdSessao(sessao ?? "");
   }, [caixas]);
 
   const pygDasLinhas = useCallback((itens: ItemDraft[]) => itens.reduce((acc, linha) => {
@@ -337,10 +331,13 @@ function VendaForm({
     let trocoPyg = 0;
     const enviaveis: { idFinalizador: number; moeda: Moeda; valor: number }[] = [];
     for (const p of pagamentos) {
-      const pyg = Math.round(paraPyg(parseGs(p.valor), p.moeda, cotacao));
-      if (pyg <= 0) continue;
+      const convertido = Math.round(paraPyg(parseGs(p.valor), p.moeda, cotacao));
+      if (convertido <= 0) continue;
       const fin = finalizadores.find((f) => f.id === p.idFinalizador);
       const faltaAgora = Math.max(0, Math.round(totalLiquido - aplicado));
+      const pyg = fin?.tipo !== "dinheiro" && quitaSaldoNaMoeda(parseGs(p.valor), p.moeda, faltaAgora, cotacao)
+        ? faltaAgora
+        : convertido;
       if (fin?.tipo === "dinheiro" && pyg > faltaAgora) {
         trocoPyg += pyg - faltaAgora;
         if (faltaAgora > 0) {
@@ -540,15 +537,20 @@ function VendaForm({
     setDefValor(formatarValorMoeda(rest, moeda, cotacao));
     setDefId("");
     setBuscaFinalizador("");
+    setResumoAberto(false);
     setDefinindo(true);
     setErro(null);
   }
 
   function mudarDefMoeda(moeda: Moeda) {
     if (moeda !== "pyg" && !cotacao) return;
-    const pyg = paraPyg(parseGs(defValor), defMoeda, cotacao);
+    const informado = parseGs(defValor);
+    const saldo = Math.max(0, falta);
+    const pyg = quitaSaldoNaMoeda(informado, defMoeda, saldo, cotacao)
+      ? saldo
+      : paraPyg(informado, defMoeda, cotacao);
     setDefMoeda(moeda);
-    setDefValor(formatarValorMoeda(pyg || Math.max(0, falta), moeda, cotacao));
+    setDefValor(formatarValorMoeda(pyg || saldo, moeda, cotacao));
   }
 
   function mudarDescontoVenda(pct: number) {
@@ -593,7 +595,7 @@ function VendaForm({
       setErro(t("api.VENDA_CREDITO_UNICO"));
       return;
     }
-    if (fin?.tipo !== "dinheiro" && pyg > Math.max(0, falta) + 1) {
+    if (fin?.tipo !== "dinheiro" && pyg > Math.max(0, falta) + toleranciaFechamentoPyg(cotacao)) {
       setErro(t("venda.payOver"));
       return;
     }
@@ -701,8 +703,7 @@ function VendaForm({
       setErro(t("api.VENDA_CREDITO_UNICO"));
       return;
     }
-    const pagoPyg = negociacao.reduce((a, p) => a + paraPyg(p.valor, p.moeda, cotacao), 0);
-    if (Math.abs(pagoPyg - totalPyg) > 1) {
+    if (Math.abs(falta) > toleranciaFechamentoPyg(cotacao)) {
       setErro(t("api.VENDA_NEGOCIACAO_DIVERGENTE"));
       return;
     }
@@ -748,7 +749,8 @@ function VendaForm({
 
   const qtdItens = linhas.reduce((acc, l) => acc + l.quantidade, 0);
   const podePagar = idCliente !== "" && idVendedor !== "" && linhas.length > 0 && idSessao !== "";
-  const podeFinalizar = podePagar && Math.abs(falta) <= 1 && resumoPag.enviaveis.length > 0;
+  const quitado = Math.abs(falta) <= toleranciaFechamentoPyg(cotacao);
+  const podeFinalizar = podePagar && quitado && resumoPag.enviaveis.length > 0;
 
   function irParaPagamento() {
     setErro(null);
@@ -777,8 +779,50 @@ function VendaForm({
       return;
     }
     setDefinindo(false);
+    setResumoAberto(false);
     setPasso("pagamento");
   }
+
+  useEffect(() => {
+    if (!definindo) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape" || listaFinalizador) return;
+      e.preventDefault();
+      setDefinindo(false);
+      setErro(null);
+    }
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [definindo, listaFinalizador]);
+
+  useEffect(() => {
+    if (!resumoAberto) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setResumoAberto(false);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [resumoAberto]);
+
+  const finDefinindo = finalizadores.find((f) => f.id === defId);
+  const geraParcelas = Boolean(finDefinindo?.geraContasReceber);
+  const qtdParcelasN = Number.parseInt(qtdParcelas, 10) || 0;
+  const parcelasPreview = geraParcelas && parseGs(defValor) > 0 && qtdParcelasN >= 1
+    ? preverParcelas(parseGs(defValor), qtdParcelasN, modoVencimento, Number.parseInt(diaVencimento, 10) || 10, defMoeda)
+    : [];
 
   return (
     <div className="pdv-page">
@@ -848,38 +892,15 @@ function VendaForm({
           <span className="pdv-chip-label">{t("venda.till")}</span>
           {caixaPadrao ? (
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="pdv-chip-value truncate">{caixaEmUso?.nome ?? caixaPadrao.nome}</span>
+              <span className="pdv-chip-value truncate">{caixaPadrao.nome}</span>
               {sessaoPadrao ? (
                 <span className="pdv-chip-dot" title={t("caixa.session.open")} />
               ) : (
                 <span className="text-xs shrink-0" style={{ color: "var(--danger)" }}>{t("venda.tillClosed")}</span>
               )}
-              {sessaoPadrao && outrosAbertos.length > 0 && (
-                <button type="button" className="text-xs cursor-pointer shrink-0 ml-auto" style={{ color: v("--gold") }}
-                  onClick={() => setListaCaixa((x) => !x)}>
-                  {t("venda.changeTill")}
-                </button>
-              )}
             </div>
           ) : (
             <span className="pdv-chip-value" style={{ color: v("--text-muted") }}>{t("venda.noTill")}</span>
-          )}
-          {listaCaixa && sessaoPadrao && (
-            <>
-              <div className="fixed inset-0 z-20" onClick={() => setListaCaixa(false)} />
-              <ul className="absolute right-2 top-full mt-1 z-30 rounded-md shadow-lg overflow-hidden min-w-[10rem]"
-                style={{ background: v("--card"), border: border1() }}>
-                {caixas.filter((c) => c.sessaoAbertaId).map((c) => (
-                  <li key={c.id}>
-                    <button type="button" className="w-full text-left px-3 py-2 text-sm cursor-pointer"
-                      style={{ color: c.sessaoAbertaId === idSessao ? v("--gold") : v("--text") }}
-                      onClick={() => { setIdSessao(c.sessaoAbertaId ?? ""); setListaCaixa(false); }}>
-                      {c.nome}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
           )}
         </div>
       </div>
@@ -910,22 +931,53 @@ function VendaForm({
       </div>
 
       <form className={passo === "pagamento" ? "pdv-layout is-pay" : "pdv-layout"} onSubmit={(e) => e.preventDefault()}>
-        <div className="pdv-catalog">
-          {passo === "pagamento" ? (
-            <div className="pdv-pay-panel">
+        {passo === "pagamento" ? (
+          <div className="pdv-pay-screen">
+            <div className="pdv-pay-head">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="pdv-cart-title">{t("venda.pay")}</h2>
-                  <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>
-                    {cliente?.pessoa.nomeRazaoSocial ?? ""} · {tf(t, "venda.itemsCount", { n: String(qtdItens) })}
-                  </p>
-                </div>
+                <h2 className="pdv-cart-title">{t("venda.pay")}</h2>
                 <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: v("--gold") }}
-                  onClick={() => setPasso("itens")}>
+                  onClick={() => { setResumoAberto(false); setPasso("itens"); }}>
                   {t("venda.backItems")}
                 </button>
               </div>
-              <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="pdv-pay-hero">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium tracking-widest uppercase" style={{ color: v("--text-muted") }}>{t("venda.total")}</p>
+                  {descontoVenda > 0 && (
+                    <p className="text-xs font-mono line-through" style={{ color: v("--text-muted") }}>
+                      {formatMoeda(converterMoeda(totalPyg, "pyg", moedaOp, cotacao), moedaOp)}
+                    </p>
+                  )}
+                  <p className="pdv-total font-mono">{formatMoeda(converterMoeda(totalLiquido, "pyg", moedaOp, cotacao), moedaOp)}</p>
+                  <EquivalentesMoeda valor={converterMoeda(totalLiquido, "pyg", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
+                </div>
+                <div className="pdv-pay-meta">
+                  <span className="text-sm" style={{ color: v("--text-sub") }}>{tf(t, "venda.itemsCount", { n: String(qtdItens) })}</span>
+                  <button type="button" className="pdv-see-summary" onClick={() => setResumoAberto(true)}>
+                    {t("venda.seeSummary")}
+                  </button>
+                </div>
+                <div className="pdv-pay-status">
+                  <div>
+                    <p className="pdv-pay-status-label">{t("venda.paid")}</p>
+                    <p className="pdv-pay-status-value" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(pago, "pyg", moedaOp, cotacao), moedaOp)}</p>
+                  </div>
+                  <div>
+                    <p className="pdv-pay-status-label">{t("venda.remainingValue")}</p>
+                    <p className="pdv-pay-status-value" style={{ color: quitado ? "var(--success)" : v("--gold") }}>
+                      {formatMoeda(converterMoeda(Math.max(0, falta), "pyg", moedaOp, cotacao), moedaOp)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="pdv-pay-status-label">{t("venda.change")}</p>
+                    <p className="pdv-pay-status-value" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(troco, "pyg", moedaOp, cotacao), moedaOp)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="pdv-pay-body">
+              <div className="pdv-pay-extras">
                 {podeDesconto && (
                   <div>
                     <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.saleDiscount")}</p>
@@ -960,192 +1012,58 @@ function VendaForm({
                     </label>
                   </div>
                 )}
-                <div className="space-y-1 text-sm min-w-[13rem] ml-auto">
-                  <div className="flex justify-between gap-4">
-                    <span style={{ color: v("--text-muted") }}>{t("venda.paid")}</span>
-                    <span className="font-mono" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(pago, "pyg", moedaOp, cotacao), moedaOp)}</span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span style={{ color: v("--text-muted") }}>{t("venda.remainingValue")}</span>
-                    <span className="font-mono" style={{ color: Math.abs(falta) <= 1 ? "var(--success)" : v("--gold") }}>
-                      {formatMoeda(converterMoeda(Math.max(0, falta), "pyg", moedaOp, cotacao), moedaOp)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span style={{ color: v("--text-muted") }}>{t("venda.change")}</span>
-                    <span className="font-mono" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(troco, "pyg", moedaOp, cotacao), moedaOp)}</span>
-                  </div>
-                </div>
+                <Field label={t("caixa.note")}>
+                  <input className="field" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+                </Field>
               </div>
-              {definindo ? (
-                <div className="space-y-3 rounded-md p-3" style={{ background: v("--card2"), border: border1() }}>
-                  <div>
-                    <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.pay")}</p>
-                    <button
-                      type="button"
-                      className="field max-w-sm flex items-center justify-between gap-2 text-left cursor-pointer"
-                      onClick={() => { setBuscaFinalizador(""); setListaFinalizador(true); }}
-                      onKeyDown={(e) => {
-                        if (e.key === "F2") {
-                          e.preventDefault();
-                          setBuscaFinalizador("");
-                          setListaFinalizador(true);
-                        }
-                      }}
-                    >
-                      <span className="truncate" style={{ color: defId === "" ? v("--text-muted") : v("--text") }}>
-                        {defId === ""
-                          ? t("venda.finalizerSearch")
-                          : (finalizadores.find((f) => f.id === defId)?.nome ?? "")}
-                      </span>
-                      <F2InsideHint />
-                    </button>
-                  </div>
-                  <div className="max-w-sm">
-                    <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.remainingValue")}</p>
-                    <p className="field font-mono" style={{ color: v("--text") }}>
-                      {formatMoeda(converterMoeda(Math.max(0, falta), "pyg", defMoeda, cotacao), defMoeda)}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1 max-w-sm">
-                    {MOEDAS.map((m) => {
-                      const ativo = defMoeda === m;
-                      const bloqueada = m !== "pyg" && !cotacao;
-                      return (
-                        <button
-                          key={m}
-                          type="button"
-                          disabled={bloqueada}
-                          className="pdv-pay px-2 py-1.5 text-xs rounded-md cursor-pointer"
-                          style={{
-                            background: ativo ? "var(--gold-bg)" : v("--card"),
-                            border: ativo ? `1px solid ${v("--gold-border")}` : border1(),
-                            color: ativo ? v("--gold") : v("--text-sub"),
-                            opacity: bloqueada ? 0.45 : 1,
-                          }}
-                          onClick={() => mudarDefMoeda(m)}
-                        >
-                          {m === "pyg" ? t("venda.currency.pyg") : m === "brl" ? t("venda.currency.brl") : t("venda.currency.usd")}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="max-w-sm">
-                    <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.payAmount")}</p>
-                    <input
-                      className="field font-mono"
-                      inputMode="decimal"
-                      value={defValor}
-                      onChange={(e) => setDefValor(e.target.value)}
-                    />
-                  </div>
-                  {defMoeda !== "pyg" && paraPyg(parseGs(defValor), defMoeda, cotacao) > 0 && (
-                    <p className="text-xs font-mono" style={{ color: v("--text-muted") }}>
-                      {tf(t, "venda.equivalent", { n: formatPyg(paraPyg(parseGs(defValor), defMoeda, cotacao)) })}
-                    </p>
-                  )}
-                  {finalizadores.find((f) => f.id === defId)?.geraContasReceber && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium" style={{ color: v("--text") }}>{t("venda.parcelas")}</p>
-                      <Field label={t("venda.qtdParcelas")}>
-                        <input className="field" inputMode="numeric" value={qtdParcelas}
-                          onChange={(e) => setQtdParcelas(e.target.value.replace(/\D/g, ""))} />
-                      </Field>
-                      <Field label={t("venda.modoVencimento")}>
-                        <select className="field" value={modoVencimento}
-                          onChange={(e) => setModoVencimento(e.target.value as "intervalo_30" | "dia_fixo")}>
-                          <option value="intervalo_30">{t("venda.modo.intervalo30")}</option>
-                          <option value="dia_fixo">{t("venda.modo.diaFixo")}</option>
-                        </select>
-                      </Field>
-                      {modoVencimento === "dia_fixo" && (
-                        <Field label={t("venda.diaVencimento")}>
-                          <input className="field" inputMode="numeric" value={diaVencimento}
-                            onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, "").slice(0, 2))} />
-                        </Field>
-                      )}
-                      {parseGs(defValor) > 0 && (Number.parseInt(qtdParcelas, 10) || 0) >= 1 && (
-                        <table className="pdv-pay-table">
-                          <thead>
-                            <tr>
-                              <th>#</th>
-                              <th>{t("venda.due")}</th>
-                              <th>{t("venda.amount")}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {preverParcelas(
-                              parseGs(defValor),
-                              Number.parseInt(qtdParcelas, 10) || 0,
-                              modoVencimento,
-                              Number.parseInt(diaVencimento, 10) || 10,
-                              defMoeda,
-                            ).map((p) => (
-                              <tr key={p.numero}>
-                                <td>{p.numero}</td>
-                                <td>{p.vencimento.toLocaleDateString(locale === "pt" ? "pt-BR" : "es-PY")}</td>
-                                <td className="font-mono">{formatMoeda(p.valor, defMoeda)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <button type="button" className="text-xs cursor-pointer px-3 py-2" style={{ color: v("--text-muted") }}
-                      onClick={() => { setDefinindo(false); setErro(null); }}>
-                      {t("common.cancel")}
-                    </button>
-                    <button type="button" className="btn-gold px-4 py-2 text-sm" onClick={confirmarDefinir}>
-                      {t("venda.confirmPay")}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {pagamentos.length === 0 ? (
-                    <p className="text-sm py-6 text-center" style={{ color: v("--text-muted") }}>{t("venda.payEmpty")}</p>
-                  ) : (
-                    <table className="pdv-pay-table">
-                      <thead>
-                        <tr>
-                          <th>{t("venda.pay")}</th>
-                          <th>{t("venda.amount")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pagamentos.map((p, idx) => {
-                          const fin = finalizadores.find((f) => f.id === p.idFinalizador);
-                          const qtd = fin?.geraContasReceber ? Number.parseInt(qtdParcelas, 10) || 0 : 0;
-                          return (
-                            <tr key={`${p.idFinalizador}-${idx}`}>
-                              <td>{fin?.nome ?? ""}{qtd > 1 ? ` ${qtd}x` : ""}</td>
-                              <td className="font-mono">
-                                {formatMoeda(parseGs(p.valor), p.moeda)}
-                                <button type="button" className="ml-3 text-xs cursor-pointer" style={{ color: "var(--danger)" }}
-                                  onClick={() => setPagamentos((atual) => atual.filter((_, i) => i !== idx))}>
-                                  ×
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                  {falta > 1 && (
-                    <button type="button" className="btn-gold px-4 py-2 text-sm self-start" onClick={abrirDefinir}>
-                      {t("venda.definePay")}
-                    </button>
-                  )}
-                </>
-              )}
-              <Field label={t("caixa.note")}>
-                <input className="field max-w-sm" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-              </Field>
+              <div className="pdv-pay-list">
+                {pagamentos.length === 0 ? (
+                  <p className="text-sm py-4 text-center" style={{ color: v("--text-muted") }}>{t("venda.payEmpty")}</p>
+                ) : (
+                  <table className="pdv-pay-table">
+                    <thead>
+                      <tr>
+                        <th>{t("venda.pay")}</th>
+                        <th>{t("venda.amount")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagamentos.map((p, idx) => {
+                        const fin = finalizadores.find((f) => f.id === p.idFinalizador);
+                        const qtd = fin?.geraContasReceber ? Number.parseInt(qtdParcelas, 10) || 0 : 0;
+                        return (
+                          <tr key={`${p.idFinalizador}-${idx}`}>
+                            <td>{fin?.nome ?? ""}{qtd > 1 ? ` ${qtd}x` : ""}</td>
+                            <td className="font-mono">
+                              {formatMoeda(parseGs(p.valor), p.moeda)}
+                              <button type="button" className="ml-3 text-xs cursor-pointer" style={{ color: "var(--danger)" }}
+                                onClick={() => setPagamentos((atual) => atual.filter((_, i) => i !== idx))}>
+                                ×
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+                {!quitado && (
+                  <button type="button" className="btn-gold px-4 py-2 text-sm" onClick={abrirDefinir}>
+                    {t("venda.definePay")}
+                  </button>
+                )}
+              </div>
             </div>
-          ) : pickingId != null && produtoPicking ? (
+            <div className="pdv-pay-foot">
+              <button type="button" disabled={salvando || !podeFinalizar} className="btn-gold px-5 py-3 text-sm w-full"
+                onClick={() => void salvar()}>
+                {salvando ? t("common.saving") : t("venda.finish")}
+              </button>
+            </div>
+          </div>
+        ) : (
+        <div className="pdv-catalog">
+          {pickingId != null && produtoPicking ? (
             <div className="pdv-chassi-panel">
               <div className="pdv-chassi-head">
                 <div className="min-w-0">
@@ -1277,49 +1195,25 @@ function VendaForm({
             </>
           )}
         </div>
+        )}
 
+        {passo !== "pagamento" && (
         <aside className="pdv-cart" style={{ background: v("--card"), border: border1() }}>
           <div className="pdv-cart-head">
             <div>
-              <h2 className="pdv-cart-title">{passo === "pagamento" ? t("venda.summary") : t("venda.items")}</h2>
+              <h2 className="pdv-cart-title">{t("venda.items")}</h2>
               <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>
-                {passo === "pagamento" && cliente ? `${cliente.pessoa.nomeRazaoSocial} · ` : ""}
                 {tf(t, "venda.itemsCount", { n: String(qtdItens) })}
               </p>
             </div>
-            {passo !== "pagamento" && (
-              <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
-                onClick={pedirDescartar}>
-                {t("venda.clear")}
-              </button>
-            )}
+            <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }}
+              onClick={pedirDescartar}>
+              {t("venda.clear")}
+            </button>
           </div>
 
           <div className="pdv-cart-body" ref={carrinhoRef}>
-            {passo === "pagamento" ? (
-              <div className="space-y-3">
-                {linhas.map((l) => {
-                  const p = produtos.find((x) => x.id === l.idProduto);
-                  const unit = p ? paraPyg(p.precoLista, p.moedaPreco, cotacao) : 0;
-                  const bruto = unit * l.quantidade;
-                  const descPct = l.descontoPct || 0;
-                  const liquido = Math.max(0, Math.round(bruto - bruto * descPct / 100));
-                  const linhaOp = converterMoeda(liquido, "pyg", moedaOp, cotacao);
-                  return (
-                    <div key={l.linhaId} className="pdv-cart-item">
-                      <div className="flex justify-between gap-2">
-                        <p className="text-[13px] font-medium truncate" style={{ color: v("--text") }}>{p?.nome}</p>
-                        <span className="text-sm font-mono shrink-0" style={{ color: v("--gold") }}>{formatMoeda(linhaOp, moedaOp)}</span>
-                      </div>
-                      <p className="text-[11px] font-mono mt-0.5 truncate" style={{ color: v("--text-muted") }}>
-                        {l.quantidade} · {l.unidades[0]?.numero ?? p?.codigo}
-                        {descPct > 0 ? ` · ${descPct}%` : ""}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : linhas.length === 0 ? (
+            {linhas.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="text-sm font-medium" style={{ color: v("--text-sub") }}>{t("venda.emptyCart")}</p>
                 <p className="text-xs mt-1" style={{ color: v("--text-muted") }}>{t("venda.emptyHint")}</p>
@@ -1399,27 +1293,7 @@ function VendaForm({
 
           <div className="pdv-cart-checkout">
             <div className="space-y-1.5 text-sm">
-              {passo === "pagamento" && (
-                <>
-                  <div className="flex justify-between gap-3">
-                    <span style={{ color: v("--text-muted") }}>{t("venda.paid")}</span>
-                    <span className="font-mono" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(pago, "pyg", moedaOp, cotacao), moedaOp)}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span style={{ color: v("--text-muted") }}>{t("venda.remaining")}</span>
-                    <span className="font-mono" style={{ color: Math.abs(falta) <= 1 ? "var(--success)" : v("--gold") }}>
-                      {formatMoeda(converterMoeda(Math.max(0, falta), "pyg", moedaOp, cotacao), moedaOp)}
-                    </span>
-                  </div>
-                  {troco > 0 && (
-                    <div className="flex justify-between gap-3">
-                      <span style={{ color: v("--text-muted") }}>{t("venda.change")}</span>
-                      <span className="font-mono" style={{ color: v("--text") }}>{formatMoeda(converterMoeda(troco, "pyg", moedaOp, cotacao), moedaOp)}</span>
-                    </div>
-                  )}
-                </>
-              )}
-              <div className={passo === "pagamento" ? "pt-2" : ""} style={passo === "pagamento" ? { borderTop: border1() } : undefined}>
+              <div>
                 <p className="text-[11px] font-medium tracking-widest uppercase mb-1" style={{ color: v("--text-muted") }}>{t("venda.total")}</p>
                 {descontoVenda > 0 && (
                   <p className="text-xs font-mono line-through mb-1" style={{ color: v("--text-muted") }}>
@@ -1430,20 +1304,245 @@ function VendaForm({
                 <EquivalentesMoeda valor={converterMoeda(totalLiquido, "pyg", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
               </div>
             </div>
-            {passo === "pagamento" ? (
-              <button key="finish" type="button" disabled={salvando || !podeFinalizar} className="btn-gold px-5 py-3 text-sm w-full mt-3"
-                onClick={() => void salvar()}>
-                {salvando ? t("common.saving") : t("venda.finish")}
-              </button>
-            ) : (
-              <button key="gopay" type="button" disabled={!podePagar} className="btn-gold px-5 py-3 text-sm w-full mt-3"
-                onClick={irParaPagamento}>
-                {t("venda.goPay")}
-              </button>
-            )}
+            <button type="button" disabled={!podePagar} className="btn-gold px-5 py-3 text-sm w-full mt-3"
+              onClick={irParaPagamento}>
+              {t("venda.goPay")}
+            </button>
           </div>
         </aside>
+        )}
       </form>
+
+      {resumoAberto && createPortal(
+        <div
+          className="pdv-resumo-overlay"
+          onClick={() => setResumoAberto(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("venda.summary")}
+        >
+          <div className="pdv-resumo-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="pdv-resumo-head">
+              <div>
+                <h2 className="pdv-cart-title">{t("venda.summary")}</h2>
+                <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>
+                  {tf(t, "venda.itemsCount", { n: String(qtdItens) })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setResumoAberto(false)}
+                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-lg leading-none"
+                style={{ color: v("--text-muted"), background: v("--card2"), border: border1() }}
+                aria-label={t("ficha.close")}
+              >
+                ×
+              </button>
+            </div>
+            <div className="pdv-resumo-body">
+              <div className="space-y-3">
+                {linhas.map((l) => {
+                  const p = produtos.find((x) => x.id === l.idProduto);
+                  const unit = p ? paraPyg(p.precoLista, p.moedaPreco, cotacao) : 0;
+                  const bruto = unit * l.quantidade;
+                  const descPct = l.descontoPct || 0;
+                  const liquido = Math.max(0, Math.round(bruto - bruto * descPct / 100));
+                  const linhaOp = converterMoeda(liquido, "pyg", moedaOp, cotacao);
+                  return (
+                    <div key={l.linhaId} className="pdv-cart-item">
+                      <div className="flex justify-between gap-2">
+                        <p className="text-[13px] font-medium truncate" style={{ color: v("--text") }}>{p?.nome}</p>
+                        <span className="text-sm font-mono shrink-0" style={{ color: v("--gold") }}>{formatMoeda(linhaOp, moedaOp)}</span>
+                      </div>
+                      <p className="text-[11px] font-mono mt-0.5 truncate" style={{ color: v("--text-muted") }}>
+                        {l.quantidade} · {l.unidades[0]?.numero ?? p?.codigo}
+                        {descPct > 0 ? ` · ${descPct}%` : ""}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="pdv-resumo-foot">
+              <p className="text-[11px] font-medium tracking-widest uppercase mb-1" style={{ color: v("--text-muted") }}>{t("venda.total")}</p>
+              {descontoVenda > 0 && (
+                <p className="text-xs font-mono line-through mb-1" style={{ color: v("--text-muted") }}>
+                  {formatMoeda(converterMoeda(totalPyg, "pyg", moedaOp, cotacao), moedaOp)}
+                </p>
+              )}
+              <p className="pdv-total font-mono">{formatMoeda(converterMoeda(totalLiquido, "pyg", moedaOp, cotacao), moedaOp)}</p>
+              <EquivalentesMoeda valor={converterMoeda(totalLiquido, "pyg", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {definindo && createPortal(
+        <div
+          className="pdv-def-overlay"
+          onClick={() => { setDefinindo(false); setErro(null); }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("venda.definePay")}
+        >
+          <div className={geraParcelas ? "pdv-def-dialog is-parcelas" : "pdv-def-dialog"} onClick={(e) => e.stopPropagation()}>
+            <div className="pdv-def-head">
+              <div>
+                <h2 className="pdv-cart-title">{t("venda.definePay")}</h2>
+                {geraParcelas && (
+                  <p className="text-xs mt-0.5" style={{ color: v("--text-muted") }}>{finDefinindo?.nome}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => { setDefinindo(false); setErro(null); }}
+                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-lg leading-none"
+                style={{ color: v("--text-muted"), background: v("--card2"), border: border1() }}
+                aria-label={t("ficha.close")}
+              >
+                ×
+              </button>
+            </div>
+            <div className={geraParcelas ? "pdv-def-body is-parcelas" : "pdv-def-body"}>
+              {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
+              <div className="pdv-def-pay">
+              <div>
+                <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.pay")}</p>
+                <button
+                  type="button"
+                  className="field flex items-center justify-between gap-2 text-left cursor-pointer"
+                  onClick={() => { setBuscaFinalizador(""); setListaFinalizador(true); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "F2") {
+                      e.preventDefault();
+                      setBuscaFinalizador("");
+                      setListaFinalizador(true);
+                    }
+                  }}
+                >
+                  <span className="truncate" style={{ color: defId === "" ? v("--text-muted") : v("--text") }}>
+                    {defId === ""
+                      ? t("venda.finalizerSearch")
+                      : (finalizadores.find((f) => f.id === defId)?.nome ?? "")}
+                  </span>
+                  <F2InsideHint />
+                </button>
+              </div>
+              <div>
+                <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.remainingValue")}</p>
+                <p className="field font-mono" style={{ color: v("--text") }}>
+                  {formatMoeda(converterMoeda(Math.max(0, falta), "pyg", defMoeda, cotacao), defMoeda)}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-1">
+                {MOEDAS.map((m) => {
+                  const ativo = defMoeda === m;
+                  const bloqueada = m !== "pyg" && !cotacao;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={bloqueada}
+                      className="pdv-pay px-2 py-1.5 text-xs rounded-md cursor-pointer"
+                      style={{
+                        background: ativo ? "var(--gold-bg)" : v("--card"),
+                        border: ativo ? `1px solid ${v("--gold-border")}` : border1(),
+                        color: ativo ? v("--gold") : v("--text-sub"),
+                        opacity: bloqueada ? 0.45 : 1,
+                      }}
+                      onClick={() => mudarDefMoeda(m)}
+                    >
+                      {m === "pyg" ? t("venda.currency.pyg") : m === "brl" ? t("venda.currency.brl") : t("venda.currency.usd")}
+                    </button>
+                  );
+                })}
+              </div>
+              <div>
+                <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("venda.payAmount")}</p>
+                <input
+                  className="field font-mono"
+                  inputMode="decimal"
+                  value={defValor}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onMouseUp={(e) => e.preventDefault()}
+                  onChange={(e) => setDefValor(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      confirmarDefinir();
+                    }
+                  }}
+                />
+              </div>
+              {defMoeda !== "pyg" && paraPyg(parseGs(defValor), defMoeda, cotacao) > 0 && (
+                <p className="pdv-def-span text-xs font-mono" style={{ color: v("--text-muted") }}>
+                  {tf(t, "venda.equivalent", { n: formatPyg(paraPyg(parseGs(defValor), defMoeda, cotacao)) })}
+                </p>
+              )}
+              </div>
+              {geraParcelas && (
+                <div className="pdv-def-parcelas">
+                  <div className="pdv-def-parcelas-form">
+                    <p className="text-xs font-medium" style={{ color: v("--text") }}>{t("venda.parcelas")}</p>
+                    <Field label={t("venda.qtdParcelas")}>
+                      <input className="field" inputMode="numeric" value={qtdParcelas}
+                        onChange={(e) => setQtdParcelas(e.target.value.replace(/\D/g, ""))} />
+                    </Field>
+                    <Field label={t("venda.modoVencimento")}>
+                      <select className="field" value={modoVencimento}
+                        onChange={(e) => setModoVencimento(e.target.value as "intervalo_30" | "dia_fixo")}>
+                        <option value="intervalo_30">{t("venda.modo.intervalo30")}</option>
+                        <option value="dia_fixo">{t("venda.modo.diaFixo")}</option>
+                      </select>
+                    </Field>
+                    {modoVencimento === "dia_fixo" && (
+                      <Field label={t("venda.diaVencimento")}>
+                        <input className="field" inputMode="numeric" value={diaVencimento}
+                          onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, "").slice(0, 2))} />
+                      </Field>
+                    )}
+                  </div>
+                  <div className="pdv-def-parcelas-table">
+                    <table className="pdv-pay-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>{t("venda.due")}</th>
+                          <th>{t("venda.amount")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parcelasPreview.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} style={{ color: v("--text-muted") }}>{t("venda.parcelasEmpty")}</td>
+                          </tr>
+                        ) : parcelasPreview.map((p) => (
+                          <tr key={p.numero}>
+                            <td>{p.numero}</td>
+                            <td>{p.vencimento.toLocaleDateString(locale === "pt" ? "pt-BR" : "es-PY")}</td>
+                            <td className="font-mono">{formatMoeda(p.valor, defMoeda)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="pdv-def-foot">
+              <button type="button" className="text-xs cursor-pointer px-3 py-2" style={{ color: v("--text-muted") }}
+                onClick={() => { setDefinindo(false); setErro(null); }}>
+                {t("common.cancel")}
+              </button>
+              <button type="button" className="btn-gold px-4 py-2 text-sm" onClick={confirmarDefinir}>
+                {t("venda.confirmPay")}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       <SearchPickerModal
         open={listaFinalizador}
