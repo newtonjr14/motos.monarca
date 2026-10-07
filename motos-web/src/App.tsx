@@ -228,7 +228,7 @@ const Icon = {
   more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "vendas" | "historico" | "relatorios" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "vendas" | "historico" | "relatorioReceber" | "relatorioPagar" | "relatorioVendas" | "relatorioEstoque" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 type NavPermissao = string | readonly string[];
 type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: NavPermissao };
@@ -302,12 +302,10 @@ const navGrupos: NavGrupo[] = [
   {
     id: "relatorios",
     items: [
-      {
-        id: "relatorios",
-        label: "Relatórios",
-        icon: "relatorios",
-        permissao: [Permissao.VENDA_REGISTRAR, Permissao.FINANCEIRO_OPERAR, Permissao.ESTOQUE_CONSULTAR, Permissao.ESTOQUE_GERENCIAR],
-      },
+      { id: "relatorioReceber", label: "Contas a receber", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
+      { id: "relatorioPagar", label: "Contas a pagar", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
+      { id: "relatorioVendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
+      { id: "relatorioEstoque", label: "Estoque", icon: "estoques", permissao: [Permissao.ESTOQUE_CONSULTAR, Permissao.ESTOQUE_GERENCIAR] },
     ],
   },
   {
@@ -2931,7 +2929,10 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
     dashboard: t("nav.dashboard"),
     vendas: t("nav.vendas"),
     historico: t("nav.historico"),
-    relatorios: t("nav.relatorios"),
+    relatorioReceber: t("nav.relatorioReceber"),
+    relatorioPagar: t("nav.relatorioPagar"),
+    relatorioVendas: t("nav.relatorioVendas"),
+    relatorioEstoque: t("nav.relatorioEstoque"),
     contasReceber: t("nav.contasReceber"),
     contasPagar: t("nav.contasPagar"),
     entradaNota: t("nav.entradaNota"),
@@ -2993,7 +2994,13 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
           )}
           {view === "vendas" && <VendasPage navReset={navReset} />}
           {view === "historico" && <HistoricoVendasPage navReset={navReset} />}
-          {view === "relatorios" && <RelatoriosPage navReset={navReset} />}
+          {(view === "relatorioReceber" || view === "relatorioPagar" || view === "relatorioVendas" || view === "relatorioEstoque") && (
+            <RelatoriosPage
+              key={view}
+              navReset={navReset}
+              relatorio={view === "relatorioReceber" ? "receber" : view === "relatorioPagar" ? "pagar" : view === "relatorioEstoque" ? "estoque" : "vendas"}
+            />
+          )}
           {view === "contasReceber" && <ContasReceberPage navReset={navReset} />}
           {view === "contasPagar" && <ContasPagarPage navReset={navReset} />}
           {view === "entradaNota" && <EntradaNotaPage navReset={navReset} />}

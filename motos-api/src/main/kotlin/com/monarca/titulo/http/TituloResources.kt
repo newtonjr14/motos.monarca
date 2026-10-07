@@ -20,6 +20,18 @@ class TitulosPagar {
 }
 
 @Serializable
+@Resource("/relatorio-parcelas-receber")
+class RelatorioParcelasReceber(
+    val idFilial: Long? = null,
+)
+
+@Serializable
+@Resource("/relatorio-parcelas-pagar")
+class RelatorioParcelasPagar(
+    val idFilial: Long? = null,
+)
+
+@Serializable
 @Resource("/baixas-receber")
 class BaixasReceber(
     val idFilial: Long? = null,

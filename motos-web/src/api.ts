@@ -1197,6 +1197,36 @@ export interface BaixaRelatorio {
   finalizadorNome: string;
 }
 
+export interface RelatorioParcela {
+  id: number;
+  idTitulo: number;
+  numero: number;
+  vencimento: string;
+  criadoEm?: number;
+  pessoaNome: string;
+  idDocumento?: number | null;
+  moeda: Moeda;
+  usdPyg: number;
+  brlPyg: number;
+  valor: number;
+  valorPyg: number;
+  saldo: number;
+  saldoPyg: number;
+  recebidoPyg: number;
+  descontoPyg: number;
+  acrescimoPyg: number;
+  status: string;
+}
+
+export const listarParcelasReceber = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<RelatorioParcela[]>(`/relatorio-parcelas-receber${q}`);
+};
+export const listarParcelasPagar = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<RelatorioParcela[]>(`/relatorio-parcelas-pagar${q}`);
+};
+
 export const listarBaixasReceber = (idFilial?: number) => {
   const q = idFilial != null ? `?idFilial=${idFilial}` : "";
   return api<BaixaRelatorio[]>(`/baixas-receber${q}`);

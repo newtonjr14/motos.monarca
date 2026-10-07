@@ -23,6 +23,7 @@ import com.monarca.titulo.dto.ParcelasConfigRequest
 import com.monarca.titulo.dto.TituloPagarRequest
 import com.monarca.titulo.dto.TituloPagarResponse
 import com.monarca.titulo.dto.TituloPagarResumoResponse
+import com.monarca.titulo.dto.RelatorioParcelaResponse
 import com.monarca.titulo.dto.TituloReceberRequest
 import com.monarca.titulo.dto.TituloReceberResponse
 import com.monarca.titulo.dto.TituloReceberResumoResponse
@@ -177,6 +178,16 @@ class TituloService(
     suspend fun listarPagar(idFilial: Long?, idUsuario: Long): List<TituloPagarResumoResponse> {
         val filial = resolverFilial(idUsuario, idFilial)
         return repository.listarPagar(filial).map { it.toResumo() }
+    }
+
+    suspend fun listarParcelasReceber(idFilial: Long?, idUsuario: Long): List<RelatorioParcelaResponse> {
+        val filial = resolverFilial(idUsuario, idFilial)
+        return repository.listarReceber(filial).flatMap { it.toParcelasReceber() }
+    }
+
+    suspend fun listarParcelasPagar(idFilial: Long?, idUsuario: Long): List<RelatorioParcelaResponse> {
+        val filial = resolverFilial(idUsuario, idFilial)
+        return repository.listarPagar(filial).flatMap { it.toParcelasPagar() }
     }
 
     suspend fun listarBaixasReceber(idFilial: Long?, idUsuario: Long): List<BaixaRelatorioResponse> {
@@ -582,6 +593,48 @@ class TituloService(
         criadoEm = criadoEm,
         status = status,
         proximoVencimento = parcelas.filter { it.saldo > 0 }.minByOrNull { it.vencimento }?.vencimento,
+    )
+
+    private fun TituloReceberCompleto.toParcelasReceber(): List<RelatorioParcelaResponse> =
+        parcelas.filter { it.status != StatusParcela.CANCELADA }.map { p ->
+            val das = baixas.filter { it.idParcela == p.id }
+            p.toLinha(id, clienteNome, idVenda, moeda, usdPyg, brlPyg, criadoEm, das)
+        }
+
+    private fun TituloPagarCompleto.toParcelasPagar(): List<RelatorioParcelaResponse> =
+        parcelas.filter { it.status != StatusParcela.CANCELADA }.map { p ->
+            val das = baixas.filter { it.idParcela == p.id }
+            p.toLinha(id, fornecedorNome, null, moeda, usdPyg, brlPyg, criadoEm, das)
+        }
+
+    private fun ParcelaPersistida.toLinha(
+        idTitulo: Long,
+        pessoaNome: String,
+        idDocumento: Long?,
+        moeda: Moeda,
+        usdPyg: Double,
+        brlPyg: Double,
+        criadoEm: Long,
+        baixas: List<BaixaPersistida>,
+    ) = RelatorioParcelaResponse(
+        id = id,
+        idTitulo = idTitulo,
+        numero = numero,
+        vencimento = vencimento,
+        criadoEm = criadoEm,
+        pessoaNome = pessoaNome,
+        idDocumento = idDocumento,
+        moeda = moeda,
+        usdPyg = usdPyg,
+        brlPyg = brlPyg,
+        valor = valor,
+        valorPyg = valorPyg,
+        saldo = saldo,
+        saldoPyg = if (valor <= 0.0) 0.0 else saldo * (valorPyg / valor),
+        recebidoPyg = baixas.sumOf { it.valorPyg },
+        descontoPyg = baixas.sumOf { it.descontoPyg },
+        acrescimoPyg = baixas.sumOf { it.acrescimoPyg },
+        status = status,
     )
 
     private fun BaixaRelatorioLinha.toRelatorio() = BaixaRelatorioResponse(

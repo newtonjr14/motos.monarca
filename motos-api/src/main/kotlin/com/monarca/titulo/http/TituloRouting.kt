@@ -51,6 +51,12 @@ fun Application.configureTitulo() {
                     }
                 }
             }
+            get<RelatorioParcelasReceber> { resource ->
+                call.handleTitulo {
+                    call.podeOperarFinanceiro()
+                    call.respond(service.listarParcelasReceber(resource.idFilial, call.usuarioAutenticado().id))
+                }
+            }
             get<BaixasReceber> { resource ->
                 call.handleTitulo {
                     call.podeOperarFinanceiro()
@@ -87,6 +93,12 @@ fun Application.configureTitulo() {
                     call.withAudit {
                         call.respond(HttpStatusCode.Created, service.criarPagarManual(request, call.usuarioAutenticado().id))
                     }
+                }
+            }
+            get<RelatorioParcelasPagar> { resource ->
+                call.handleTitulo {
+                    call.podeOperarFinanceiro()
+                    call.respond(service.listarParcelasPagar(resource.idFilial, call.usuarioAutenticado().id))
                 }
             }
             get<BaixasPagar> { resource ->

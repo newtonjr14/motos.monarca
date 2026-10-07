@@ -166,3 +166,25 @@ data class BaixaRelatorioResponse(
     val acrescimoPyg: Double,
     val finalizadorNome: String,
 )
+
+@Serializable
+data class RelatorioParcelaResponse(
+    val id: Long,
+    val idTitulo: Long,
+    val numero: Int,
+    val vencimento: String,
+    val criadoEm: Long,
+    val pessoaNome: String,
+    val idDocumento: Long? = null,
+    val moeda: Moeda,
+    val usdPyg: Double,
+    val brlPyg: Double,
+    val valor: Double,
+    val valorPyg: Double,
+    val saldo: Double,
+    val saldoPyg: Double,
+    val recebidoPyg: Double,
+    val descontoPyg: Double,
+    val acrescimoPyg: Double,
+    val status: StatusParcela,
+)

@@ -16,12 +16,16 @@ export type TranslationKey =
   | "nav.group.configuracao"
   | "nav.group.localidade"
   | "nav.group.relatorios"
-  | "nav.relatorios"
+  | "nav.relatorioReceber"
+  | "nav.relatorioPagar"
+  | "nav.relatorioVendas"
+  | "nav.relatorioEstoque"
   | "relatorio.vendas"
   | "relatorio.receber"
   | "relatorio.pagar"
   | "relatorio.estoque"
   | "relatorio.posicao"
+  | "relatorio.parcelas"
   | "relatorio.baixas"
   | "relatorio.movimentos"
   | "relatorio.de"
@@ -39,6 +43,41 @@ export type TranslationKey =
   | "relatorio.todosSaldos"
   | "relatorio.finalizador"
   | "relatorio.dias"
+  | "relatorio.pdf"
+  | "relatorio.excel"
+  | "relatorio.exportar"
+  | "relatorio.agrupar"
+  | "relatorio.agrupar.nenhum"
+  | "relatorio.agrupar.cliente"
+  | "relatorio.agrupar.fornecedor"
+  | "relatorio.agrupar.vencimento"
+  | "relatorio.nominal"
+  | "relatorio.cotacao"
+  | "relatorio.parcela"
+  | "relatorio.documento"
+  | "relatorio.venda"
+  | "relatorio.vencidas"
+  | "relatorio.busca.receber"
+  | "relatorio.busca.pagar"
+  | "relatorio.busca.baixasReceber"
+  | "relatorio.busca.baixasPagar"
+  | "relatorio.legendaGs"
+  | "relatorio.legendaGsPagar"
+  | "relatorio.emAberto"
+  | "relatorio.recebidos"
+  | "relatorio.pagos"
+  | "relatorio.recebido"
+  | "relatorio.saldo"
+  | "relatorio.totalDia"
+  | "relatorio.situacao"
+  | "relatorio.somenteAbertos"
+  | "relatorio.periodo"
+  | "relatorio.periodo.todas"
+  | "relatorio.periodo.emissao"
+  | "relatorio.periodo.vencimento"
+  | "relatorio.periodo.recebimento"
+  | "relatorio.periodo.pagamento"
+  | "relatorio.periodoInvalido"
   | "estoque.ajusteObs"
   | "estoque.ajusteObsHint"
   | "produto.movimentos"
@@ -797,6 +836,7 @@ export type TranslationKey =
   | "titulo.filtro.quitados"
   | "titulo.filtro.abertas"
   | "titulo.filtro.pagas"
+  | "titulo.filtro.parciais"
   | "titulo.filtro.vazio"
   | "titulo.desconto"
   | "titulo.acrescimo"
@@ -906,6 +946,9 @@ export type TranslationKey =
   | "venda.recibo.title"
   | "venda.recibo.print"
   | "venda.recibo.footer"
+  | "venda.dav.titulo"
+  | "venda.dav.aviso"
+  | "venda.dav.pagamento"
   | "usuario.caixas"
   | "usuario.caixaPadrao"
   | "api.FINALIZADOR_NOME_DUPLICADO"
@@ -979,12 +1022,16 @@ const pt: Record<TranslationKey, string> = {
   "nav.group.configuracao": "Configuração",
   "nav.group.localidade": "Localidade",
   "nav.group.relatorios": "Relatórios",
-  "nav.relatorios": "Relatórios",
+  "nav.relatorioReceber": "Contas a receber",
+  "nav.relatorioPagar": "Contas a pagar",
+  "nav.relatorioVendas": "Vendas",
+  "nav.relatorioEstoque": "Estoque",
   "relatorio.vendas": "Vendas",
   "relatorio.receber": "A receber",
   "relatorio.pagar": "A pagar",
   "relatorio.estoque": "Estoque",
   "relatorio.posicao": "Posição",
+  "relatorio.parcelas": "Parcelas",
   "relatorio.baixas": "Baixas",
   "relatorio.movimentos": "Movimentos",
   "relatorio.de": "De",
@@ -1002,6 +1049,41 @@ const pt: Record<TranslationKey, string> = {
   "relatorio.todosSaldos": "Todos",
   "relatorio.finalizador": "Finalizador",
   "relatorio.dias": "{n} d",
+  "relatorio.pdf": "PDF",
+  "relatorio.excel": "Excel",
+  "relatorio.exportar": "Exportar",
+  "relatorio.agrupar": "Agrupar",
+  "relatorio.agrupar.nenhum": "Sem agrupamento",
+  "relatorio.agrupar.cliente": "Por cliente",
+  "relatorio.agrupar.fornecedor": "Por fornecedor",
+  "relatorio.agrupar.vencimento": "Por vencimento",
+  "relatorio.nominal": "Nominal",
+  "relatorio.cotacao": "Cotação",
+  "relatorio.parcela": "Parc.",
+  "relatorio.documento": "Documento",
+  "relatorio.venda": "Venda",
+  "relatorio.vencidas": "Vencidas",
+  "relatorio.busca.receber": "Cliente, venda ou parcela",
+  "relatorio.busca.pagar": "Fornecedor ou parcela",
+  "relatorio.busca.baixasReceber": "Cliente ou finalizador",
+  "relatorio.busca.baixasPagar": "Fornecedor ou finalizador",
+  "relatorio.legendaGs": "Os cálculos consideram a cotação do dia de cada parcela.",
+  "relatorio.legendaGsPagar": "Os cálculos consideram a cotação do dia de cada parcela.",
+  "relatorio.emAberto": "Em aberto",
+  "relatorio.recebidos": "Recebidos",
+  "relatorio.pagos": "Pagos",
+  "relatorio.recebido": "Recebido",
+  "relatorio.saldo": "Saldo",
+  "relatorio.totalDia": "Total do dia",
+  "relatorio.situacao": "Situação",
+  "relatorio.somenteAbertos": "Somente abertos",
+  "relatorio.periodo": "Período",
+  "relatorio.periodo.todas": "Todas",
+  "relatorio.periodo.emissao": "Emissão",
+  "relatorio.periodo.vencimento": "Vencimento",
+  "relatorio.periodo.recebimento": "Recebimento",
+  "relatorio.periodo.pagamento": "Pagamento",
+  "relatorio.periodoInvalido": "Informe a data inicial e a final. A inicial não pode ser depois da final.",
   "estoque.ajusteObs": "Observação do ajuste",
   "estoque.ajusteObsHint": "Entra no log de estoque quando a quantidade muda.",
   "produto.movimentos": "Movimentos",
@@ -1803,6 +1885,7 @@ const pt: Record<TranslationKey, string> = {
   "titulo.filtro.quitados": "Quitados",
   "titulo.filtro.abertas": "Abertas",
   "titulo.filtro.pagas": "Pagas",
+  "titulo.filtro.parciais": "Parciais",
   "titulo.filtro.vazio": "Nenhuma parcela neste filtro",
   "titulo.desconto": "Desconto",
   "titulo.acrescimo": "Acréscimo",
@@ -1899,6 +1982,9 @@ const pt: Record<TranslationKey, string> = {
   "venda.recibo.title": "Recibo de venda",
   "venda.recibo.print": "Imprimir",
   "venda.recibo.footer": "Documento não fiscal — comprovante interno",
+  "venda.dav.titulo": "DAV - DOCUMENTO AUXILIAR DE VENDA - PEDIDO",
+  "venda.dav.aviso": "NÃO É DOCUMENTO FISCAL - NÃO É VÁLIDO COMO RECIBO E COMO GARANTIA DE MERCADORIA",
+  "venda.dav.pagamento": "NÃO COMPROVA PAGAMENTO",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pago",
   "venda.remaining": "Falta",
@@ -1943,12 +2029,16 @@ const es: Record<TranslationKey, string> = {
   "nav.group.configuracao": "Configuración",
   "nav.group.localidade": "Localidad",
   "nav.group.relatorios": "Informes",
-  "nav.relatorios": "Informes",
+  "nav.relatorioReceber": "Cuentas por cobrar",
+  "nav.relatorioPagar": "Cuentas por pagar",
+  "nav.relatorioVendas": "Ventas",
+  "nav.relatorioEstoque": "Stock",
   "relatorio.vendas": "Ventas",
   "relatorio.receber": "A cobrar",
   "relatorio.pagar": "A pagar",
   "relatorio.estoque": "Stock",
   "relatorio.posicao": "Posición",
+  "relatorio.parcelas": "Cuotas",
   "relatorio.baixas": "Bajas",
   "relatorio.movimentos": "Movimientos",
   "relatorio.de": "Desde",
@@ -1966,6 +2056,41 @@ const es: Record<TranslationKey, string> = {
   "relatorio.todosSaldos": "Todos",
   "relatorio.finalizador": "Forma de pago",
   "relatorio.dias": "{n} d",
+  "relatorio.pdf": "PDF",
+  "relatorio.excel": "Excel",
+  "relatorio.exportar": "Exportar",
+  "relatorio.agrupar": "Agrupar",
+  "relatorio.agrupar.nenhum": "Sin agrupamiento",
+  "relatorio.agrupar.cliente": "Por cliente",
+  "relatorio.agrupar.fornecedor": "Por proveedor",
+  "relatorio.agrupar.vencimento": "Por vencimiento",
+  "relatorio.nominal": "Nominal",
+  "relatorio.cotacao": "Cotización",
+  "relatorio.parcela": "Cuota",
+  "relatorio.documento": "Documento",
+  "relatorio.venda": "Venta",
+  "relatorio.vencidas": "Vencidas",
+  "relatorio.busca.receber": "Cliente, venta o cuota",
+  "relatorio.busca.pagar": "Proveedor o cuota",
+  "relatorio.busca.baixasReceber": "Cliente o forma de pago",
+  "relatorio.busca.baixasPagar": "Proveedor o forma de pago",
+  "relatorio.legendaGs": "Los cálculos consideran la cotización del día de cada cuota.",
+  "relatorio.legendaGsPagar": "Los cálculos consideran la cotización del día de cada cuota.",
+  "relatorio.emAberto": "En abierto",
+  "relatorio.recebidos": "Cobrados",
+  "relatorio.pagos": "Pagados",
+  "relatorio.recebido": "Cobrado",
+  "relatorio.saldo": "Saldo",
+  "relatorio.totalDia": "Total del día",
+  "relatorio.situacao": "Situación",
+  "relatorio.somenteAbertos": "Solo abiertos",
+  "relatorio.periodo": "Período",
+  "relatorio.periodo.todas": "Todas",
+  "relatorio.periodo.emissao": "Emisión",
+  "relatorio.periodo.vencimento": "Vencimiento",
+  "relatorio.periodo.recebimento": "Cobro",
+  "relatorio.periodo.pagamento": "Pago",
+  "relatorio.periodoInvalido": "Indique la fecha inicial y la final. La inicial no puede ser posterior a la final.",
   "estoque.ajusteObs": "Observación del ajuste",
   "estoque.ajusteObsHint": "Queda en el registro de stock cuando cambia la cantidad.",
   "produto.movimentos": "Movimientos",
@@ -2777,6 +2902,7 @@ const es: Record<TranslationKey, string> = {
   "titulo.filtro.quitados": "Liquidados",
   "titulo.filtro.abertas": "Abiertas",
   "titulo.filtro.pagas": "Pagadas",
+  "titulo.filtro.parciais": "Parciales",
   "titulo.filtro.vazio": "Ninguna cuota en este filtro",
   "titulo.desconto": "Descuento",
   "titulo.acrescimo": "Recargo",
@@ -2873,6 +2999,9 @@ const es: Record<TranslationKey, string> = {
   "venda.recibo.title": "Recibo de venta",
   "venda.recibo.print": "Imprimir",
   "venda.recibo.footer": "Documento no fiscal — comprobante interno",
+  "venda.dav.titulo": "DAV - DOCUMENTO AUXILIAR DE VENTA - PEDIDO",
+  "venda.dav.aviso": "NO ES DOCUMENTO FISCAL - NO ES VÁLIDO COMO RECIBO NI COMO GARANTÍA DE MERCADERÍA",
+  "venda.dav.pagamento": "NO COMPRUEBA EL PAGO",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pagado",
   "venda.remaining": "Falta",
