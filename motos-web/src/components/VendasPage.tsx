@@ -1,6 +1,8 @@
 import {
   buscarCotacaoHoje,
+  buscarVenda,
   criarVenda,
+  finalizarVenda,
   listarCaixas,
   listarFinalizadores,
   listarPapeis,
@@ -36,6 +38,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   converterMoeda,
+  dataAsuncion,
   formatarDocumentoExibicao,
   formatMoeda,
   formatPyg,
@@ -54,16 +57,7 @@ type UnidadeDraft = { id: number; numero: string };
 type ItemDraft = { linhaId: string; idProduto: number; quantidade: number; unidades: UnidadeDraft[]; descontoPct: number };
 type PagDraft = { idFinalizador: number; moeda: Moeda; valor: string };
 type FiltroTipo = "todos" | TipoProduto;
-/** Vendas em espera só na memória da aba — some ao fechar o navegador. */
-type VendaEmEspera = {
-  id: number;
-  rotulo: string;
-  idCliente: number | "";
-  idVendedor: number | "";
-  linhas: ItemDraft[];
-  observacao: string;
-  descontoVenda: number;
-};
+type ModoVenda = "venda" | "orcamento";
 const MOEDAS: Moeda[] = ["pyg", "usd", "brl"];
 const VITRINE_LIMITE = 24;
 const VITRINE_BUSCA = 48;
@@ -137,7 +131,23 @@ function textoProduto(p: Produto): string {
   return `${p.codigo} ${p.nome} ${p.marca} ${p.modelo}`;
 }
 
-export default function VendasPage({ navReset }: { navReset: number }) {
+export type OrcamentosVenda = { ids: number[]; confirmarVencido: boolean };
+
+export default function VendasPage({
+  modo,
+  navReset,
+  retomarId,
+  onRetomada,
+  orcamentos,
+  onOrcamentosCarregados,
+}: {
+  modo: ModoVenda;
+  navReset: number;
+  retomarId: number | null;
+  onRetomada: () => void;
+  orcamentos: OrcamentosVenda | null;
+  onOrcamentosCarregados: () => void;
+}) {
   const { t } = useI18n();
   const idFilial = useFilialId();
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -171,6 +181,7 @@ export default function VendasPage({ navReset }: { navReset: number }) {
     <div>
       {erro && <p className="text-sm mb-3" style={{ color: "#ef4444" }}>{erro}</p>}
       <VendaForm
+        modo={modo}
         idFilial={idFilial}
         produtos={produtos}
         clientes={clientes}
@@ -178,6 +189,10 @@ export default function VendasPage({ navReset }: { navReset: number }) {
         caixas={caixas}
         cotacao={cotacao}
         navReset={navReset}
+        retomarId={retomarId}
+        onRetomada={onRetomada}
+        orcamentos={orcamentos}
+        onOrcamentosCarregados={onOrcamentosCarregados}
         onSaved={carregar}
       />
     </div>
@@ -185,8 +200,9 @@ export default function VendasPage({ navReset }: { navReset: number }) {
 }
 
 function VendaForm({
-  idFilial, produtos, clientes, finalizadores, caixas, cotacao, navReset, onSaved,
+  modo, idFilial, produtos, clientes, finalizadores, caixas, cotacao, navReset, retomarId, onRetomada, orcamentos, onOrcamentosCarregados, onSaved,
 }: {
+  modo: ModoVenda;
   idFilial: number;
   produtos: Produto[];
   clientes: Papel[];
@@ -194,6 +210,10 @@ function VendaForm({
   caixas: Caixa[];
   cotacao: Cotacao | null;
   navReset: number;
+  retomarId: number | null;
+  onRetomada: () => void;
+  orcamentos: OrcamentosVenda | null;
+  onOrcamentosCarregados: () => void;
   onSaved: () => Promise<void>;
 }) {
   const { t, locale } = useI18n();
@@ -214,6 +234,11 @@ function VendaForm({
   const [modoVencimento, setModoVencimento] = useState<ModoVencimento>("intervalo_30");
   const [diaVencimento, setDiaVencimento] = useState("10");
   const [observacao, setObservacao] = useState("");
+  const [validade, setValidade] = useState(() => dataAsuncion(15));
+  const [idRetomada, setIdRetomada] = useState<number | null>(null);
+  const [statusRetomada, setStatusRetomada] = useState<string | null>(null);
+  const [idsOrcamentos, setIdsOrcamentos] = useState<number[]>([]);
+  const [confirmarOrcamentos, setConfirmarOrcamentos] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [recibo, setRecibo] = useState<Venda | null>(null);
@@ -235,7 +260,6 @@ function VendaForm({
   const [buscaChassi, setBuscaChassi] = useState("");
   const [carregandoChassi, setCarregandoChassi] = useState(false);
   const [modalCliente, setModalCliente] = useState(false);
-  const [esperas, setEsperas] = useState<VendaEmEspera[]>([]);
   const [definindo, setDefinindo] = useState(false);
   const [descontoVenda, setDescontoVenda] = useState(0);
   const [descontoValorTxt, setDescontoValorTxt] = useState("");
@@ -264,6 +288,11 @@ function VendaForm({
     setModoVencimento("intervalo_30");
     setDiaVencimento("10");
     setObservacao("");
+    setValidade(dataAsuncion(15));
+    setIdRetomada(null);
+    setStatusRetomada(null);
+    setIdsOrcamentos([]);
+    setConfirmarOrcamentos(false);
     setErro(null);
     setBuscaProduto("");
     setPasso("itens");
@@ -443,16 +472,24 @@ function VendaForm({
       setErro(t("api.UNIDADE_REPETIDA"));
       return;
     }
-    setLinhas((lista) => [
-      {
-        linhaId: novaLinhaId(),
-        idProduto: u.idProduto,
-        quantidade: 1,
-        unidades: [{ id: u.id, numero: u.numero }],
-        descontoPct: 0,
-      },
-      ...lista,
-    ]);
+    setLinhas((lista) => {
+      const pendente = lista.find((l) => l.idProduto === u.idProduto && l.unidades.length === 0);
+      const semPendente = !pendente
+        ? lista
+        : pendente.quantidade <= 1
+          ? lista.filter((l) => l.linhaId !== pendente.linhaId)
+          : lista.map((l) => l.linhaId === pendente.linhaId ? { ...l, quantidade: l.quantidade - 1 } : l);
+      return [
+        {
+          linhaId: novaLinhaId(),
+          idProduto: u.idProduto,
+          quantidade: 1,
+          unidades: [{ id: u.id, numero: u.numero }],
+          descontoPct: pendente?.descontoPct ?? 0,
+        },
+        ...semPendente,
+      ];
+    });
     setBuscaChassi("");
     setErro(null);
     requestAnimationFrame(() => {
@@ -487,14 +524,14 @@ function VendaForm({
       setErro(t("venda.error.product"));
       return;
     }
-    if (p.controlaChassi) {
+    if (modo !== "orcamento" && p.controlaChassi) {
       setBuscaProduto("");
       void abrirPicker(id);
       return;
     }
     const atual = linhas.find((l) => l.idProduto === id);
     const next = (atual?.quantidade ?? 0) + 1;
-    if (p.quantidadeDisponivel != null && next > p.quantidadeDisponivel) {
+    if (modo !== "orcamento" && p.quantidadeDisponivel != null && next > p.quantidadeDisponivel) {
       setErro(t("venda.error.qty"));
       return;
     }
@@ -522,7 +559,7 @@ function VendaForm({
       setErro(null);
       return;
     }
-    if (p?.quantidadeDisponivel != null && next > p.quantidadeDisponivel) {
+    if (modo !== "orcamento" && p?.quantidadeDisponivel != null && next > p.quantidadeDisponivel) {
       setErro(t("venda.error.qty"));
       return;
     }
@@ -630,43 +667,98 @@ function VendaForm({
     escolherCliente(id);
   }
 
-  function segurarVenda() {
-    if (linhas.length === 0) return;
-    const rotulo = cliente?.pessoa.nomeRazaoSocial
-      ?? (buscaCliente.trim() || t("venda.heldNoClient"));
-    setEsperas((atual) => [
-      ...atual,
-      {
-        id: Date.now(),
-        rotulo,
-        idCliente,
-        idVendedor,
-        linhas: linhas.map((l) => ({ ...l, unidades: [...l.unidades] })),
-        observacao,
-        descontoVenda,
-      },
-    ]);
-    limparCarrinho();
-  }
+  useEffect(() => {
+    if (retomarId == null) return;
+    let cancel = false;
+    void (async () => {
+      try {
+        const venda = await buscarVenda(retomarId);
+        if (cancel) return;
+        if (venda.status !== "aberta") return;
+        setIdRetomada(venda.id);
+        setStatusRetomada(venda.status);
+        setIdCliente(venda.idCliente);
+        setIdVendedor(venda.idVendedor);
+        setLinhas(venda.itens.map((item) => ({
+          linhaId: novaLinhaId(),
+          idProduto: item.idProduto,
+          quantidade: item.quantidade,
+          unidades: [],
+          descontoPct: item.descontoPct ?? 0,
+        })));
+        setObservacao(venda.observacao ?? "");
+        setDescontoVenda(venda.descontoPct ?? 0);
+        setDescontoValorTxt("");
+        setPagamentos([]);
+        setValidade(venda.validade ?? dataAsuncion(15));
+        setPasso("itens");
+        setErro(null);
+      } catch (e) {
+        if (!cancel) setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
+      } finally {
+        if (!cancel) onRetomada();
+      }
+    })();
+    return () => { cancel = true; };
+  }, [retomarId, onRetomada, t]);
 
-  function retomarEspera(id: number) {
-    const item = esperas.find((e) => e.id === id);
-    if (!item) return;
-    if (linhas.length > 0 && !window.confirm(t("venda.discardConfirm"))) return;
-    setIdCliente(item.idCliente);
-    setIdVendedor(item.idVendedor);
-    setLinhas(item.linhas.map((l) => ({ ...l, linhaId: l.linhaId || novaLinhaId(), unidades: [...l.unidades] })));
-    setObservacao(item.observacao);
-    setDescontoVenda(item.descontoVenda || 0);
-    setDescontoValorTxt("");
-    setPagamentos([]);
-    setDefinindo(false);
-    setPasso("itens");
-    setEsperas((atual) => atual.filter((e) => e.id !== id));
-    produtoRef.current?.focus();
-  }
+  useEffect(() => {
+    if (orcamentos == null || orcamentos.ids.length === 0) return;
+    let cancel = false;
+    void (async () => {
+      try {
+        const docs = await Promise.all(orcamentos.ids.map((id) => buscarVenda(id)));
+        if (cancel) return;
+        const vivos = docs.filter((d) => d.status === "orcamento");
+        if (vivos.length === 0) return;
+        const clienteId = vivos[0]!.idCliente;
+        if (vivos.some((d) => d.idCliente !== clienteId)) {
+          setErro(t("venda.orcamentoCliente"));
+          return;
+        }
+        const vendedorIds = new Set(vivos.map((d) => d.idVendedor));
+        const linhasMescladas = new Map<string, ItemDraft>();
+        for (const doc of vivos) {
+          for (const item of doc.itens) {
+            const chave = `${item.idProduto}:${item.descontoPct ?? 0}`;
+            const atual = linhasMescladas.get(chave);
+            if (atual) {
+              atual.quantidade += item.quantidade;
+            } else {
+              linhasMescladas.set(chave, {
+                linhaId: novaLinhaId(),
+                idProduto: item.idProduto,
+                quantidade: item.quantidade,
+                unidades: [],
+                descontoPct: item.descontoPct ?? 0,
+              });
+            }
+          }
+        }
+        const notas = [...new Set(vivos.map((d) => d.observacao?.trim()).filter((n): n is string => !!n))];
+        setIdRetomada(null);
+        setStatusRetomada(null);
+        setIdsOrcamentos(vivos.map((d) => d.id));
+        setConfirmarOrcamentos(orcamentos.confirmarVencido);
+        setIdCliente(clienteId);
+        if (vendedorIds.size === 1) setIdVendedor(vivos[0]!.idVendedor);
+        setLinhas([...linhasMescladas.values()]);
+        setObservacao(notas.join(" · ").slice(0, 500));
+        setDescontoVenda(0);
+        setDescontoValorTxt("");
+        setPagamentos([]);
+        setPasso("itens");
+        setErro(null);
+      } catch (e) {
+        if (!cancel) setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
+      } finally {
+        if (!cancel) onOrcamentosCarregados();
+      }
+    })();
+    return () => { cancel = true; };
+  }, [orcamentos, onOrcamentosCarregados, t]);
 
-  async function salvar() {
+  async function gravar(gravacao: "venda" | "orcamento" | "aberta") {
     setErro(null);
     if (idCliente === "") {
       setErro(t("venda.error.client"));
@@ -681,48 +773,63 @@ function VendaForm({
       setErro(t("venda.error.items"));
       return;
     }
-    if (linhas.some((l) => {
-      const p = produtos.find((x) => x.id === l.idProduto);
-      return Boolean(p?.controlaChassi) && l.unidades.length === 0;
-    })) {
-      setErro(t("venda.error.chassisRequired"));
-      setPasso("itens");
+    if (gravacao === "orcamento" && !/^\d{4}-\d{2}-\d{2}$/.test(validade)) {
+      setErro(t("api.ORCAMENTO_VALIDADE"));
       return;
     }
-    if (idSessao === "") {
-      setErro(t("venda.tillClosed"));
-      return;
-    }
-    const negociacao = resumoPag.enviaveis.filter((p) => p.valor > 0);
-    if (!negociacao.length) {
-      setErro(t("venda.error.pay"));
-      return;
-    }
+    const negociacao = gravacao === "venda" ? resumoPag.enviaveis.filter((p) => p.valor > 0) : [];
     const credito = negociacao.filter((p) => finalizadores.find((f) => f.id === p.idFinalizador)?.geraContasReceber);
-    if (credito.length > 1) {
-      setErro(t("api.VENDA_CREDITO_UNICO"));
-      return;
-    }
-    if (Math.abs(falta) > toleranciaFechamentoPyg(cotacao)) {
-      setErro(t("api.VENDA_NEGOCIACAO_DIVERGENTE"));
-      return;
-    }
     const qtd = Number.parseInt(qtdParcelas, 10) || 0;
-    if (credito.length > 0 && (qtd < 1 || qtd > 120)) {
-      setErro(t("api.PARCELAS_QTD"));
-      return;
+    if (gravacao === "venda") {
+      if (linhas.some((l) => {
+        const p = produtos.find((x) => x.id === l.idProduto);
+        return Boolean(p?.controlaChassi) && l.unidades.length === 0;
+      })) {
+        setErro(t("venda.error.chassisRequired"));
+        setPasso("itens");
+        return;
+      }
+      if (idSessao === "") {
+        setErro(t("venda.tillClosed"));
+        return;
+      }
+      if (!negociacao.length) {
+        setErro(t("venda.error.pay"));
+        return;
+      }
+      if (credito.length > 1) {
+        setErro(t("api.VENDA_CREDITO_UNICO"));
+        return;
+      }
+      if (Math.abs(falta) > toleranciaFechamentoPyg(cotacao)) {
+        setErro(t("api.VENDA_NEGOCIACAO_DIVERGENTE"));
+        return;
+      }
+      if (credito.length > 0 && (qtd < 1 || qtd > 120)) {
+        setErro(t("api.PARCELAS_QTD"));
+        return;
+      }
+    }
+    let confirmarVencido = false;
+    if (gravacao === "venda" && statusRetomada === "orcamento" && validade < dataAsuncion()) {
+      if (!window.confirm(t("venda.confirmVencido"))) return;
+      confirmarVencido = true;
     }
     setSalvando(true);
     try {
-      const venda = await criarVenda({
+      const body = {
         idFilial,
         idCliente,
         idVendedor,
-        idCaixaSessao: idSessao === "" ? null : idSessao,
+        idCaixaSessao: gravacao === "venda" && idSessao !== "" ? idSessao : null,
+        gravacao,
+        validade: gravacao === "orcamento" ? validade : null,
+        confirmarVencido: confirmarVencido || confirmarOrcamentos,
+        idsOrcamentos: gravacao === "venda" && idRetomada == null ? idsOrcamentos : [],
         itens: linhas.map((l) => ({
           idProduto: l.idProduto,
           quantidade: l.quantidade,
-          idsUnidades: l.unidades.map((u) => u.id),
+          idsUnidades: gravacao === "venda" ? l.unidades.map((u) => u.id) : [],
           descontoPct: l.descontoPct || 0,
         })),
         negociacao,
@@ -735,7 +842,10 @@ function VendaForm({
           : null,
         descontoPct: podeDesconto ? descontoVenda : 0,
         observacao: observacao.trim() || null,
-      });
+      };
+      const venda = gravacao === "venda" && idRetomada != null
+        ? await finalizarVenda(idRetomada, body)
+        : await criarVenda(body);
       limparCarrinho();
       setRecibo(venda);
       await onSaved();
@@ -748,7 +858,8 @@ function VendaForm({
   }
 
   const qtdItens = linhas.reduce((acc, l) => acc + l.quantidade, 0);
-  const podePagar = idCliente !== "" && idVendedor !== "" && linhas.length > 0 && idSessao !== "";
+  const podeRascunho = idCliente !== "" && idVendedor !== "" && linhas.length > 0;
+  const podePagar = podeRascunho && idSessao !== "";
   const quitado = Math.abs(falta) <= toleranciaFechamentoPyg(cotacao);
   const podeFinalizar = podePagar && quitado && resumoPag.enviaveis.length > 0;
 
@@ -888,7 +999,7 @@ function VendaForm({
           )}
         </div>
 
-        <div className="pdv-chip relative">
+        {modo === "venda" && <div className="pdv-chip relative">
           <span className="pdv-chip-label">{t("venda.till")}</span>
           {caixaPadrao ? (
             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -902,32 +1013,7 @@ function VendaForm({
           ) : (
             <span className="pdv-chip-value" style={{ color: v("--text-muted") }}>{t("venda.noTill")}</span>
           )}
-        </div>
-      </div>
-
-      <div className="pdv-open">
-        <span className="pdv-open-label">{t("venda.open")}</span>
-        {esperas.length === 0 ? (
-          <span className="pdv-open-empty">{t("venda.openEmpty")}</span>
-        ) : (
-          esperas.map((e) => {
-            const qtd = e.linhas.reduce((a, l) => a + l.quantidade, 0);
-            const total = pygDasLinhas(e.linhas);
-            return (
-              <button key={e.id} type="button" className="pdv-open-chip" onClick={() => retomarEspera(e.id)}>
-                <span className="truncate font-medium">{e.rotulo}</span>
-                <span className="font-mono shrink-0" style={{ color: v("--text-muted") }}>
-                  {tf(t, "venda.itemsCount", { n: String(qtd) })} · {formatMoeda(converterMoeda(total, "pyg", moedaOp, cotacao), moedaOp)}
-                </span>
-              </button>
-            );
-          })
-        )}
-        {linhas.length > 0 && (
-          <button type="button" className="pdv-open-hold" onClick={segurarVenda}>
-            {t("venda.hold")}
-          </button>
-        )}
+        </div>}
       </div>
 
       <form className={passo === "pagamento" ? "pdv-layout is-pay" : "pdv-layout"} onSubmit={(e) => e.preventDefault()}>
@@ -1033,7 +1119,7 @@ function VendaForm({
                         const qtd = fin?.geraContasReceber ? Number.parseInt(qtdParcelas, 10) || 0 : 0;
                         return (
                           <tr key={`${p.idFinalizador}-${idx}`}>
-                            <td>{fin?.nome ?? ""}{qtd > 1 ? ` ${qtd}x` : ""}</td>
+                            <td>{fin?.nome ?? ""}{qtd >= 1 ? ` ${qtd}x` : ""}</td>
                             <td className="font-mono">
                               {formatMoeda(parseGs(p.valor), p.moeda)}
                               <button type="button" className="ml-3 text-xs cursor-pointer" style={{ color: "var(--danger)" }}
@@ -1056,7 +1142,7 @@ function VendaForm({
             </div>
             <div className="pdv-pay-foot">
               <button type="button" disabled={salvando || !podeFinalizar} className="btn-gold px-5 py-3 text-sm w-full"
-                onClick={() => void salvar()}>
+                onClick={() => void gravar("venda")}>
                 {salvando ? t("common.saving") : t("venda.finish")}
               </button>
             </div>
@@ -1248,6 +1334,12 @@ function VendaForm({
                             {l.unidades[0]?.numero}
                           </p>
                         )}
+                        {modo === "venda" && p?.controlaChassi && l.unidades.length === 0 && (
+                          <button type="button" className="text-[11px] cursor-pointer mt-1" style={{ color: v("--gold") }}
+                            onClick={() => void abrirPicker(l.idProduto)}>
+                            {t("venda.pickChassis")}
+                          </button>
+                        )}
                         <div className="flex items-center justify-between mt-2 gap-2">
                           {l.unidades.length === 0 && (
                           <div className="flex items-center gap-1">
@@ -1304,10 +1396,34 @@ function VendaForm({
                 <EquivalentesMoeda valor={converterMoeda(totalLiquido, "pyg", moedaOp, cotacao)} de={moedaOp} cotacao={cotacao} />
               </div>
             </div>
-            <button type="button" disabled={!podePagar} className="btn-gold px-5 py-3 text-sm w-full mt-3"
-              onClick={irParaPagamento}>
-              {t("venda.goPay")}
-            </button>
+            {modo === "orcamento" ? (
+              <div className="mt-3 space-y-2">
+                <Field label={t("venda.validade")}>
+                  <input type="date" className="field" value={validade} onChange={(e) => setValidade(e.target.value)} />
+                </Field>
+                <button type="button" disabled={salvando || !podeRascunho} className="btn-gold px-5 py-3 text-sm w-full"
+                  onClick={() => void gravar("orcamento")}>
+                  {salvando ? t("common.saving") : t("venda.salvarOrcamento")}
+                </button>
+              </div>
+            ) : (
+              <>
+                {idRetomada != null && (
+                  <p className="text-xs mt-2" style={{ color: v("--text-muted") }}>
+                    {tf(t, "venda.continuando", { n: String(idRetomada) })}
+                  </p>
+                )}
+                {idsOrcamentos.length > 0 && (
+                  <p className="text-xs mt-2" style={{ color: v("--text-muted") }}>
+                    {tf(t, "venda.orcamentosSelecionados", { n: String(idsOrcamentos.length) })}
+                  </p>
+                )}
+                <button type="button" disabled={!podePagar} className="btn-gold px-5 py-3 text-sm w-full mt-3"
+                  onClick={irParaPagamento}>
+                  {t("venda.goPay")}
+                </button>
+              </>
+            )}
           </div>
         </aside>
         )}

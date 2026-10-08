@@ -211,6 +211,7 @@ const Icon = {
   estoques: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>,
   cotacoes: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
   vendas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>,
+  orcamentos: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>,
   historico: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
   facturas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></svg>,
   entradaNota: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>,
@@ -228,7 +229,7 @@ const Icon = {
   more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "vendas" | "historico" | "relatorioReceber" | "relatorioPagar" | "relatorioVendas" | "relatorioEstoque" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "vendas" | "orcamentos" | "historico" | "relatorioReceber" | "relatorioPagar" | "relatorioVendas" | "relatorioEstoque" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 type NavPermissao = string | readonly string[];
 type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: NavPermissao };
@@ -285,6 +286,7 @@ const navGrupos: NavGrupo[] = [
     id: "vendas",
     items: [
       { id: "vendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
+      { id: "orcamentos", label: "Orçamento", icon: "orcamentos", permissao: Permissao.VENDA_REGISTRAR },
       { id: "historico", label: "Histórico", icon: "historico", permissao: Permissao.VENDA_REGISTRAR },
       { id: "facturas", label: "Faturas", icon: "facturas", permissao: Permissao.VENDA_REGISTRAR },
     ],
@@ -526,7 +528,7 @@ function Dashboard({
               const m = parts.find((p) => p.type === "month")?.value;
               const d = parts.find((p) => p.type === "day")?.value;
               const inicio = Date.parse(`${y}-${m}-${d}T04:00:00.000Z`);
-              const doDia = vendas.filter((venda) => venda.criadoEm >= inicio);
+              const doDia = vendas.filter((venda) => venda.status === "finalizada" && venda.criadoEm >= inicio);
               setVendasHoje(doDia.length);
               setTotalHoje(doDia.reduce((a, venda) => a + venda.totalPyg, 0));
             }),
@@ -2880,6 +2882,8 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
   );
   const [view, setView] = useState<View | null>(viewsOk[0] ?? null);
   const [navReset, setNavReset] = useState(0);
+  const [retomarVendaId, setRetomarVendaId] = useState<number | null>(null);
+  const [orcamentosVenda, setOrcamentosVenda] = useState<{ ids: number[]; confirmarVencido: boolean } | null>(null);
   const { light, toggle } = useTheme();
   const [clientes, setClientes] = useState<Papel[]>([]);
   const [fornecedores, setFornecedores] = useState<Papel[]>([]);
@@ -2928,6 +2932,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
   const titles: Record<View, string> = {
     dashboard: t("nav.dashboard"),
     vendas: t("nav.vendas"),
+    orcamentos: t("nav.orcamentos"),
     historico: t("nav.historico"),
     relatorioReceber: t("nav.relatorioReceber"),
     relatorioPagar: t("nav.relatorioPagar"),
@@ -2992,8 +2997,37 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
               onNavigate={navigateTo}
             />
           )}
-          {view === "vendas" && <VendasPage navReset={navReset} />}
-          {view === "historico" && <HistoricoVendasPage navReset={navReset} />}
+          {view === "vendas" && (
+            <VendasPage
+              modo="venda"
+              navReset={navReset}
+              retomarId={retomarVendaId}
+              onRetomada={() => setRetomarVendaId(null)}
+              orcamentos={orcamentosVenda}
+              onOrcamentosCarregados={() => setOrcamentosVenda(null)}
+            />
+          )}
+          {view === "orcamentos" && (
+            <VendasPage
+              modo="orcamento"
+              navReset={navReset}
+              retomarId={null}
+              onRetomada={() => {}}
+              orcamentos={null}
+              onOrcamentosCarregados={() => {}}
+            />
+          )}
+          {view === "historico" && (
+            <HistoricoVendasPage
+              navReset={navReset}
+              onContinuar={(id) => { setOrcamentosVenda(null); setRetomarVendaId(id); setView("vendas"); }}
+              onGerarVenda={(ids, confirmarVencido) => {
+                setRetomarVendaId(null);
+                setOrcamentosVenda({ ids, confirmarVencido });
+                setView("vendas");
+              }}
+            />
+          )}
           {(view === "relatorioReceber" || view === "relatorioPagar" || view === "relatorioVendas" || view === "relatorioEstoque") && (
             <RelatoriosPage
               key={view}

@@ -62,11 +62,10 @@ class VendaService(
         return venda.toResponse()
     }
 
-    suspend fun criar(request: VendaRequest, idUsuario: Long): VendaResponse {
+    suspend fun criar(request: VendaRequest, idUsuario: Long, idExistente: Long? = null): VendaResponse {
         cotacaoService.exigirAtiva()
         val cotacao = cotacaoService.buscarHoje()
         val idFilial = resolverFilialComAcesso(idUsuario, request.idFilial)
-        val sessao = caixaService.resolverSessaoVenda(idUsuario, idFilial, request.idCaixaSessao)
         val cliente = papelService.buscarCliente(request.idCliente)
         if (cliente.status != Status.ATIVO) {
             throw invalido("CLIENTE_INATIVO", "O cliente não está ativo")
@@ -81,7 +80,25 @@ class VendaService(
         }
         val operador = usuarioRepository.buscar(idUsuario)
             ?: throw RecursoNaoEncontrado("Usuário $idUsuario não encontrado")
-        val itens = montarItens(request, idFilial, cotacao, operador.perfil)
+        val gravacao = when (request.gravacao) {
+            "venda", "orcamento", "aberta" -> request.gravacao
+            else -> throw invalido("VENDA_GRAVACAO", "Informe se é venda, orçamento ou em aberto")
+        }
+        val efetivar = gravacao == "venda"
+        val hoje = LocalDate.now(zoneId).toString()
+        val validade = if (gravacao == "orcamento") {
+            val data = request.validade?.trim().orEmpty()
+            if (!data.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
+                throw invalido("ORCAMENTO_VALIDADE", "Informe a validade do orçamento")
+            }
+            if (data < hoje) {
+                throw invalido("ORCAMENTO_VALIDADE", "A validade do orçamento não pode ser anterior a hoje")
+            }
+            data
+        } else {
+            null
+        }
+        val itens = montarItens(request, idFilial, cotacao, operador.perfil, efetivar)
         val subtotalPyg = itens.sumOf { it.totalPyg }
         val descontoPct = round(request.descontoPct * 100.0) / 100.0
         if (descontoPct < 0.0 || descontoPct > 100.0) {
@@ -99,7 +116,11 @@ class VendaService(
         if (totalPyg <= 0) {
             throw invalido("VENDA_TOTAL_INVALIDO", "O total da venda deve ser maior que zero")
         }
-        val negociacao = montarNegociacao(request.negociacao, totalPyg, cotacao)
+        val negociacao = if (!efetivar && request.negociacao.isEmpty()) {
+            emptyList()
+        } else {
+            montarNegociacao(request.negociacao, totalPyg, cotacao)
+        }
         val finais = caixaService.listarFinalizadores().associateBy { it.id }
         val credito = negociacao.filter { finais[it.idFinalizador]?.geraContasReceber == true }
         val vista = negociacao.filter { finais[it.idFinalizador]?.geraContasReceber != true }
@@ -109,7 +130,7 @@ class VendaService(
         if (credito.isNotEmpty() && credito.map { it.moeda }.distinct().size > 1) {
             throw invalido("VENDA_CREDITO_MOEDA", "O crediário deve estar em uma única moeda")
         }
-        val tituloReceber = if (credito.isNotEmpty()) {
+        val tituloReceber = if (efetivar && credito.isNotEmpty()) {
             val cfg = request.parcelas
                 ?: throw invalido("PARCELAS_OBRIGATORIAS", "Informe as parcelas do crediário")
             val linha = credito.first()
@@ -143,11 +164,45 @@ class VendaService(
             null
         }
         val idVendedor = resolverVendedor(request.idVendedor, idUsuario, idFilial)
+        val sessaoId = if (efetivar) {
+            caixaService.resolverSessaoVenda(idUsuario, idFilial, request.idCaixaSessao).sessao.id
+        } else {
+            null
+        }
+        val status = when (gravacao) {
+            "orcamento" -> StatusVenda.ORCAMENTO.name.lowercase()
+            "aberta" -> StatusVenda.ABERTA.name.lowercase()
+            else -> StatusVenda.FINALIZADA.name.lowercase()
+        }
+        if (idExistente == null) {
         val id = repository.inserir(
             idFilial = idFilial,
             idCliente = request.idCliente,
             idVendedor = idVendedor,
-            idCaixaSessao = sessao.sessao.id,
+            idCaixaSessao = sessaoId,
+            idCotacao = cotacao.id,
+            totalPyg = totalPyg,
+            descontoPct = descontoPct,
+            descontoPyg = descontoPyg,
+            observacao = request.observacao?.trim()?.ifBlank { null },
+            itens = itens,
+            negociacao = negociacao,
+            negociacaoCaixa = if (efetivar) vista else emptyList(),
+            tituloReceber = tituloReceber,
+            idUsuario = idUsuario,
+            status = status,
+            validade = validade,
+            efetivar = efetivar,
+            idsOrcamentos = if (efetivar) request.idsOrcamentos.distinct() else emptyList(),
+            hoje = hoje,
+            confirmarVencido = request.confirmarVencido,
+        )
+        return buscar(id, idUsuario)
+        }
+        val sessaoEfetiva = sessaoId ?: throw invalido("CAIXA_SESSAO_AUSENTE", "Abra o caixa antes de vender")
+        repository.efetivar(
+            idVenda = idExistente,
+            idCaixaSessao = sessaoEfetiva,
             idCotacao = cotacao.id,
             totalPyg = totalPyg,
             descontoPct = descontoPct,
@@ -159,6 +214,35 @@ class VendaService(
             tituloReceber = tituloReceber,
             idUsuario = idUsuario,
         )
+        return buscar(idExistente, idUsuario)
+    }
+
+    suspend fun finalizar(id: Long, request: VendaRequest, idUsuario: Long): VendaResponse {
+        val atual = repository.buscar(id) ?: throw RecursoNaoEncontrado("Venda $id não encontrada")
+        exigirAcessoFilial(idUsuario, atual.idFilial)
+        if (atual.status != StatusVenda.ABERTA.name.lowercase()) {
+            throw invalido("VENDA_NAO_ABERTA", "Só uma venda em aberto pode ser finalizada")
+        }
+        return criar(
+            request.copy(
+                gravacao = "venda",
+                idFilial = atual.idFilial,
+                idCliente = atual.idCliente,
+                idVendedor = atual.idVendedor,
+                idsOrcamentos = emptyList(),
+            ),
+            idUsuario,
+            id,
+        )
+    }
+
+    suspend fun cancelar(id: Long, idUsuario: Long): VendaResponse {
+        val atual = repository.buscar(id) ?: throw RecursoNaoEncontrado("Venda $id não encontrada")
+        exigirAcessoFilial(idUsuario, atual.idFilial)
+        if (atual.status != StatusVenda.ABERTA.name.lowercase() && atual.status != StatusVenda.ORCAMENTO.name.lowercase()) {
+            throw invalido("VENDA_NAO_CANCELAVEL", "Só um orçamento ou uma venda em aberto pode ser cancelada")
+        }
+        repository.cancelar(id)
         return buscar(id, idUsuario)
     }
 
@@ -183,6 +267,7 @@ class VendaService(
         idFilial: Long,
         cotacao: CotacaoResponse,
         perfil: com.monarca.usuario.domain.PerfilUsuario,
+        efetivar: Boolean,
     ): List<VendaItemPersistencia> {
         val podeDesconto = Rbac.possui(perfil, Permissao.VENDA_DESCONTO)
         data class Acc(val quantidade: Int, val idsUnidades: MutableList<Long>, val descontoPct: Double)
@@ -236,15 +321,19 @@ class VendaService(
             } else {
                 padrao
             }
-            val unidades = validarUnidadesVenda(
-                produto.controlaChassi,
-                produto.codigo,
-                idProduto,
-                escolhido.idEstoque,
-                quantidade,
-                idsUnidades,
-            )
-            if (escolhido.quantidadeDisponivel < quantidade) {
+            val unidades = if (efetivar) {
+                validarUnidadesVenda(
+                    produto.controlaChassi,
+                    produto.codigo,
+                    idProduto,
+                    escolhido.idEstoque,
+                    quantidade,
+                    idsUnidades,
+                )
+            } else {
+                emptyList()
+            }
+            if (efetivar && escolhido.quantidadeDisponivel < quantidade) {
                 throw invalido("ESTOQUE_INSUFICIENTE", "Saldo insuficiente para vender ${produto.codigo}")
             }
             val unitario = paraPyg(produto.precoLista, produto.moedaPreco, cotacao)
@@ -394,6 +483,12 @@ class VendaService(
         vendedorNome = vendedorNome,
         idCaixaSessao = idCaixaSessao,
         idCotacao = idCotacao,
+        clienteEndereco = clienteEndereco,
+        clienteTelefone = clienteTelefone,
+        validade = validade,
+        idVendaGerada = idVendaGerada,
+        usdPyg = usdPyg,
+        brlPyg = brlPyg,
         totalPyg = totalPyg,
         descontoPct = descontoPct,
         descontoPyg = descontoPyg,
@@ -427,6 +522,7 @@ class VendaService(
                 moeda = Moeda.valueOf(it.moeda.uppercase()),
                 valor = it.valor,
                 valorPyg = it.valorPyg,
+                quantidadeParcelas = it.quantidadeParcelas,
             )
         },
     )

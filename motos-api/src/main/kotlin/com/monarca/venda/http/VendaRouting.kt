@@ -65,6 +65,23 @@ fun Application.configureVenda() {
                     }
                 }
             }
+            post<Vendas.Id.Finalizar> { resource ->
+                call.handleVenda {
+                    call.podeRegistrarVenda()
+                    val request = call.receive<VendaRequest>()
+                    call.withAudit {
+                        call.respond(service.finalizar(resource.parent.id, request, call.usuarioAutenticado().id))
+                    }
+                }
+            }
+            post<Vendas.Id.Cancelar> { resource ->
+                call.handleVenda {
+                    call.podeRegistrarVenda()
+                    call.withAudit {
+                        call.respond(service.cancelar(resource.parent.id, call.usuarioAutenticado().id))
+                    }
+                }
+            }
         }
     }
 }

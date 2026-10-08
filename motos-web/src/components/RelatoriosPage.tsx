@@ -343,6 +343,7 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
 
   const q = search.trim().toLowerCase();
   const vendasFiltradas = useMemo(() => vendas.filter((e) =>
+    e.status === "finalizada" &&
     noPeriodo(e.criadoEm, de, ate) &&
     `${e.id} ${e.clienteNome} ${e.vendedorNome}`.toLowerCase().includes(q),
   ), [vendas, de, ate, q]);

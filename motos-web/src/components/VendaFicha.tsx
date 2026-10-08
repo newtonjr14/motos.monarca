@@ -1,10 +1,11 @@
 import { buscarFacturaPorVenda, emitirFactura, previewDocumentoEletronico, type Factura, type Venda } from "@/api";
 import { Section } from "@/components/crud/Field";
 import { Td } from "@/components/crud/ListUi";
-import { formatarDataHoraEpoch, formatMoeda, formatPyg } from "@/format";
+import { dataAsuncion, formatarDataHoraEpoch, formatarDataIso, formatMoeda, formatPyg } from "@/format";
 import { useI18n } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
+import { tf } from "@/i18n/format";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -28,10 +29,19 @@ function NavBtn({ label, disabled, onClick, children }: {
   );
 }
 
-function StatusVendaTexto({ status }: { status: string }) {
+function StatusVendaTexto({ status, validade }: { status: string; validade?: string | null }) {
   const { t } = useI18n();
-  const ok = status !== "cancelada";
-  const label = ok ? t("venda.status.finalizada") : t("venda.status.cancelada");
+  const vencido = status === "orcamento" && !!validade && validade < dataAsuncion();
+  const label = status === "cancelada"
+    ? t("venda.status.cancelada")
+    : status === "aberta"
+      ? t("venda.status.aberta")
+      : status === "utilizada"
+        ? t("venda.status.utilizada")
+      : status === "orcamento"
+        ? t(vencido ? "venda.status.orcamentoVencido" : "venda.status.orcamento")
+        : t("venda.status.finalizada");
+  const ok = status === "finalizada";
   return (
     <span
       className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border"
@@ -54,9 +64,15 @@ export default function VendaFicha({
   item,
   nav,
   onClose,
+  onContinuar,
+  onGerarVenda,
+  onCancelar,
 }: {
   item: Venda;
   nav?: { index: number; total: number; onPrev: () => void; onNext: () => void };
+  onContinuar?: (id: number) => void;
+  onGerarVenda?: (id: number) => void;
+  onCancelar?: (id: number) => void;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -165,13 +181,38 @@ export default function VendaFicha({
               {t("venda.view")} #{item.id}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <StatusVendaTexto status={item.status} />
+              <StatusVendaTexto status={item.status} validade={item.validade} />
+              {item.status === "orcamento" && item.validade && (
+                <span className="text-xs" style={{ color: v("--text-sub") }}>
+                  {t("venda.validade")}: {formatarDataIso(item.validade)}
+                </span>
+              )}
+              {item.status === "utilizada" && item.idVendaGerada != null && (
+                <span className="text-xs" style={{ color: v("--text-sub") }}>
+                  {tf(t, "venda.utilizadaEm", { n: String(item.idVendaGerada) })}
+                </span>
+              )}
               <span className="text-xs" style={{ color: v("--text-sub") }}>
                 {formatarDataHoraEpoch(item.criadoEm)} · {item.filialNome}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {item.status === "aberta" && onContinuar && (
+              <button type="button" className="btn-gold px-3 py-1.5 text-xs" onClick={() => onContinuar(item.id)}>
+                {t("venda.continuar")}
+              </button>
+            )}
+            {item.status === "orcamento" && onGerarVenda && (
+              <button type="button" className="btn-gold px-3 py-1.5 text-xs" onClick={() => onGerarVenda(item.id)}>
+                {t("venda.gerarVenda")}
+              </button>
+            )}
+            {(item.status === "aberta" || item.status === "orcamento") && onCancelar && (
+              <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={() => onCancelar(item.id)}>
+                {t("common.cancel")}
+              </button>
+            )}
             {nav && nav.total > 1 && (
               <>
                 <NavBtn label={t("ficha.prev")} disabled={nav.index <= 0} onClick={nav.onPrev}>
@@ -248,18 +289,18 @@ export default function VendaFicha({
             </div>
           </Section>
 
-          <Section title={t("venda.pay")}>
+          {item.negociacao.length > 0 && <Section title={t("venda.pay")}>
             <div className="space-y-2">
               {item.negociacao.map((n) => (
                 <div key={n.id} className="flex items-baseline justify-between gap-3">
-                  <p className="text-sm min-w-0 break-words" style={{ color: v("--text") }}>{n.finalizadorNome}</p>
+                  <p className="text-sm min-w-0 break-words" style={{ color: v("--text") }}>{n.finalizadorNome}{n.quantidadeParcelas ? ` ${n.quantidadeParcelas}x` : ""}</p>
                   <p className="text-sm font-mono shrink-0" style={{ color: v("--text-sub") }}>
                     {formatMoeda(n.valor, n.moeda ?? "pyg")}
                   </p>
                 </div>
               ))}
             </div>
-          </Section>
+          </Section>}
 
           {item.observacao && (
             <Section title={t("caixa.note")}>

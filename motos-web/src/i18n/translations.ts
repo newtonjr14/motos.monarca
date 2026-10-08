@@ -289,6 +289,7 @@ export type TranslationKey =
   | "col.actions"
   | "col.id"
   | "col.date"
+  | "col.status"
   | "col.document"
   | "col.phone"
   | "col.city"
@@ -666,6 +667,7 @@ export type TranslationKey =
   | "nav.caixas"
   | "nav.caixa"
   | "nav.vendas"
+  | "nav.orcamentos"
   | "nav.historico"
   | "nav.contasReceber"
   | "nav.contasPagar"
@@ -778,6 +780,21 @@ export type TranslationKey =
   | "venda.view"
   | "venda.status.finalizada"
   | "venda.status.cancelada"
+  | "venda.status.aberta"
+  | "venda.status.orcamento"
+  | "venda.status.orcamentoVencido"
+  | "venda.status.utilizada"
+  | "venda.gerarVenda"
+  | "venda.confirmCancelar"
+  | "venda.orcamentoCliente"
+  | "venda.orcamentosSelecionados"
+  | "venda.utilizadaEm"
+  | "venda.filtro.todos"
+  | "venda.filtro.aberta"
+  | "venda.filtro.orcamento"
+  | "venda.filtro.finalizada"
+  | "venda.filtro.cancelada"
+  | "venda.filtro.utilizada"
   | "venda.documentoEletronico"
   | "venda.montarJsonSudtax"
   | "venda.copiarJsonSudtax"
@@ -947,8 +964,19 @@ export type TranslationKey =
   | "venda.recibo.print"
   | "venda.recibo.footer"
   | "venda.dav.titulo"
+  | "venda.dav.tituloOrcamento"
+  | "venda.dav.tituloAberta"
   | "venda.dav.aviso"
   | "venda.dav.pagamento"
+  | "venda.dav.endereco"
+  | "venda.dav.telefone"
+  | "venda.dav.concordo"
+  | "venda.validade"
+  | "venda.salvarOrcamento"
+  | "venda.deixarAberto"
+  | "venda.continuar"
+  | "venda.continuando"
+  | "venda.confirmVencido"
   | "usuario.caixas"
   | "usuario.caixaPadrao"
   | "api.FINALIZADOR_NOME_DUPLICADO"
@@ -985,6 +1013,13 @@ export type TranslationKey =
   | "api.VENDA_NEGOCIACAO_OBRIGATORIA"
   | "api.VENDA_VALOR_INVALIDO"
   | "api.VENDA_NEGOCIACAO_DIVERGENTE"
+  | "api.ORCAMENTO_VENCIDO"
+  | "api.ORCAMENTO_VALIDADE"
+  | "api.VENDA_GRAVACAO"
+  | "api.VENDA_NAO_ABERTA"
+  | "api.VENDA_NAO_CANCELAVEL"
+  | "api.ORCAMENTO_CLIENTE"
+  | "api.ORCAMENTO_INDISPONIVEL"
   | "api.VENDA_DESCONTO_INVALIDO"
   | "api.VENDEDOR_INATIVO"
   | "api.VENDEDOR_FILIAL"
@@ -1130,6 +1165,7 @@ const pt: Record<TranslationKey, string> = {
   "nav.caixas": "Caixas",
   "nav.caixa": "Caixa do dia",
   "nav.vendas": "Vendas",
+  "nav.orcamentos": "Orçamento",
   "nav.historico": "Histórico",
   "nav.usuarios": "Usuários",
   "nav.paises": "Países",
@@ -1330,6 +1366,7 @@ const pt: Record<TranslationKey, string> = {
   "col.actions": "",
   "col.id": "ID",
   "col.date": "Data",
+  "col.status": "Status",
   "col.document": "Documento",
   "col.phone": "Telefone",
   "col.city": "Cidade",
@@ -1545,6 +1582,13 @@ const pt: Record<TranslationKey, string> = {
   "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Informe ao menos uma forma de pagamento",
   "api.VENDA_VALOR_INVALIDO": "O valor do pagamento deve ser maior que zero",
   "api.VENDA_NEGOCIACAO_DIVERGENTE": "A soma das formas de pagamento deve igualar o total",
+  "api.ORCAMENTO_VENCIDO": "O orçamento venceu. Confirme para converter com a cotação de hoje",
+  "api.ORCAMENTO_VALIDADE": "Informe uma validade válida para o orçamento",
+  "api.VENDA_GRAVACAO": "Informe se é venda, orçamento ou em aberto",
+  "api.VENDA_NAO_ABERTA": "Só uma venda em aberto pode ser finalizada",
+  "api.VENDA_NAO_CANCELAVEL": "Só um orçamento ou uma venda em aberto pode ser cancelada",
+  "api.ORCAMENTO_CLIENTE": "Os orçamentos precisam ser do mesmo cliente",
+  "api.ORCAMENTO_INDISPONIVEL": "Um dos orçamentos não está mais disponível",
   "api.VENDA_DESCONTO_INVALIDO": "O desconto deve estar entre 0 e 100%",
   "api.VENDEDOR_INATIVO": "O vendedor não está ativo",
   "api.VENDEDOR_FILIAL": "O vendedor não tem acesso a esta filial",
@@ -1828,6 +1872,21 @@ const pt: Record<TranslationKey, string> = {
   "venda.view": "Venda",
   "venda.status.finalizada": "Finalizada",
   "venda.status.cancelada": "Cancelada",
+  "venda.status.aberta": "Em aberto",
+  "venda.status.orcamento": "Orçamento",
+  "venda.status.orcamentoVencido": "Orçamento vencido",
+  "venda.status.utilizada": "Utilizado",
+  "venda.gerarVenda": "Gerar venda",
+  "venda.confirmCancelar": "Cancelar este documento? Ele não poderá ser usado depois.",
+  "venda.orcamentoCliente": "Selecione orçamentos do mesmo cliente",
+  "venda.orcamentosSelecionados": "{n} orçamentos",
+  "venda.utilizadaEm": "Venda #{n}",
+  "venda.filtro.todos": "Todos",
+  "venda.filtro.aberta": "Em aberto",
+  "venda.filtro.orcamento": "Orçamento",
+  "venda.filtro.finalizada": "Finalizada",
+  "venda.filtro.cancelada": "Cancelada",
+  "venda.filtro.utilizada": "Utilizado",
   "venda.documentoEletronico": "Documento eletrônico (SudTax)",
   "venda.montarJsonSudtax": "Montar JSON",
   "venda.copiarJsonSudtax": "Copiar JSON",
@@ -1985,6 +2044,17 @@ const pt: Record<TranslationKey, string> = {
   "venda.dav.titulo": "DAV - DOCUMENTO AUXILIAR DE VENDA - PEDIDO",
   "venda.dav.aviso": "NÃO É DOCUMENTO FISCAL - NÃO É VÁLIDO COMO RECIBO E COMO GARANTIA DE MERCADORIA",
   "venda.dav.pagamento": "NÃO COMPROVA PAGAMENTO",
+  "venda.dav.tituloOrcamento": "ORÇAMENTO",
+  "venda.dav.tituloAberta": "PEDIDO EM ABERTO",
+  "venda.dav.endereco": "Endereço",
+  "venda.dav.telefone": "Telefone",
+  "venda.dav.concordo": "Concordo com os valores expressos neste documento",
+  "venda.validade": "Validade",
+  "venda.salvarOrcamento": "Salvar orçamento",
+  "venda.deixarAberto": "Deixar em aberto",
+  "venda.continuar": "Continuar",
+  "venda.continuando": "Continuando #{n}",
+  "venda.confirmVencido": "Este orçamento venceu. Converter em venda com a cotação de hoje?",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pago",
   "venda.remaining": "Falta",
@@ -2137,6 +2207,7 @@ const es: Record<TranslationKey, string> = {
   "nav.caixas": "Cajas",
   "nav.caixa": "Caja del día",
   "nav.vendas": "Ventas",
+  "nav.orcamentos": "Presupuesto",
   "nav.historico": "Historial",
   "nav.usuarios": "Usuarios",
   "nav.paises": "Países",
@@ -2337,6 +2408,7 @@ const es: Record<TranslationKey, string> = {
   "col.actions": "",
   "col.id": "ID",
   "col.date": "Fecha",
+  "col.status": "Estado",
   "col.document": "Documento",
   "col.phone": "Teléfono",
   "col.city": "Ciudad",
@@ -2552,6 +2624,13 @@ const es: Record<TranslationKey, string> = {
   "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Indique al menos una forma de pago",
   "api.VENDA_VALOR_INVALIDO": "El valor del pago debe ser mayor que cero",
   "api.VENDA_NEGOCIACAO_DIVERGENTE": "La suma de las formas de pago debe igualar el total",
+  "api.ORCAMENTO_VENCIDO": "El presupuesto venció. Confirme para convertirlo con la cotización de hoy",
+  "api.ORCAMENTO_VALIDADE": "Indique una validez válida para el presupuesto",
+  "api.VENDA_GRAVACAO": "Indique si es venta, presupuesto o abierto",
+  "api.VENDA_NAO_ABERTA": "Solo una venta abierta puede finalizarse",
+  "api.VENDA_NAO_CANCELAVEL": "Solo un presupuesto o una venta abierta puede cancelarse",
+  "api.ORCAMENTO_CLIENTE": "Los presupuestos deben ser del mismo cliente",
+  "api.ORCAMENTO_INDISPONIVEL": "Uno de los presupuestos ya no está disponible",
   "api.VENDA_DESCONTO_INVALIDO": "El descuento debe estar entre 0 y 100%",
   "api.VENDEDOR_INATIVO": "El vendedor no está activo",
   "api.VENDEDOR_FILIAL": "El vendedor no tiene acceso a esta sucursal",
@@ -2845,6 +2924,21 @@ const es: Record<TranslationKey, string> = {
   "venda.view": "Venta",
   "venda.status.finalizada": "Finalizada",
   "venda.status.cancelada": "Cancelada",
+  "venda.status.aberta": "Abierta",
+  "venda.status.orcamento": "Presupuesto",
+  "venda.status.orcamentoVencido": "Presupuesto vencido",
+  "venda.status.utilizada": "Utilizado",
+  "venda.gerarVenda": "Generar venta",
+  "venda.confirmCancelar": "¿Cancelar este documento? No podrá usarse después.",
+  "venda.orcamentoCliente": "Seleccione presupuestos del mismo cliente",
+  "venda.orcamentosSelecionados": "{n} presupuestos",
+  "venda.utilizadaEm": "Venta #{n}",
+  "venda.filtro.todos": "Todos",
+  "venda.filtro.aberta": "Abierta",
+  "venda.filtro.orcamento": "Presupuesto",
+  "venda.filtro.finalizada": "Finalizada",
+  "venda.filtro.cancelada": "Cancelada",
+  "venda.filtro.utilizada": "Utilizado",
   "venda.documentoEletronico": "Documento electrónico (SudTax)",
   "venda.montarJsonSudtax": "Armar JSON",
   "venda.copiarJsonSudtax": "Copiar JSON",
@@ -3002,6 +3096,17 @@ const es: Record<TranslationKey, string> = {
   "venda.dav.titulo": "DAV - DOCUMENTO AUXILIAR DE VENTA - PEDIDO",
   "venda.dav.aviso": "NO ES DOCUMENTO FISCAL - NO ES VÁLIDO COMO RECIBO NI COMO GARANTÍA DE MERCADERÍA",
   "venda.dav.pagamento": "NO COMPRUEBA EL PAGO",
+  "venda.dav.tituloOrcamento": "PRESUPUESTO",
+  "venda.dav.tituloAberta": "PEDIDO ABIERTO",
+  "venda.dav.endereco": "Dirección",
+  "venda.dav.telefone": "Teléfono",
+  "venda.dav.concordo": "Concuerdo con los valores expresados en este documento",
+  "venda.validade": "Validez",
+  "venda.salvarOrcamento": "Guardar presupuesto",
+  "venda.deixarAberto": "Dejar abierto",
+  "venda.continuar": "Continuar",
+  "venda.continuando": "Continuando #{n}",
+  "venda.confirmVencido": "Este presupuesto venció. ¿Convertir en venta con la cotización de hoy?",
   "venda.subtotal": "Subtotal",
   "venda.paid": "Pagado",
   "venda.remaining": "Falta",

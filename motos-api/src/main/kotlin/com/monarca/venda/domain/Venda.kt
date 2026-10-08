@@ -10,6 +10,15 @@ enum class StatusVenda {
 
     @SerialName("cancelada")
     CANCELADA,
+
+    @SerialName("aberta")
+    ABERTA,
+
+    @SerialName("orcamento")
+    ORCAMENTO,
+
+    @SerialName("utilizada")
+    UTILIZADA,
 }
 
 data class Venda(

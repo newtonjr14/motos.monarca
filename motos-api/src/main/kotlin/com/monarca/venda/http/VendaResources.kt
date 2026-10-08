@@ -18,5 +18,13 @@ class Vendas(
         @Serializable
         @Resource("documento-eletronico")
         class DocumentoEletronico(val parent: Id)
+
+        @Serializable
+        @Resource("finalizar")
+        class Finalizar(val parent: Id)
+
+        @Serializable
+        @Resource("cancelar")
+        class Cancelar(val parent: Id)
     }
 }

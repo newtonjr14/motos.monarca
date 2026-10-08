@@ -34,6 +34,14 @@ data class VendaRequest(
     val descontoPct: Double = 0.0,
     val parcelas: ParcelasConfigRequest? = null,
     val observacao: String? = null,
+    /** venda, orcamento ou aberta. */
+    val gravacao: String = "venda",
+    /** Data ISO. Obrigatória no orçamento. */
+    val validade: String? = null,
+    /** Converte orçamento vencido usando a cotação de hoje. */
+    val confirmarVencido: Boolean = false,
+    /** Orçamentos que esta venda consome ao ser finalizada. */
+    val idsOrcamentos: List<Long> = emptyList(),
 )
 
 @Serializable
@@ -69,6 +77,7 @@ data class VendaNegociacaoResponse(
     val moeda: Moeda,
     val valor: Double,
     val valorPyg: Double,
+    val quantidadeParcelas: Int? = null,
 )
 
 @Serializable
@@ -82,6 +91,12 @@ data class VendaResponse(
     val vendedorNome: String,
     val idCaixaSessao: Long,
     val idCotacao: Long,
+    val clienteEndereco: String? = null,
+    val clienteTelefone: String? = null,
+    val validade: String? = null,
+    val idVendaGerada: Long? = null,
+    val usdPyg: Double,
+    val brlPyg: Double,
     val totalPyg: Double,
     val descontoPct: Double = 0.0,
     val descontoPyg: Double = 0.0,

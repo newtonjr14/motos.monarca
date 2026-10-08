@@ -851,7 +851,7 @@ export type TipoMovimentacaoCaixa =
   | "suprimento"
   | "sangria";
 export type StatusSessaoCaixa = "aberto" | "fechado";
-export type StatusVenda = "finalizada" | "cancelada";
+export type StatusVenda = "finalizada" | "cancelada" | "aberta" | "orcamento" | "utilizada";
 
 export interface Finalizador {
   id: number;
@@ -936,6 +936,7 @@ export interface VendaNegociacao {
   moeda: Moeda;
   valor: number;
   valorPyg: number;
+  quantidadeParcelas?: number | null;
 }
 
 export interface Venda {
@@ -948,6 +949,12 @@ export interface Venda {
   vendedorNome: string;
   idCaixaSessao: number;
   idCotacao: number;
+  clienteEndereco?: string | null;
+  clienteTelefone?: string | null;
+  validade?: string | null;
+  idVendaGerada?: number | null;
+  usdPyg?: number;
+  brlPyg?: number;
   totalPyg: number;
   descontoPct?: number;
   descontoPyg?: number;
@@ -1011,6 +1018,10 @@ export const listarVendedoresVenda = (idFilial?: number) => {
 export const buscarVenda = (id: number) => api<Venda>(`/vendas/${id}`);
 export const criarVenda = (body: unknown) =>
   api<Venda>("/vendas", { method: "POST", body: JSON.stringify(body) });
+export const finalizarVenda = (id: number, body: unknown) =>
+  api<Venda>(`/vendas/${id}/finalizar`, { method: "POST", body: JSON.stringify(body) });
+export const cancelarVenda = (id: number) =>
+  api<Venda>(`/vendas/${id}/cancelar`, { method: "POST" });
 
 export interface DocumentoEletronicoPreview {
   idVenda: number;

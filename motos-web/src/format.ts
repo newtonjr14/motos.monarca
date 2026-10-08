@@ -248,6 +248,21 @@ export function enderecoPrincipal(p: Pessoa): PessoaEndereco | undefined {
   return ativos.find((e) => e.principal) ?? ativos[0];
 }
 
+/** Hoje em Assunção, ou alguns dias à frente, em `yyyy-mm-dd`. */
+export function dataAsuncion(offsetDias = 0): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Asuncion",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const y = Number(parts.find((p) => p.type === "year")?.value);
+  const m = Number(parts.find((p) => p.type === "month")?.value);
+  const d = Number(parts.find((p) => p.type === "day")?.value);
+  const dt = new Date(Date.UTC(y, m - 1, d + offsetDias));
+  return dt.toISOString().slice(0, 10);
+}
+
 /** Data de calendário `yyyy-mm-dd` → `dd/mm/aaaa` (Brasil e Paraguai). */
 export function formatarDataIso(valor: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(valor.trim());
