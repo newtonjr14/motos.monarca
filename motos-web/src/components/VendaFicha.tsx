@@ -187,6 +187,11 @@ export default function VendaFicha({
                   {t("venda.validade")}: {formatarDataIso(item.validade)}
                 </span>
               )}
+              {item.status === "orcamento" && item.idVendaGerada != null && (
+                <span className="text-xs" style={{ color: v("--text-sub") }}>
+                  {tf(t, "venda.orcamentoNaVenda", { n: String(item.idVendaGerada) })}
+                </span>
+              )}
               {item.status === "utilizada" && item.idVendaGerada != null && (
                 <span className="text-xs" style={{ color: v("--text-sub") }}>
                   {tf(t, "venda.utilizadaEm", { n: String(item.idVendaGerada) })}
@@ -198,21 +203,6 @@ export default function VendaFicha({
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            {item.status === "aberta" && onContinuar && (
-              <button type="button" className="btn-gold px-3 py-1.5 text-xs" onClick={() => onContinuar(item.id)}>
-                {t("venda.continuar")}
-              </button>
-            )}
-            {item.status === "orcamento" && onGerarVenda && (
-              <button type="button" className="btn-gold px-3 py-1.5 text-xs" onClick={() => onGerarVenda(item.id)}>
-                {t("venda.gerarVenda")}
-              </button>
-            )}
-            {(item.status === "aberta" || item.status === "orcamento") && onCancelar && (
-              <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={() => onCancelar(item.id)}>
-                {t("common.cancel")}
-              </button>
-            )}
             {nav && nav.total > 1 && (
               <>
                 <NavBtn label={t("ficha.prev")} disabled={nav.index <= 0} onClick={nav.onPrev}>
@@ -243,6 +233,25 @@ export default function VendaFicha({
             {t("venda.total")}
           </p>
           <p className="text-sm font-mono mt-0.5" style={{ color: v("--gold") }}>Gs. {formatPyg(item.totalPyg)}</p>
+          {(item.status === "aberta" || item.status === "orcamento") && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {item.status === "aberta" && onContinuar && (
+                <button type="button" className="btn-gold px-3 py-1.5 text-sm" onClick={() => onContinuar(item.id)}>
+                  {t("venda.retomar")}
+                </button>
+              )}
+              {item.status === "orcamento" && item.idVendaGerada == null && onGerarVenda && (
+                <button type="button" className="btn-gold px-3 py-1.5 text-sm" onClick={() => onGerarVenda(item.id)}>
+                  {t("venda.gerarVenda")}
+                </button>
+              )}
+              {onCancelar && item.idVendaGerada == null && (
+                <button type="button" className="btn-ghost px-3 py-1.5 text-sm" onClick={() => onCancelar(item.id)}>
+                  {item.status === "orcamento" ? t("venda.cancelarOrcamento") : t("venda.cancelarAberta")}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="ficha-modal-body px-6 py-5 space-y-5">
@@ -308,7 +317,7 @@ export default function VendaFicha({
             </Section>
           )}
 
-          <Section title={t("venda.documentoEletronico")}>
+          {item.status === "finalizada" && <Section title={t("venda.documentoEletronico")}>
             <div className="space-y-2">
               {factura && (
                 <div className="text-sm space-y-1" style={{ color: v("--text") }}>
@@ -348,7 +357,7 @@ export default function VendaFicha({
                 </pre>
               )}
             </div>
-          </Section>
+          </Section>}
         </div>
 
         <div className="ficha-modal-actions px-6 py-3 shrink-0" style={{ borderTop: border1(), background: v("--card2") }}>

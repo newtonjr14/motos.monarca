@@ -101,7 +101,7 @@ export default function HistoricoVendasPage({
   }
 
   function gerarVenda() {
-    const escolhidos = itens.filter((e) => selecionados.includes(e.id) && e.status === "orcamento");
+    const escolhidos = itens.filter((e) => selecionados.includes(e.id) && e.status === "orcamento" && e.idVendaGerada == null);
     if (!escolhidos.length) return;
     const clienteId = escolhidos[0]!.idCliente;
     if (escolhidos.some((e) => e.idCliente !== clienteId)) {
@@ -178,7 +178,7 @@ export default function HistoricoVendasPage({
               <tr key={e.id} className="drive-row-clickable" style={{ borderBottom: border1() }}
                 onClick={() => setFichaId(e.id)} title={dataHoraFmt.format(e.criadoEm)}>
                 <td className="drive-td" onClick={(ev) => ev.stopPropagation()}>
-                  {e.status === "orcamento" && (
+                  {e.status === "orcamento" && e.idVendaGerada == null && (
                     <input
                       type="checkbox"
                       checked={selecionados.includes(e.id)}
@@ -192,7 +192,11 @@ export default function HistoricoVendasPage({
                 <Td>{e.clienteNome}</Td>
                 <Td mono>Gs. {formatPyg(e.totalPyg)}</Td>
                 <Td>{e.vendedorNome}</Td>
-                <Td>{t(rotuloStatus(e.status, e.validade))}</Td>
+                <Td>
+                  {e.status === "orcamento" && e.idVendaGerada != null
+                    ? tf(t, "venda.orcamentoNaVenda", { n: String(e.idVendaGerada) })
+                    : t(rotuloStatus(e.status, e.validade))}
+                </Td>
               </tr>
             ))}
           </tbody>
@@ -212,6 +216,10 @@ export default function HistoricoVendasPage({
           onContinuar={(id) => { setFichaId(null); onContinuar(id); }}
           onGerarVenda={(id) => {
             const doc = itens.find((e) => e.id === id);
+            if (doc?.idVendaGerada != null) {
+              setErro(t("api.ORCAMENTO_EM_USO"));
+              return;
+            }
             const vencido = !!doc?.validade && doc.validade < dataAsuncion();
             if (vencido && !window.confirm(t("venda.confirmVencido"))) return;
             setFichaId(null);

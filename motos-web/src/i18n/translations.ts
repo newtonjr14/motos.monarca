@@ -785,10 +785,20 @@ export type TranslationKey =
   | "venda.status.orcamentoVencido"
   | "venda.status.utilizada"
   | "venda.gerarVenda"
+  | "venda.retomar"
+  | "venda.cancelarOrcamento"
+  | "venda.cancelarAberta"
+  | "venda.trazerOrcamentos"
+  | "venda.mesclarOrcamentos"
+  | "venda.clienteTemOrcamentos"
+  | "venda.incluirOrcamentos"
+  | "venda.semOrcamentos"
+  | "venda.emAberto"
   | "venda.confirmCancelar"
   | "venda.orcamentoCliente"
   | "venda.orcamentosSelecionados"
   | "venda.utilizadaEm"
+  | "venda.orcamentoNaVenda"
   | "venda.filtro.todos"
   | "venda.filtro.aberta"
   | "venda.filtro.orcamento"
@@ -1020,6 +1030,7 @@ export type TranslationKey =
   | "api.VENDA_NAO_CANCELAVEL"
   | "api.ORCAMENTO_CLIENTE"
   | "api.ORCAMENTO_INDISPONIVEL"
+  | "api.ORCAMENTO_EM_USO"
   | "api.VENDA_DESCONTO_INVALIDO"
   | "api.VENDEDOR_INATIVO"
   | "api.VENDEDOR_FILIAL"
@@ -1589,6 +1600,7 @@ const pt: Record<TranslationKey, string> = {
   "api.VENDA_NAO_CANCELAVEL": "Só um orçamento ou uma venda em aberto pode ser cancelada",
   "api.ORCAMENTO_CLIENTE": "Os orçamentos precisam ser do mesmo cliente",
   "api.ORCAMENTO_INDISPONIVEL": "Um dos orçamentos não está mais disponível",
+  "api.ORCAMENTO_EM_USO": "Este orçamento já está em uma venda",
   "api.VENDA_DESCONTO_INVALIDO": "O desconto deve estar entre 0 e 100%",
   "api.VENDEDOR_INATIVO": "O vendedor não está ativo",
   "api.VENDEDOR_FILIAL": "O vendedor não tem acesso a esta filial",
@@ -1877,10 +1889,20 @@ const pt: Record<TranslationKey, string> = {
   "venda.status.orcamentoVencido": "Orçamento vencido",
   "venda.status.utilizada": "Utilizado",
   "venda.gerarVenda": "Gerar venda",
+  "venda.retomar": "Retomar venda",
+  "venda.cancelarOrcamento": "Cancelar orçamento",
+  "venda.cancelarAberta": "Cancelar venda",
+  "venda.trazerOrcamentos": "Trazer orçamentos",
+  "venda.mesclarOrcamentos": "Mesclar orçamentos",
+  "venda.clienteTemOrcamentos": "Este cliente tem {n} orçamento(s) em aberto",
+  "venda.incluirOrcamentos": "Incluir na venda",
+  "venda.semOrcamentos": "Nenhum orçamento deste cliente",
+  "venda.emAberto": "Em aberto #{n}",
   "venda.confirmCancelar": "Cancelar este documento? Ele não poderá ser usado depois.",
   "venda.orcamentoCliente": "Selecione orçamentos do mesmo cliente",
   "venda.orcamentosSelecionados": "{n} orçamentos",
   "venda.utilizadaEm": "Venda #{n}",
+  "venda.orcamentoNaVenda": "Incluído na venda #{n}",
   "venda.filtro.todos": "Todos",
   "venda.filtro.aberta": "Em aberto",
   "venda.filtro.orcamento": "Orçamento",
@@ -2631,6 +2653,7 @@ const es: Record<TranslationKey, string> = {
   "api.VENDA_NAO_CANCELAVEL": "Solo un presupuesto o una venta abierta puede cancelarse",
   "api.ORCAMENTO_CLIENTE": "Los presupuestos deben ser del mismo cliente",
   "api.ORCAMENTO_INDISPONIVEL": "Uno de los presupuestos ya no está disponible",
+  "api.ORCAMENTO_EM_USO": "Este presupuesto ya está en una venta",
   "api.VENDA_DESCONTO_INVALIDO": "El descuento debe estar entre 0 y 100%",
   "api.VENDEDOR_INATIVO": "El vendedor no está activo",
   "api.VENDEDOR_FILIAL": "El vendedor no tiene acceso a esta sucursal",
@@ -2929,10 +2952,20 @@ const es: Record<TranslationKey, string> = {
   "venda.status.orcamentoVencido": "Presupuesto vencido",
   "venda.status.utilizada": "Utilizado",
   "venda.gerarVenda": "Generar venta",
+  "venda.retomar": "Retomar venta",
+  "venda.cancelarOrcamento": "Cancelar presupuesto",
+  "venda.cancelarAberta": "Cancelar venta",
+  "venda.trazerOrcamentos": "Traer presupuestos",
+  "venda.mesclarOrcamentos": "Combinar presupuestos",
+  "venda.clienteTemOrcamentos": "Este cliente tiene {n} presupuesto(s) abierto(s)",
+  "venda.incluirOrcamentos": "Incluir en la venta",
+  "venda.semOrcamentos": "Ningún presupuesto de este cliente",
+  "venda.emAberto": "Abierta #{n}",
   "venda.confirmCancelar": "¿Cancelar este documento? No podrá usarse después.",
   "venda.orcamentoCliente": "Seleccione presupuestos del mismo cliente",
   "venda.orcamentosSelecionados": "{n} presupuestos",
   "venda.utilizadaEm": "Venta #{n}",
+  "venda.orcamentoNaVenda": "Incluido en la venta #{n}",
   "venda.filtro.todos": "Todos",
   "venda.filtro.aberta": "Abierta",
   "venda.filtro.orcamento": "Presupuesto",

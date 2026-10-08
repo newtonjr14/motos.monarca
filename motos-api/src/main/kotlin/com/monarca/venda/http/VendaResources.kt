@@ -26,5 +26,9 @@ class Vendas(
         @Serializable
         @Resource("cancelar")
         class Cancelar(val parent: Id)
+
+        @Serializable
+        @Resource("aberta")
+        class Aberta(val parent: Id)
     }
 }

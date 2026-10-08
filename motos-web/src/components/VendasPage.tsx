@@ -1,8 +1,10 @@
 import {
+  atualizarVendaAberta,
   buscarCotacaoHoje,
   buscarVenda,
   criarVenda,
   finalizarVenda,
+  listarVendas,
   listarCaixas,
   listarFinalizadores,
   listarPapeis,
@@ -39,6 +41,7 @@ import { createPortal } from "react-dom";
 import {
   converterMoeda,
   dataAsuncion,
+  formatarDataIso,
   formatarDocumentoExibicao,
   formatMoeda,
   formatPyg,
@@ -269,6 +272,17 @@ function VendaForm({
   const [defId, setDefId] = useState<number | "">("");
   const [defMoeda, setDefMoeda] = useState<Moeda>("pyg");
   const [defValor, setDefValor] = useState("");
+  const [mesclaAberta, setMesclaAberta] = useState(false);
+  const [trocandoClienteMescla, setTrocandoClienteMescla] = useState(false);
+  const [buscaMescla, setBuscaMescla] = useState("");
+  const [orcamentosCliente, setOrcamentosCliente] = useState<Venda[]>([]);
+  const [marcadosOrcamento, setMarcadosOrcamento] = useState<number[]>([]);
+  const [qtdOrcamentosCliente, setQtdOrcamentosCliente] = useState(0);
+  const idAbertaRef = useRef<number | null>(null);
+  const geracaoAberta = useRef(0);
+  const filaAberta = useRef(Promise.resolve());
+  const salvandoRef = useRef(false);
+  salvandoRef.current = salvando;
 
   const cliente = idCliente === "" ? undefined : clientes.find((c) => c.id === idCliente);
   const vendedor = idVendedor === ""
@@ -289,6 +303,8 @@ function VendaForm({
     setDiaVencimento("10");
     setObservacao("");
     setValidade(dataAsuncion(15));
+    geracaoAberta.current += 1;
+    idAbertaRef.current = null;
     setIdRetomada(null);
     setStatusRetomada(null);
     setIdsOrcamentos([]);
@@ -661,11 +677,100 @@ function VendaForm({
     produtoRef.current?.focus();
   }
 
+  function orcamentosDoCliente(lista: Venda[], id: number) {
+    return lista.filter((o) => o.status === "orcamento" && o.idVendaGerada == null && o.idCliente === id && !idsOrcamentos.includes(o.id));
+  }
+
+  function carregarOrcamentosCliente(id: number) {
+    return listarVendas(idFilial)
+      .then((lista) => {
+        const docs = orcamentosDoCliente(lista, id);
+        setOrcamentosCliente(docs);
+        setQtdOrcamentosCliente(docs.length);
+        return docs;
+      })
+      .catch((e: unknown) => {
+        setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
+        return [] as Venda[];
+      });
+  }
+
+  function abrirMescla() {
+    setBuscaMescla("");
+    setMarcadosOrcamento([]);
+    setTrocandoClienteMescla(idCliente === "");
+    setMesclaAberta(true);
+    if (idCliente !== "") void carregarOrcamentosCliente(idCliente);
+    else setOrcamentosCliente([]);
+  }
+
+  function escolherClienteMescla(id: number) {
+    if (idsOrcamentos.length > 0 && idCliente !== "" && id !== idCliente) {
+      setErro(t("venda.orcamentoCliente"));
+      return;
+    }
+    setIdCliente(id);
+    setBuscaMescla("");
+    setTrocandoClienteMescla(false);
+    setMarcadosOrcamento([]);
+    void carregarOrcamentosCliente(id);
+  }
+
+  function incluirOrcamentosMarcados() {
+    const escolhidos = orcamentosCliente.filter((o) => marcadosOrcamento.includes(o.id));
+    if (escolhidos.length === 0) return;
+    const vencido = escolhidos.some((o) => o.validade != null && o.validade < dataAsuncion());
+    if (vencido && !window.confirm(t("venda.confirmVencido"))) return;
+    setLinhas((atual) => {
+      const mapa = new Map(atual.map((l) => [`${l.idProduto}:${l.descontoPct}`, l]));
+      for (const doc of escolhidos) {
+        for (const item of doc.itens) {
+          const chave = `${item.idProduto}:${item.descontoPct ?? 0}`;
+          const linha = mapa.get(chave);
+          if (linha && linha.unidades.length === 0) {
+            mapa.set(chave, { ...linha, quantidade: linha.quantidade + item.quantidade });
+          } else if (!linha) {
+            mapa.set(chave, {
+              linhaId: novaLinhaId(),
+              idProduto: item.idProduto,
+              quantidade: item.quantidade,
+              unidades: [],
+              descontoPct: item.descontoPct ?? 0,
+            });
+          }
+        }
+      }
+      return [...mapa.values()];
+    });
+    setIdsOrcamentos((atual) => [...atual, ...escolhidos.map((o) => o.id)]);
+    if (vencido) setConfirmarOrcamentos(true);
+    setOrcamentosCliente((atual) => atual.filter((o) => !marcadosOrcamento.includes(o.id)));
+    setQtdOrcamentosCliente((n) => Math.max(0, n - escolhidos.length));
+    setMarcadosOrcamento([]);
+    setMesclaAberta(false);
+  }
+
   async function clienteRapidoCriado(id: number) {
     setModalCliente(false);
     await onSaved();
     escolherCliente(id);
   }
+
+  useEffect(() => {
+    if (modo !== "venda" || idCliente === "") {
+      setQtdOrcamentosCliente(0);
+      return;
+    }
+    let cancel = false;
+    void listarVendas(idFilial)
+      .then((lista) => {
+        if (!cancel) setQtdOrcamentosCliente(orcamentosDoCliente(lista, idCliente).length);
+      })
+      .catch(() => {
+        if (!cancel) setQtdOrcamentosCliente(0);
+      });
+    return () => { cancel = true; };
+  }, [modo, idCliente, idFilial, idsOrcamentos]);
 
   useEffect(() => {
     if (retomarId == null) return;
@@ -675,8 +780,10 @@ function VendaForm({
         const venda = await buscarVenda(retomarId);
         if (cancel) return;
         if (venda.status !== "aberta") return;
+        idAbertaRef.current = venda.id;
         setIdRetomada(venda.id);
         setStatusRetomada(venda.status);
+        setIdsOrcamentos(venda.idsOrcamentos ?? []);
         setIdCliente(venda.idCliente);
         setIdVendedor(venda.idVendedor);
         setLinhas(venda.itens.map((item) => ({
@@ -702,6 +809,45 @@ function VendaForm({
     return () => { cancel = true; };
   }, [retomarId, onRetomada, t]);
 
+  useEffect(() => { idAbertaRef.current = idRetomada; }, [idRetomada]);
+
+  useEffect(() => {
+    if (modo !== "venda" || idCliente === "" || idVendedor === "" || linhas.length === 0) return;
+    const timer = window.setTimeout(() => {
+      const geracao = geracaoAberta.current;
+      const body = {
+        idFilial,
+        idCliente,
+        idVendedor,
+        gravacao: "aberta",
+        idsOrcamentos,
+        itens: linhas.map((l) => ({
+          idProduto: l.idProduto,
+          quantidade: l.quantidade,
+          idsUnidades: [] as number[],
+          descontoPct: l.descontoPct || 0,
+        })),
+        negociacao: [] as { idFinalizador: number; valor: number; moeda: Moeda }[],
+        descontoPct: podeDesconto ? descontoVenda : 0,
+        observacao: observacao.trim() || null,
+      };
+      filaAberta.current = filaAberta.current.then(async () => {
+        if (geracao !== geracaoAberta.current || salvandoRef.current) return;
+        const id = idAbertaRef.current;
+        const venda = id == null ? await criarVenda(body) : await atualizarVendaAberta(id, body);
+        if (geracao !== geracaoAberta.current) return;
+        if (idAbertaRef.current == null) {
+          idAbertaRef.current = venda.id;
+          setIdRetomada(venda.id);
+          setStatusRetomada("aberta");
+        }
+      }).catch((e: unknown) => {
+        if (geracao === geracaoAberta.current) setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+      });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [modo, idCliente, idVendedor, linhas, descontoVenda, observacao, idFilial, podeDesconto, idsOrcamentos, t]);
+
   useEffect(() => {
     if (orcamentos == null || orcamentos.ids.length === 0) return;
     let cancel = false;
@@ -709,7 +855,11 @@ function VendaForm({
       try {
         const docs = await Promise.all(orcamentos.ids.map((id) => buscarVenda(id)));
         if (cancel) return;
-        const vivos = docs.filter((d) => d.status === "orcamento");
+        if (docs.some((d) => d.status === "orcamento" && d.idVendaGerada != null)) {
+          setErro(t("api.ORCAMENTO_EM_USO"));
+          return;
+        }
+        const vivos = docs.filter((d) => d.status === "orcamento" && d.idVendaGerada == null);
         if (vivos.length === 0) return;
         const clienteId = vivos[0]!.idCliente;
         if (vivos.some((d) => d.idCliente !== clienteId)) {
@@ -736,6 +886,7 @@ function VendaForm({
           }
         }
         const notas = [...new Set(vivos.map((d) => d.observacao?.trim()).filter((n): n is string => !!n))];
+        idAbertaRef.current = null;
         setIdRetomada(null);
         setStatusRetomada(null);
         setIdsOrcamentos(vivos.map((d) => d.id));
@@ -816,6 +967,7 @@ function VendaForm({
       confirmarVencido = true;
     }
     setSalvando(true);
+    salvandoRef.current = true;
     try {
       const body = {
         idFilial,
@@ -825,7 +977,7 @@ function VendaForm({
         gravacao,
         validade: gravacao === "orcamento" ? validade : null,
         confirmarVencido: confirmarVencido || confirmarOrcamentos,
-        idsOrcamentos: gravacao === "venda" && idRetomada == null ? idsOrcamentos : [],
+        idsOrcamentos: gravacao === "venda" ? idsOrcamentos : [],
         itens: linhas.map((l) => ({
           idProduto: l.idProduto,
           quantidade: l.quantidade,
@@ -843,8 +995,10 @@ function VendaForm({
         descontoPct: podeDesconto ? descontoVenda : 0,
         observacao: observacao.trim() || null,
       };
-      const venda = gravacao === "venda" && idRetomada != null
-        ? await finalizarVenda(idRetomada, body)
+      await filaAberta.current;
+      const idAberta = idAbertaRef.current;
+      const venda = gravacao === "venda" && idAberta != null
+        ? await finalizarVenda(idAberta, body)
         : await criarVenda(body);
       limparCarrinho();
       setRecibo(venda);
@@ -853,6 +1007,7 @@ function VendaForm({
     } catch (e) {
       setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
     } finally {
+      salvandoRef.current = false;
       setSalvando(false);
     }
   }
@@ -1015,6 +1170,19 @@ function VendaForm({
           )}
         </div>}
       </div>
+
+      {modo === "venda" && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2 shrink-0">
+          <button type="button" className="btn-ghost px-3 py-2 text-sm" onClick={abrirMescla}>
+            {t("venda.mesclarOrcamentos")}
+          </button>
+          {idCliente !== "" && qtdOrcamentosCliente > 0 && (
+            <button type="button" className="text-xs cursor-pointer" style={{ color: v("--gold") }} onClick={abrirMescla}>
+              {tf(t, "venda.clienteTemOrcamentos", { n: String(qtdOrcamentosCliente) })}
+            </button>
+          )}
+        </div>
+      )}
 
       <form className={passo === "pagamento" ? "pdv-layout is-pay" : "pdv-layout"} onSubmit={(e) => e.preventDefault()}>
         {passo === "pagamento" ? (
@@ -1410,7 +1578,7 @@ function VendaForm({
               <>
                 {idRetomada != null && (
                   <p className="text-xs mt-2" style={{ color: v("--text-muted") }}>
-                    {tf(t, "venda.continuando", { n: String(idRetomada) })}
+                    {tf(t, "venda.emAberto", { n: String(idRetomada) })}
                   </p>
                 )}
                 {idsOrcamentos.length > 0 && (
@@ -1709,6 +1877,93 @@ function VendaForm({
           onClose={() => setModalCliente(false)}
           onCriado={(id) => void clienteRapidoCriado(id)}
         />
+      )}
+      {mesclaAberta && createPortal(
+        <div className="pdv-def-overlay" onClick={() => setMesclaAberta(false)} role="presentation">
+          <div
+            className="pdv-def-dialog"
+            style={{ width: "min(32rem, 100%)" }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("venda.mesclarOrcamentos")}
+          >
+            <div className="pdv-def-head">
+              <h2 className="text-sm font-semibold" style={{ color: v("--text") }}>{t("venda.mesclarOrcamentos")}</h2>
+              <button type="button" className="text-lg leading-none cursor-pointer" style={{ color: v("--text-muted") }}
+                onClick={() => setMesclaAberta(false)} aria-label={t("ficha.close")}>×</button>
+            </div>
+            <div className="pdv-def-body">
+              {idCliente === "" || trocandoClienteMescla ? (
+                <>
+                  <input
+                    className="field"
+                    autoFocus
+                    placeholder={t("venda.clientSearchPlaceholder")}
+                    value={buscaMescla}
+                    onChange={(e) => setBuscaMescla(e.target.value)}
+                  />
+                  <div className="space-y-1">
+                    {clientes
+                      .filter((c) => {
+                        const q = buscaMescla.trim().toLowerCase();
+                        return !q || textoCliente(c).toLowerCase().includes(q);
+                      })
+                      .slice(0, 40)
+                      .map((c) => (
+                        <button key={c.id} type="button" className="w-full text-left px-2 py-1.5 rounded-md cursor-pointer text-sm"
+                          style={{ color: v("--text") }}
+                          onClick={() => escolherClienteMescla(c.id)}>
+                          <span className="block truncate">{c.pessoa.nomeRazaoSocial}</span>
+                          {docCliente(c) && <span className="block text-xs font-mono" style={{ color: v("--text-muted") }}>{docCliente(c)}</span>}
+                        </button>
+                      ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm truncate" style={{ color: v("--text") }}>{cliente?.pessoa.nomeRazaoSocial}</p>
+                    <button type="button" className="text-xs cursor-pointer shrink-0" style={{ color: v("--gold") }}
+                      onClick={() => { setBuscaMescla(""); setMarcadosOrcamento([]); setTrocandoClienteMescla(true); }}>
+                      {t("venda.changeClient")}
+                    </button>
+                  </div>
+                  {orcamentosCliente.length === 0 ? (
+                    <p className="text-sm" style={{ color: v("--text-muted") }}>{t("venda.semOrcamentos")}</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {orcamentosCliente.map((o) => (
+                        <label key={o.id} className="flex items-center gap-2 text-sm cursor-pointer py-1">
+                          <input type="checkbox" checked={marcadosOrcamento.includes(o.id)}
+                            onChange={() => setMarcadosOrcamento((atual) => atual.includes(o.id) ? atual.filter((x) => x !== o.id) : [...atual, o.id])} />
+                          <span className="font-mono shrink-0">#{o.id}</span>
+                          <span className="truncate text-xs" style={{ color: v("--text-muted") }}>
+                            {o.validade ? formatarDataIso(o.validade) : ""}
+                            {o.validade != null && o.validade < dataAsuncion() ? ` · ${t("venda.status.orcamentoVencido")}` : ""}
+                            {o.itens[0] ? ` · ${o.itens[0].produtoNome}` : ""}
+                          </span>
+                          <span className="ml-auto font-mono shrink-0 text-xs">Gs. {formatPyg(o.totalPyg)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="pdv-def-foot">
+              <button type="button" className="text-xs cursor-pointer px-3 py-2" style={{ color: v("--text-muted") }}
+                onClick={() => setMesclaAberta(false)}>
+                {t("common.cancel")}
+              </button>
+              <button type="button" className="btn-gold px-4 py-2 text-sm" disabled={marcadosOrcamento.length === 0}
+                onClick={incluirOrcamentosMarcados}>
+                {t("venda.incluirOrcamentos")}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
       {recibo && (
         <ReciboVenda venda={recibo} onClose={() => setRecibo(null)} />

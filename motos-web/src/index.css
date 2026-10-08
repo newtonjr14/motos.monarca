@@ -1372,6 +1372,9 @@ select.field {
 }
 
 @media print {
+  body > *:not(.recibo-overlay):not(.relatorio-print-overlay) {
+    display: none !important;
+  }
   body * {
     visibility: hidden !important;
   }
@@ -1383,8 +1386,11 @@ select.field {
   }
   .recibo-overlay,
   .relatorio-print-overlay {
-    position: absolute !important;
-    inset: 0 !important;
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
     background: #fff !important;
     padding: 0 !important;
     overflow: visible !important;

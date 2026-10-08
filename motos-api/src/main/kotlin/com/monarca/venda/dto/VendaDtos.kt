@@ -95,6 +95,7 @@ data class VendaResponse(
     val clienteTelefone: String? = null,
     val validade: String? = null,
     val idVendaGerada: Long? = null,
+    val idsOrcamentos: List<Long> = emptyList(),
     val usdPyg: Double,
     val brlPyg: Double,
     val totalPyg: Double,

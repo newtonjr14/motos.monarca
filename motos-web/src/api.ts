@@ -953,6 +953,7 @@ export interface Venda {
   clienteTelefone?: string | null;
   validade?: string | null;
   idVendaGerada?: number | null;
+  idsOrcamentos?: number[];
   usdPyg?: number;
   brlPyg?: number;
   totalPyg: number;
@@ -1022,6 +1023,8 @@ export const finalizarVenda = (id: number, body: unknown) =>
   api<Venda>(`/vendas/${id}/finalizar`, { method: "POST", body: JSON.stringify(body) });
 export const cancelarVenda = (id: number) =>
   api<Venda>(`/vendas/${id}/cancelar`, { method: "POST" });
+export const atualizarVendaAberta = (id: number, body: unknown) =>
+  api<Venda>(`/vendas/${id}/aberta`, { method: "POST", body: JSON.stringify(body) });
 
 export interface DocumentoEletronicoPreview {
   idVenda: number;

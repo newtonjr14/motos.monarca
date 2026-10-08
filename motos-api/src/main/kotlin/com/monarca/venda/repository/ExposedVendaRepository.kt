@@ -1,5 +1,6 @@
 package com.monarca.venda.repository
 
+import com.monarca.Texto
 import com.monarca.audit.domain.AuditAction
 import com.monarca.audit.repository.gravarAuditLog
 import com.monarca.caixa.domain.TipoMovimentacaoCaixa
@@ -36,7 +37,10 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
+import org.jetbrains.exposed.v1.core.notInList
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insert
@@ -97,26 +101,90 @@ class ExposedVendaRepository(
             it[VendasTable.descontoPyg] = descontoPyg
             it[VendasTable.observacao] = observacao
             it[VendasTable.validade] = validade
+            it[VendasTable.orcamentosIds] = if (efetivar) null else textoOrcamentos(idsOrcamentos)
             it[VendasTable.criadoEm] = agora
             it[VendasTable.status] = status
         }
         val idVenda = inserted[VendasTable.id].value
         gravarCorpo(idVenda, idCaixaSessao, agora, itens, negociacao, negociacaoCaixa, tituloReceber, idUsuario, efetivar)
         if (efetivar) consumirOrcamentos(idsOrcamentos, idVenda, idFilial, idCliente, hoje, confirmarVencido)
+        else sincronizarReserva(idVenda, idsOrcamentos, idFilial, idCliente)
         gravarAuditLog("venda", idVenda.toString(), AuditAction.INSERT, newValues = """{"totalPyg":$totalPyg,"status":"$status"}""")
         idVenda
     }
 
     override suspend fun cancelar(id: Long) {
         suspendTransaction(database) {
+            val row = VendasTable.selectAll().where { VendasTable.id eq id }.toList().firstOrNull()
+                ?: throw invalido("VENDA_NAO_CANCELAVEL", "Só um orçamento ou uma venda em aberto pode ser cancelada")
+            val status = row[VendasTable.status]
+            if (status != "aberta" && status != "orcamento") {
+                throw invalido("VENDA_NAO_CANCELAVEL", "Só um orçamento ou uma venda em aberto pode ser cancelada")
+            }
+            if (status == "orcamento" && row[VendasTable.idVendaGerada] != null) {
+                throw invalido("ORCAMENTO_EM_USO", "Este orçamento já está em uma venda")
+            }
+            if (status == "aberta") liberarReservas(id)
             val n = VendasTable.update({
-                (VendasTable.id eq id) and (VendasTable.status inList listOf("aberta", "orcamento"))
+                (VendasTable.id eq id) and (VendasTable.status eq status)
             }) {
                 it[VendasTable.status] = StatusVenda.CANCELADA.name.lowercase()
             }
             if (n != 1) throw invalido("VENDA_NAO_CANCELAVEL", "Só um orçamento ou uma venda em aberto pode ser cancelada")
             gravarAuditLog("venda", id.toString(), AuditAction.UPDATE, newValues = """{"status":"cancelada"}""")
         }
+    }
+
+    private fun textoOrcamentos(ids: List<Long>): String? =
+        ids.distinct().joinToString(",").ifBlank { null }?.take(500)
+
+    private suspend fun liberarReservas(idVenda: Long) {
+        VendasTable.update({
+            (VendasTable.idVendaGerada eq idVenda) and (VendasTable.status eq StatusVenda.ORCAMENTO.name.lowercase())
+        }) {
+            it[VendasTable.idVendaGerada] = null
+        }
+    }
+
+    private suspend fun sincronizarReserva(
+        idVenda: Long,
+        ids: List<Long>,
+        idFilial: Long,
+        idCliente: Long,
+    ) {
+        val desejados = ids.distinct()
+        val soltar = if (desejados.isEmpty()) {
+            (VendasTable.idVendaGerada eq idVenda) and (VendasTable.status eq StatusVenda.ORCAMENTO.name.lowercase())
+        } else {
+            (VendasTable.idVendaGerada eq idVenda) and
+                (VendasTable.status eq StatusVenda.ORCAMENTO.name.lowercase()) and
+                (VendasTable.id notInList desejados)
+        }
+        VendasTable.update({ soltar }) { it[VendasTable.idVendaGerada] = null }
+        if (desejados.isEmpty()) return
+        val rows = VendasTable.selectAll().where { VendasTable.id inList desejados }.toList()
+        if (rows.size != desejados.size) {
+            throw invalido("ORCAMENTO_INDISPONIVEL", "Um dos orçamentos não está mais disponível")
+        }
+        for (row in rows) {
+            val mesmaOrigem = row[VendasTable.idFilial].value == idFilial && row[VendasTable.idCliente].value == idCliente
+            if (row[VendasTable.status] != StatusVenda.ORCAMENTO.name.lowercase() || !mesmaOrigem) {
+                if (!mesmaOrigem) throw invalido("ORCAMENTO_CLIENTE", "Os orçamentos precisam ser do mesmo cliente desta filial")
+                throw invalido("ORCAMENTO_INDISPONIVEL", "Um dos orçamentos não está mais disponível")
+            }
+            val reserva = row[VendasTable.idVendaGerada]
+            if (reserva != null && reserva != idVenda) {
+                throw invalido("ORCAMENTO_EM_USO", "Este orçamento já está em uma venda")
+            }
+        }
+        val n = VendasTable.update({
+            (VendasTable.id inList desejados) and
+                (VendasTable.status eq StatusVenda.ORCAMENTO.name.lowercase()) and
+                (VendasTable.idVendaGerada.isNull() or (VendasTable.idVendaGerada eq idVenda))
+        }) {
+            it[VendasTable.idVendaGerada] = idVenda
+        }
+        if (n != desejados.size) throw invalido("ORCAMENTO_INDISPONIVEL", "Um dos orçamentos não está mais disponível")
     }
 
     private suspend fun consumirOrcamentos(
@@ -144,9 +212,15 @@ class ExposedVendaRepository(
             if (validade != null && validade < hoje && !confirmarVencido) {
                 throw invalido("ORCAMENTO_VENCIDO", "O orçamento venceu. Confirme para converter com a cotação de hoje")
             }
+            val reserva = row[VendasTable.idVendaGerada]
+            if (reserva != null && reserva != idVenda) {
+                throw invalido("ORCAMENTO_EM_USO", "Este orçamento já está em uma venda")
+            }
         }
         val n = VendasTable.update({
-            (VendasTable.id inList distintos) and (VendasTable.status eq StatusVenda.ORCAMENTO.name.lowercase())
+            (VendasTable.id inList distintos) and
+                (VendasTable.status eq StatusVenda.ORCAMENTO.name.lowercase()) and
+                (VendasTable.idVendaGerada.isNull() or (VendasTable.idVendaGerada eq idVenda))
         }) {
             it[VendasTable.status] = StatusVenda.UTILIZADA.name.lowercase()
             it[VendasTable.idVendaGerada] = idVenda
@@ -301,6 +375,11 @@ class ExposedVendaRepository(
         negociacaoCaixa: List<VendaNegociacaoPersistencia>,
         tituloReceber: com.monarca.titulo.repository.TituloReceberNovo?,
         idUsuario: Long,
+        idsOrcamentos: List<Long>,
+        hoje: String,
+        confirmarVencido: Boolean,
+        idFilial: Long,
+        idCliente: Long,
     ) = suspendTransaction(database) {
         val apagados = VendaItensTable.selectAll().where { VendaItensTable.idVenda eq idVenda }.map { it[VendaItensTable.id].value }.toList()
         if (apagados.isNotEmpty()) {
@@ -319,7 +398,50 @@ class ExposedVendaRepository(
         }
         val agora = System.currentTimeMillis()
         gravarCorpo(idVenda, idCaixaSessao, agora, itens, negociacao, negociacaoCaixa, tituloReceber, idUsuario, true)
+        consumirOrcamentos(idsOrcamentos, idVenda, idFilial, idCliente, hoje, confirmarVencido)
         gravarAuditLog("venda", idVenda.toString(), AuditAction.UPDATE, newValues = """{"status":"finalizada","totalPyg":$totalPyg}""")
+    }
+
+    override suspend fun atualizarAberta(
+        idVenda: Long,
+        idCliente: Long,
+        idVendedor: Long,
+        idCotacao: Long,
+        totalPyg: Double,
+        descontoPct: Double,
+        descontoPyg: Double,
+        observacao: String?,
+        itens: List<VendaItemPersistencia>,
+        idUsuario: Long,
+        idsOrcamentos: List<Long>,
+    ) {
+        suspendTransaction(database) {
+            val cabecalho = VendasTable.selectAll().where { VendasTable.id eq idVenda }.toList().firstOrNull()
+                ?: throw invalido("VENDA_NAO_ABERTA", "Só uma venda em aberto pode ser atualizada")
+            if (cabecalho[VendasTable.status] != StatusVenda.ABERTA.name.lowercase()) {
+                throw invalido("VENDA_NAO_ABERTA", "Só uma venda em aberto pode ser atualizada")
+            }
+            val apagados = VendaItensTable.selectAll().where { VendaItensTable.idVenda eq idVenda }.map { it[VendaItensTable.id].value }.toList()
+            if (apagados.isNotEmpty()) {
+                VendaItemUnidadesTable.deleteWhere { VendaItemUnidadesTable.idVendaItem inList apagados }
+            }
+            VendaNegociacoesTable.deleteWhere { VendaNegociacoesTable.idVenda eq idVenda }
+            VendaItensTable.deleteWhere { VendaItensTable.idVenda eq idVenda }
+            VendasTable.update({ VendasTable.id eq idVenda }) {
+                it[VendasTable.idCliente] = idCliente
+                it[VendasTable.idVendedor] = idVendedor
+                it[VendasTable.idCotacao] = idCotacao
+                it[VendasTable.totalPyg] = totalPyg
+                it[VendasTable.descontoPct] = descontoPct
+                it[VendasTable.descontoPyg] = descontoPyg
+                it[VendasTable.observacao] = observacao
+                it[VendasTable.orcamentosIds] = textoOrcamentos(idsOrcamentos)
+                it[VendasTable.status] = StatusVenda.ABERTA.name.lowercase()
+            }
+            gravarCorpo(idVenda, null, System.currentTimeMillis(), itens, emptyList(), emptyList(), null, idUsuario, false)
+            sincronizarReserva(idVenda, idsOrcamentos, cabecalho[VendasTable.idFilial].value, idCliente)
+            gravarAuditLog("venda", idVenda.toString(), AuditAction.UPDATE, newValues = """{"status":"aberta","totalPyg":$totalPyg}""")
+        }
     }
 
     private fun queryVendas() = VendasTable
@@ -409,6 +531,7 @@ class ExposedVendaRepository(
             clienteEndereco = enderecoCliente(row[ClientesTable.idPessoa].value),
             validade = row[VendasTable.validade],
             idVendaGerada = row[VendasTable.idVendaGerada],
+            idsOrcamentos = row[VendasTable.orcamentosIds].orEmpty().split(',').mapNotNull { it.toLongOrNull() },
             usdPyg = row[CotacoesTable.usdPyg],
             brlPyg = row[CotacoesTable.brlPyg],
             totalPyg = row[VendasTable.totalPyg],
@@ -428,6 +551,31 @@ class ExposedVendaRepository(
         return if (prefixo == null) numero else "+$prefixo $numero"
     }
 
+    private fun rotuloTipoLogradouro(codigo: String): String {
+        val chave = java.text.Normalizer.normalize(codigo, java.text.Normalizer.Form.NFD)
+            .replace("\\p{M}".toRegex(), "")
+            .lowercase(java.util.Locale.forLanguageTag("pt-BR"))
+            .replace(".", "")
+            .trim()
+        return when (chave) {
+            "rua", "calle", "r" -> "Rua"
+            "avenida", "av" -> "Avenida"
+            "alameda" -> "Alameda"
+            "travessa", "travesia", "tv" -> "Travessa"
+            "praca", "plaza" -> "Praça"
+            "rodovia", "ruta" -> "Rodovia"
+            "estrada", "camino" -> "Estrada"
+            "passagem", "pasaje" -> "Passagem"
+            "vila", "villa" -> "Vila"
+            "beco", "callejon" -> "Beco"
+            "condominio" -> "Condomínio"
+            "fazenda", "estancia" -> "Fazenda"
+            "sitio" -> "Sítio"
+            "chacara" -> "Chácara"
+            else -> Texto.titleCase(codigo)
+        }
+    }
+
     private suspend fun enderecoCliente(idPessoa: Long): String? {
         val row = PessoaEnderecosTable
             .join(CidadesTable, JoinType.LEFT, PessoaEnderecosTable.idCidade, CidadesTable.id)
@@ -440,10 +588,9 @@ class ExposedVendaRepository(
             .toList()
             .firstOrNull()
             ?: return null
-        val rua = listOfNotNull(row[PessoaEnderecosTable.tipoLogradouro], row[PessoaEnderecosTable.logradouro])
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .joinToString(" ")
+        val tipo = row[PessoaEnderecosTable.tipoLogradouro]?.trim()?.ifBlank { null }?.let(::rotuloTipoLogradouro)
+        val nome = row[PessoaEnderecosTable.logradouro]?.trim()?.ifBlank { null }
+        val rua = listOfNotNull(tipo, nome).joinToString(" ")
         val numero = row[PessoaEnderecosTable.numero]?.trim()?.ifBlank { null }
         val linha = listOfNotNull(rua.ifBlank { null }, numero).joinToString(", ")
         val bairro = row[PessoaEnderecosTable.bairro]?.trim()?.ifBlank { null }

@@ -174,6 +174,22 @@ class VendaService(
             "aberta" -> StatusVenda.ABERTA.name.lowercase()
             else -> StatusVenda.FINALIZADA.name.lowercase()
         }
+        if (idExistente != null && !efetivar) {
+            repository.atualizarAberta(
+                idVenda = idExistente,
+                idCliente = request.idCliente,
+                idVendedor = idVendedor,
+                idCotacao = cotacao.id,
+                totalPyg = totalPyg,
+                descontoPct = descontoPct,
+                descontoPyg = descontoPyg,
+                observacao = request.observacao?.trim()?.ifBlank { null },
+                itens = itens,
+                idUsuario = idUsuario,
+                idsOrcamentos = request.idsOrcamentos.distinct(),
+            )
+            return buscar(idExistente, idUsuario)
+        }
         if (idExistente == null) {
         val id = repository.inserir(
             idFilial = idFilial,
@@ -213,6 +229,11 @@ class VendaService(
             negociacaoCaixa = vista,
             tituloReceber = tituloReceber,
             idUsuario = idUsuario,
+            idsOrcamentos = request.idsOrcamentos.distinct(),
+            hoje = hoje,
+            confirmarVencido = request.confirmarVencido,
+            idFilial = idFilial,
+            idCliente = request.idCliente,
         )
         return buscar(idExistente, idUsuario)
     }
@@ -227,13 +248,20 @@ class VendaService(
             request.copy(
                 gravacao = "venda",
                 idFilial = atual.idFilial,
-                idCliente = atual.idCliente,
-                idVendedor = atual.idVendedor,
-                idsOrcamentos = emptyList(),
+                idsOrcamentos = (request.idsOrcamentos + atual.idsOrcamentos).distinct(),
             ),
             idUsuario,
             id,
         )
+    }
+
+    suspend fun atualizarAberta(id: Long, request: VendaRequest, idUsuario: Long): VendaResponse {
+        val atual = repository.buscar(id) ?: throw RecursoNaoEncontrado("Venda $id não encontrada")
+        exigirAcessoFilial(idUsuario, atual.idFilial)
+        if (atual.status != StatusVenda.ABERTA.name.lowercase()) {
+            throw invalido("VENDA_NAO_ABERTA", "Só uma venda em aberto pode ser atualizada")
+        }
+        return criar(request.copy(gravacao = "aberta", idFilial = atual.idFilial), idUsuario, id)
     }
 
     suspend fun cancelar(id: Long, idUsuario: Long): VendaResponse {
@@ -487,6 +515,7 @@ class VendaService(
         clienteTelefone = clienteTelefone,
         validade = validade,
         idVendaGerada = idVendaGerada,
+        idsOrcamentos = idsOrcamentos,
         usdPyg = usdPyg,
         brlPyg = brlPyg,
         totalPyg = totalPyg,

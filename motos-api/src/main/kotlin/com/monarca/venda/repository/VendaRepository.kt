@@ -45,6 +45,7 @@ data class VendaCompleta(
     val clienteTelefone: String? = null,
     val validade: String? = null,
     val idVendaGerada: Long? = null,
+    val idsOrcamentos: List<Long> = emptyList(),
     val usdPyg: Double,
     val brlPyg: Double,
     val totalPyg: Double,
@@ -85,6 +86,20 @@ interface VendaRepository {
 
     suspend fun cancelar(id: Long)
 
+    suspend fun atualizarAberta(
+        idVenda: Long,
+        idCliente: Long,
+        idVendedor: Long,
+        idCotacao: Long,
+        totalPyg: Double,
+        descontoPct: Double,
+        descontoPyg: Double,
+        observacao: String?,
+        itens: List<VendaItemPersistencia>,
+        idUsuario: Long,
+        idsOrcamentos: List<Long>,
+    )
+
     suspend fun efetivar(
         idVenda: Long,
         idCaixaSessao: Long,
@@ -98,5 +113,10 @@ interface VendaRepository {
         negociacaoCaixa: List<VendaNegociacaoPersistencia>,
         tituloReceber: TituloReceberNovo?,
         idUsuario: Long,
+        idsOrcamentos: List<Long>,
+        hoje: String,
+        confirmarVencido: Boolean,
+        idFilial: Long,
+        idCliente: Long,
     )
 }

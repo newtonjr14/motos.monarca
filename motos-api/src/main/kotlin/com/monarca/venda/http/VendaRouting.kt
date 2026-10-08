@@ -74,6 +74,15 @@ fun Application.configureVenda() {
                     }
                 }
             }
+            post<Vendas.Id.Aberta> { resource ->
+                call.handleVenda {
+                    call.podeRegistrarVenda()
+                    val request = call.receive<VendaRequest>()
+                    call.withAudit {
+                        call.respond(service.atualizarAberta(resource.parent.id, request, call.usuarioAutenticado().id))
+                    }
+                }
+            }
             post<Vendas.Id.Cancelar> { resource ->
                 call.handleVenda {
                     call.podeRegistrarVenda()
