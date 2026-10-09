@@ -37,6 +37,12 @@ fun Application.configureProduto() {
 
     routing {
         authenticate(JWT_AUTH) {
+            get<ProdutoChassis> { resource ->
+                call.handleProduto(service) {
+                    call.podeConsultarProduto()
+                    call.respond(service.listarChassis(resource.idFilial, call.usuarioAutenticado().id))
+                }
+            }
             get<Produtos> { resource ->
                 call.handleProduto(service) {
                     call.podeConsultarProduto()

@@ -27,6 +27,7 @@ data class MovimentacaoDetalhe(
     val movimento: CaixaMovimentacao,
     val usuarioNome: String,
     val finalizadorNomes: Map<Long, String>,
+    val caixaNome: String = "",
 )
 
 interface CaixaRepository {
@@ -64,6 +65,7 @@ interface CaixaRepository {
         observacao: String?,
     )
     suspend fun listarMovimentacoes(idSessao: Long): List<MovimentacaoDetalhe>
+    suspend fun listarMovimentacoesFilial(idFilial: Long, deInclusive: Long?, ateExclusivo: Long?): List<MovimentacaoDetalhe>
     suspend fun saldosSessao(idSessao: Long): List<ValorFinalizador>
     suspend fun registrarMovimentoVenda(
         idSessao: Long,

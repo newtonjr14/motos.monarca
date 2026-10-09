@@ -5,6 +5,12 @@ import io.ktor.resources.Resource
 import kotlinx.serialization.Serializable
 
 @Serializable
+@Resource("/produto-chassis")
+class ProdutoChassis(
+    val idFilial: Long? = null,
+)
+
+@Serializable
 @Resource("/produtos")
 class Produtos(
     val idFilial: Long? = null,

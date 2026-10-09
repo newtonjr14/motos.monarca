@@ -130,5 +130,6 @@ data class CaixaMovimentacaoResponse(
     val idVenda: Long? = null,
     val criadoEm: Long,
     val observacao: String? = null,
+    val caixaNome: String? = null,
     val finalizadores: List<ValorFinalizadorResponse>,
 )

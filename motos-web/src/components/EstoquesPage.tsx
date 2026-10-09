@@ -254,7 +254,7 @@ export default function EstoquesPage({ navReset }: { navReset: number }) {
                   {t("estoque.available")}: {disponivel}
                 </p>
               )}
-              <Field label={t("estoque.ajusteObs")} hint={t("estoque.ajusteObsHint")}>
+              <Field label={t("estoque.ajusteObs")}>
                 <input className="field" value={observacao} onChange={(e) => setObservacao(e.target.value)} maxLength={240} />
               </Field>
             </>

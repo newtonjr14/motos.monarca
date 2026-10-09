@@ -13,6 +13,11 @@ import com.monarca.produto.domain.ProdutoUnidade
 import com.monarca.produto.domain.SituacaoUnidade
 import com.monarca.produto.domain.TipoProduto
 
+data class ChassiDisponivel(
+    val idProduto: Long,
+    val numero: String,
+)
+
 interface ProdutoRepository {
     suspend fun listar(idFilial: Long?, filtrarPorFilial: Boolean, tipo: TipoProduto?): List<ProdutoCompleto>
     suspend fun buscar(id: Long): ProdutoCompleto?
@@ -38,6 +43,7 @@ interface ProdutoRepository {
     suspend fun somarEstoquePorFilial(idFilial: Long): Map<Long, ProdutoSaldoTotal>
     suspend fun listarEstoqueDoProduto(idProduto: Long, idFilial: Long): List<ProdutoEstoqueSaldo>
     suspend fun listarUnidades(idProduto: Long, idFilial: Long?, situacao: SituacaoUnidade?): List<ProdutoUnidade>
+    suspend fun listarChassis(idFilial: Long): List<ChassiDisponivel>
     suspend fun buscarUnidadesPorIds(ids: List<Long>): List<ProdutoUnidade>
     suspend fun inserirUnidades(idProduto: Long, idEstoque: Long, numeros: List<String>): List<Long>
     suspend fun excluirUnidade(id: Long): Boolean

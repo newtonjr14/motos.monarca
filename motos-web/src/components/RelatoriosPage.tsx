@@ -34,7 +34,7 @@ import {
   type TituloReceber,
   type Venda,
 } from "@/api";
-import { converterMoeda, formatMoeda, formatPyg, formatarDataHoraEpoch, formatarDataIso, PAGE_SIZE, slicePage } from "@/format";
+import { converterMoeda, formatMoeda, formatPyg, formatarDataHoraEpoch, formatarDataIso, PAGE_SIZE, partesMovimento, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 const border1 = () => `1px solid ${v("--border")}`;
@@ -45,6 +45,7 @@ type FiltroParcelaRelatorio = "abertas" | "vencidas" | "parciais" | "pagas" | "t
 type Agrupamento = "nenhum" | "pessoa" | "vencimento";
 type CampoPeriodo = "todas" | "emissao" | "vencimento";
 type CampoBaixa = "todas" | "movimento";
+type PeriodoVendas = "todas" | "fechamento";
 
 function passaParcela(e: { status: string; vencimento: string }, filtro: FiltroParcelaRelatorio): boolean {
   if (filtro === "todas") return true;
@@ -102,13 +103,6 @@ function diasAtraso(vencimento: string | null | undefined): number | null {
   const a = new Date(`${vencimento}T12:00:00`).getTime();
   const b = new Date(`${hoje}T12:00:00`).getTime();
   return Math.round((b - a) / 86_400_000);
-}
-
-function formatQtd(n: number): string {
-  const abs = new Intl.NumberFormat("es-PY").format(Math.abs(n));
-  if (n > 0) return `+${abs}`;
-  if (n < 0) return `−${abs}`;
-  return abs;
 }
 
 function pygNaMoeda(pyg: number, usdPyg: number, brlPyg: number, moeda: "pyg" | "usd" | "brl"): number {
@@ -268,6 +262,7 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
   const [filtroParcela, setFiltroParcela] = useState<FiltroParcelaRelatorio>("abertas");
   const [agrupamento, setAgrupamento] = useState<Agrupamento>("nenhum");
   const [campoPeriodo, setCampoPeriodo] = useState<CampoPeriodo>("todas");
+  const [periodoVendas, setPeriodoVendas] = useState<PeriodoVendas>("fechamento");
   const [campoBaixa, setCampoBaixa] = useState<CampoBaixa>("movimento");
   const [search, setSearch] = useState("");
   const [de, setDe] = useState(inicioMes);
@@ -344,9 +339,9 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
   const q = search.trim().toLowerCase();
   const vendasFiltradas = useMemo(() => vendas.filter((e) =>
     e.status === "finalizada" &&
-    noPeriodo(e.criadoEm, de, ate) &&
+    (periodoVendas === "todas" || (datasValidas(de, ate) && noPeriodo(e.finalizadaEm ?? e.criadoEm, de, ate))) &&
     `${e.id} ${e.clienteNome} ${e.vendedorNome}`.toLowerCase().includes(q),
-  ), [vendas, de, ate, q]);
+  ), [vendas, periodoVendas, de, ate, q]);
   const receberAberto = useMemo(() => receber.filter((e) =>
     passaParcela(e, filtroParcela) &&
     passaPeriodo(e, campoPeriodo, de, ate) &&
@@ -375,7 +370,7 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
   ), [movimentos, de, ate, q]);
 
   const sortVendas = useListSort(vendasFiltradas, (e, k) => {
-    if (k === "data") return e.criadoEm;
+    if (k === "data") return e.finalizadaEm ?? e.criadoEm;
     if (k === "cliente") return e.clienteNome;
     if (k === "total") return e.totalPyg;
     if (k === "vendedor") return e.vendedorNome;
@@ -421,12 +416,14 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
     if (k === "data") return e.criadoEm;
     if (k === "produto") return e.produtoNome;
     if (k === "estoque") return e.estoqueNome;
-    if (k === "qtd") return e.quantidade;
-    if (k === "saldo") return e.saldoDepois;
+    if (k === "anterior") return e.saldoDepois - e.quantidade;
+    if (k === "entrada") return e.quantidade > 0 ? e.quantidade : 0;
+    if (k === "saida") return e.quantidade < 0 ? -e.quantidade : 0;
+    if (k === "estoque") return e.saldoDepois;
     return e.tipo;
   }, "data", "desc");
 
-  useEffect(() => { setPage(1); }, [search, de, ate, comSaldo, filtroParcela, campoPeriodo, campoBaixa, agrupamento, relatorio, leituraAtiva, sortVendas.sortKey, sortVendas.sortDir]);
+  useEffect(() => { setPage(1); }, [search, de, ate, comSaldo, filtroParcela, campoPeriodo, campoBaixa, periodoVendas, agrupamento, relatorio, leituraAtiva, sortVendas.sortKey, sortVendas.sortDir]);
 
   const dataHora = (ms: number) => formatarDataHoraEpoch(ms, locale === "es" ? "es-PY" : "pt-BR");
 
@@ -498,7 +495,11 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
     const periodoBaixas = (relatorio === "receber" || relatorio === "pagar") && leituraAtiva === "baixas" && campoBaixa !== "todas" && datasValidas(de, ate);
     const rotuloCampo = campoPeriodo === "emissao" ? t("relatorio.periodo.emissao") : t("relatorio.periodo.vencimento");
     const faixa = `${formatarDataIso(de)} – ${formatarDataIso(ate)}`;
-    const periodo = relatorio === "vendas" || leituraAtiva === "movimentos"
+    const periodo = relatorio === "vendas"
+      ? (periodoVendas === "fechamento" && datasValidas(de, ate)
+        ? `${t("relatorio.fechamento")} ${faixa}`
+        : t("relatorio.periodo.todas"))
+      : leituraAtiva === "movimentos"
       ? `${t("relatorio.de")} ${formatarDataIso(de)} ${t("relatorio.ate")} ${formatarDataIso(ate)}`
       : periodoParcelas
         ? `${situacao} · ${rotuloCampo} ${faixa}`
@@ -592,8 +593,8 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
     if (relatorio === "vendas") {
       return {
         arquivo: arquivoBase, titulo, empresa, filtro, emitidoEm, faixas: [],
-        colunas: [t("col.id"), t("col.date"), t("venda.client"), t("venda.total"), t("venda.seller")],
-        linhas: sortVendas.items.map((e) => [String(e.id), dataHora(e.criadoEm), e.clienteNome, `Gs. ${formatPyg(e.totalPyg)}`, e.vendedorNome]),
+        colunas: [t("col.id"), t("relatorio.fechamento"), t("venda.client"), t("venda.total"), t("venda.seller")],
+        linhas: sortVendas.items.map((e) => [String(e.id), dataHora(e.finalizadaEm ?? e.criadoEm), e.clienteNome, `Gs. ${formatPyg(e.totalPyg)}`, e.vendedorNome]),
         direita: [3],
         rodapes: [{ rotulo: t("relatorio.total"), celulas: ["", "", "", `Gs. ${formatPyg(sortVendas.items.reduce((s, e) => s + e.totalPyg, 0))}`, ""] }],
       };
@@ -616,10 +617,16 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
     if (relatorio === "estoque" && leituraAtiva === "movimentos") {
       return {
         arquivo: arquivoBase, titulo, empresa, filtro, emitidoEm, faixas: [],
-        colunas: [t("col.date"), t("nav.produtos"), t("nav.estoques"), t("relatorio.tipo"), t("estoque.qty"), t("relatorio.saldoDepois"), t("caixa.note")],
-        linhas: sortMov.items.map((e) => [dataHora(e.criadoEm), `${e.produtoCodigo} · ${e.produtoNome}`, e.estoqueNome, t(tipoKey(e.tipo)), formatQtd(e.quantidade), String(e.saldoDepois), e.observacao || "—"]),
-        direita: [4, 5],
-        rodapes: [{ rotulo: t("relatorio.total"), celulas: [...vazio(4), formatQtd(sortMov.items.reduce((s, e) => s + e.quantidade, 0)), "", ""] }],
+        colunas: [t("col.date"), t("nav.produtos"), t("nav.estoques"), t("relatorio.tipo"), t("relatorio.anterior"), t("relatorio.tipo.entrada"), t("relatorio.saida"), t("relatorio.saldoEstoque"), t("caixa.note")],
+        linhas: sortMov.items.map((e) => {
+          const p = partesMovimento(e.quantidade, e.saldoDepois);
+          return [dataHora(e.criadoEm), `${e.produtoCodigo} · ${e.produtoNome}`, e.estoqueNome, t(tipoKey(e.tipo)), String(p.anterior), String(p.entrada), String(p.saida), String(p.estoque), e.observacao || "—"];
+        }),
+        direita: [4, 5, 6, 7],
+        rodapes: [{
+          rotulo: t("relatorio.total"),
+          celulas: [...vazio(5), String(sortMov.items.reduce((s, e) => s + (e.quantidade > 0 ? e.quantidade : 0), 0)), String(sortMov.items.reduce((s, e) => s + (e.quantidade < 0 ? -e.quantidade : 0), 0)), "", ""],
+        }],
       };
     }
 
@@ -815,10 +822,21 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
             : relatorio === "pagar" && leituraAtiva === "posicao" ? t("relatorio.busca.pagar")
               : relatorio === "receber" && leituraAtiva === "baixas" ? t("relatorio.busca.baixasReceber")
                 : relatorio === "pagar" ? t("relatorio.busca.baixasPagar")
-                  : t("common.search")
+                  : relatorio === "vendas" ? t("relatorio.busca.vendas")
+                    : relatorio === "estoque" && leituraAtiva === "movimentos" ? t("relatorio.busca.movimentos")
+                      : t("relatorio.busca.estoque")
         }
           className="px-3 py-2 text-sm rounded-md outline-none w-72"
           style={{ background: v("--card"), border: border1(), color: v("--text") }} />
+        {relatorio === "vendas" && (
+          <Segmentos value={periodoVendas} onChange={(id) => {
+            setPeriodoVendas(id);
+            if (id !== "todas") { setDe(inicioMes()); setAte(fimMes()); }
+          }} label={t("relatorio.periodo")} opcoes={[
+            { id: "todas", label: "relatorio.periodo.todas" },
+            { id: "fechamento", label: "relatorio.fechamento" },
+          ]} />
+        )}
         {(relatorio === "receber" || relatorio === "pagar") && leituraAtiva === "posicao" && (
           <Segmentos value={campoPeriodo} onChange={(id) => {
             setCampoPeriodo(id);
@@ -838,7 +856,7 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
             { id: "movimento", label: relatorio === "pagar" ? "relatorio.periodo.pagamento" : "relatorio.periodo.recebimento" },
           ]} />
         )}
-        {(relatorio === "vendas" || leituraAtiva === "movimentos" || ((relatorio === "receber" || relatorio === "pagar") && ((leituraAtiva === "posicao" && campoPeriodo !== "todas") || (leituraAtiva === "baixas" && campoBaixa !== "todas")))) && (
+        {((relatorio === "vendas" && periodoVendas === "fechamento") || leituraAtiva === "movimentos" || ((relatorio === "receber" || relatorio === "pagar") && ((leituraAtiva === "posicao" && campoPeriodo !== "todas") || (leituraAtiva === "baixas" && campoBaixa !== "todas")))) && (
           <>
             <label className="flex items-center gap-2 text-xs" style={{ color: v("--text-muted") }}>
               {t("relatorio.de")}
@@ -850,7 +868,7 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
             </label>
           </>
         )}
-        {(relatorio === "receber" || relatorio === "pagar") && ((leituraAtiva === "posicao" && campoPeriodo !== "todas") || (leituraAtiva === "baixas" && campoBaixa !== "todas")) && !datasValidas(de, ate) && (
+        {((relatorio === "vendas" && periodoVendas === "fechamento") || ((relatorio === "receber" || relatorio === "pagar") && ((leituraAtiva === "posicao" && campoPeriodo !== "todas") || (leituraAtiva === "baixas" && campoBaixa !== "todas")))) && !datasValidas(de, ate) && (
           <span className="text-xs" style={{ color: "#ef4444" }}>{t("relatorio.periodoInvalido")}</span>
         )}
         {relatorio === "estoque" && leituraAtiva === "posicao" && (
@@ -870,7 +888,7 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
           {relatorio === "estoque" && leituraAtiva === "posicao"
             ? `${t("estoque.available")} ${new Intl.NumberFormat("es-PY").format(totalPyg)}`
             : relatorio === "estoque"
-              ? formatQtd(totalPyg)
+              ? `${t("relatorio.tipo.entrada")} ${new Intl.NumberFormat("es-PY").format(sortMov.items.reduce((s, e) => s + (e.quantidade > 0 ? e.quantidade : 0), 0))} · ${t("relatorio.saida")} ${new Intl.NumberFormat("es-PY").format(sortMov.items.reduce((s, e) => s + (e.quantidade < 0 ? -e.quantidade : 0), 0))}`
               : `Gs. ${formatPyg(totalPyg)}`}
         </span>
         {relatorio === "vendas" && cotacao && totalPyg > 0 && (
@@ -1002,7 +1020,7 @@ function TabelaVendas({ itens, page, sortKey, sortDir, onSort, carregando, dataH
       <thead>
         <TableHeadRow sortKey={sortKey} sortDir={sortDir} onSort={onSort} cols={[
           { label: "col.id", sort: "id" },
-          { label: "col.date", sort: "data" },
+          { label: "relatorio.fechamento", sort: "data" },
           { label: "venda.client", sort: "cliente" },
           { label: "venda.total", sort: "total" },
           { label: "venda.seller", sort: "vendedor" },
@@ -1012,7 +1030,7 @@ function TabelaVendas({ itens, page, sortKey, sortDir, onSort, carregando, dataH
         {paged.slice.map((e) => (
           <tr key={e.id} className="drive-row-clickable" style={{ borderBottom: border1() }} onClick={() => onOpen(e.id)}>
             <Td mono gold>{e.id}</Td>
-            <Td mono>{dataHora(e.criadoEm)}</Td>
+            <Td mono>{dataHora(e.finalizadaEm ?? e.criadoEm)}</Td>
             <Td>{e.clienteNome}</Td>
             <Td mono>Gs. {formatPyg(e.totalPyg)}</Td>
             <Td>{e.vendedorNome}</Td>
@@ -1081,25 +1099,30 @@ function TabelaMovimentos({ itens, page, sortKey, sortDir, onSort, carregando, d
           { label: "nav.produtos", sort: "produto" },
           { label: "nav.estoques", sort: "estoque" },
           { label: "relatorio.tipo", sort: "tipo" },
-          { label: "estoque.qty", sort: "qtd" },
-          { label: "relatorio.saldoDepois", sort: "saldo" },
+          { label: "relatorio.anterior", sort: "anterior" },
+          { label: "relatorio.tipo.entrada", sort: "entrada" },
+          { label: "relatorio.saida", sort: "saida" },
+          { label: "relatorio.saldoEstoque", sort: "estoque" },
           { label: "caixa.note" },
         ]} />
       </thead>
       <tbody>
-        {paged.slice.map((e) => (
+        {paged.slice.map((e) => {
+          const p = partesMovimento(e.quantidade, e.saldoDepois);
+          return (
           <tr key={e.id} style={{ borderBottom: border1() }}>
             <Td mono>{dataHora(e.criadoEm)}</Td>
             <Td>{e.produtoCodigo} · {e.produtoNome}</Td>
             <Td>{e.estoqueNome}</Td>
             <Td>{t(tipoKey(e.tipo))}</Td>
-            <td className="drive-td font-mono text-xs" style={{ color: e.quantidade < 0 ? "#ef4444" : e.quantidade > 0 ? "#16a34a" : v("--text-muted") }}>
-              {formatQtd(e.quantidade)}
-            </td>
-            <Td mono>{e.saldoDepois}</Td>
+            <Td mono>{p.anterior}</Td>
+            <td className="drive-td font-mono text-xs" style={{ color: p.entrada > 0 ? "#16a34a" : v("--text-muted") }}>{p.entrada}</td>
+            <td className="drive-td font-mono text-xs" style={{ color: p.saida > 0 ? "#ef4444" : v("--text-muted") }}>{p.saida}</td>
+            <Td mono>{p.estoque}</Td>
             <Td sub>{e.observacao || "—"}</Td>
           </tr>
-        ))}
+          );
+        })}
       </tbody>
     </Tabela>
   );

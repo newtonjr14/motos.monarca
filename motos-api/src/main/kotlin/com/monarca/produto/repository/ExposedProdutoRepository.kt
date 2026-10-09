@@ -616,6 +616,23 @@ class ExposedProdutoRepository(
             .toList()
     }
 
+    override suspend fun listarChassis(idFilial: Long): List<ChassiDisponivel> = suspendTransaction(database) {
+        ProdutoUnidadesTable
+            .innerJoin(EstoquesTable)
+            .selectAll()
+            .where {
+                (EstoquesTable.idFilial eq idFilial) and
+                    (ProdutoUnidadesTable.status eq Status.ATIVO.name.lowercase())
+            }
+            .map {
+                ChassiDisponivel(
+                    idProduto = it[ProdutoUnidadesTable.idProduto].value,
+                    numero = it[ProdutoUnidadesTable.numero],
+                )
+            }
+            .toList()
+    }
+
     override suspend fun buscarUnidadesPorIds(ids: List<Long>): List<ProdutoUnidade> = suspendTransaction(database) {
         if (ids.isEmpty()) return@suspendTransaction emptyList()
         ProdutoUnidadesTable

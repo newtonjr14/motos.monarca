@@ -54,6 +54,8 @@ export default defineConfig(({ mode }) => {
         '/caixas': 'http://localhost:8080',
         '/meus-caixas': 'http://localhost:8080',
         '/caixa-sessoes': 'http://localhost:8080',
+        '/caixa-movimentacoes': 'http://localhost:8080',
+        '/produto-chassis': 'http://localhost:8080',
         '/vendas': 'http://localhost:8080',
         '/titulos-receber': 'http://localhost:8080',
         '/titulos-pagar': 'http://localhost:8080',

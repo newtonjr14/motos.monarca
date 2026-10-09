@@ -165,6 +165,12 @@ data class ProdutoResponse(
 )
 
 @Serializable
+data class ProdutoChassiBuscaResponse(
+    val idProduto: Long,
+    val numero: String,
+)
+
+@Serializable
 data class VinculoFilialProdutoConflitoResponse(
     val codigo: String,
     val message: String,

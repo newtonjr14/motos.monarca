@@ -908,6 +908,7 @@ export interface CaixaMovimentacao {
   idVenda?: number | null;
   criadoEm: number;
   observacao?: string | null;
+  caixaNome?: string | null;
   finalizadores: ValorFinalizador[];
 }
 
@@ -961,6 +962,7 @@ export interface Venda {
   descontoPyg?: number;
   observacao?: string | null;
   criadoEm: number;
+  finalizadaEm?: number | null;
   status: StatusVenda;
   itens: VendaItem[];
   negociacao: VendaNegociacao[];
@@ -1002,6 +1004,19 @@ export const lancamentoAvulsoCaixa = (idSessao: number, body: unknown) =>
   api<CaixaMovimentacao>(`/caixa-sessoes/${idSessao}/lancamentos`, { method: "POST", body: JSON.stringify(body) });
 export const listarCaixaMovimentacoes = (idSessao: number) =>
   api<CaixaMovimentacao[]>(`/caixa-sessoes/${idSessao}/movimentacoes`);
+
+export const listarMovimentacoesCaixaFilial = (idFilial: number, de: string, ate: string) => {
+  const q = new URLSearchParams({ idFilial: String(idFilial), de, ate });
+  return api<CaixaMovimentacao[]>(`/caixa-movimentacoes?${q}`);
+};
+
+export interface ProdutoChassiBusca {
+  idProduto: number;
+  numero: string;
+}
+
+export const listarChassis = (idFilial: number) =>
+  api<ProdutoChassiBusca[]>(`/produto-chassis?idFilial=${idFilial}`);
 
 export interface VendedorOpcao {
   id: number;

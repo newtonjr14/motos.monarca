@@ -8,6 +8,7 @@ import {
   listarCaixas,
   listarFinalizadores,
   listarPapeis,
+  listarChassis,
   listarProdutos,
   listarUnidades,
   listarVendedoresVenda,
@@ -130,8 +131,8 @@ function docCliente(c: Papel): string | null {
   return `${doc.tipoNome} ${formatarDocumentoExibicao(doc.tipoCodigo, doc.numero)}`;
 }
 
-function textoProduto(p: Produto): string {
-  return `${p.codigo} ${p.nome} ${p.marca} ${p.modelo}`;
+function textoProduto(p: Produto, chassis = ""): string {
+  return `${p.codigo} ${p.nome} ${p.marca} ${p.modelo} ${chassis}`;
 }
 
 export type OrcamentosVenda = { ids: number[]; confirmarVencido: boolean };
@@ -154,6 +155,7 @@ export default function VendasPage({
   const { t } = useI18n();
   const idFilial = useFilialId();
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [chassisPorProduto, setChassisPorProduto] = useState<Record<number, string>>({});
   const [clientes, setClientes] = useState<Papel[]>([]);
   const [finalizadores, setFinalizadores] = useState<Finalizador[]>([]);
   const [caixas, setCaixas] = useState<Caixa[]>([]);
@@ -174,6 +176,16 @@ export default function VendasPage({
       setFinalizadores(fins.filter((f) => f.status === "ativo"));
       setCaixas(cxs);
       try { setCotacao(await buscarCotacaoHoje()); } catch { setCotacao(null); }
+      try {
+        const chassis = await listarChassis(idFilial);
+        const mapa: Record<number, string> = {};
+        for (const item of chassis) {
+          mapa[item.idProduto] = `${mapa[item.idProduto] ?? ""} ${item.numero} ${normalizarChassi(item.numero)}`;
+        }
+        setChassisPorProduto(mapa);
+      } catch {
+        setChassisPorProduto({});
+      }
     } catch (e) {
       setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
@@ -187,6 +199,7 @@ export default function VendasPage({
         modo={modo}
         idFilial={idFilial}
         produtos={produtos}
+        chassisPorProduto={chassisPorProduto}
         clientes={clientes}
         finalizadores={finalizadores}
         caixas={caixas}
@@ -203,11 +216,12 @@ export default function VendasPage({
 }
 
 function VendaForm({
-  modo, idFilial, produtos, clientes, finalizadores, caixas, cotacao, navReset, retomarId, onRetomada, orcamentos, onOrcamentosCarregados, onSaved,
+  modo, idFilial, produtos, chassisPorProduto, clientes, finalizadores, caixas, cotacao, navReset, retomarId, onRetomada, orcamentos, onOrcamentosCarregados, onSaved,
 }: {
   modo: ModoVenda;
   idFilial: number;
   produtos: Produto[];
+  chassisPorProduto: Record<number, string>;
   clientes: Papel[];
   finalizadores: Finalizador[];
   caixas: Caixa[];
@@ -435,7 +449,7 @@ function VendaForm({
     const filtrados = produtos.filter((p) => {
       if (filtroTipo !== "todos" && p.tipo !== filtroTipo) return false;
       if (!q) return true;
-      return textoProduto(p).toLowerCase().includes(q);
+      return textoProduto(p, chassisPorProduto[p.id] ?? "").toLowerCase().includes(q);
     });
     const ordenados = [...filtrados].sort((a, b) => {
       const ea = estoqueDe(a);
@@ -446,7 +460,7 @@ function VendaForm({
     });
     const limite = q ? VITRINE_BUSCA : VITRINE_LIMITE;
     return { itens: ordenados.slice(0, limite), total: ordenados.length };
-  }, [produtos, buscaProduto, filtroTipo]);
+  }, [produtos, buscaProduto, filtroTipo, chassisPorProduto]);
 
   const idsUsados = useMemo(
     () => new Set(linhas.flatMap((l) => l.unidades.map((u) => u.id))),

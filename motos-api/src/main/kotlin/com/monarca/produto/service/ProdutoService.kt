@@ -23,6 +23,7 @@ import com.monarca.produto.domain.SituacaoUnidade
 import com.monarca.produto.domain.TipoProduto
 import com.monarca.produto.dto.ProdutoBicicletaRequest
 import com.monarca.produto.dto.ProdutoBicicletaResponse
+import com.monarca.produto.dto.ProdutoChassiBuscaResponse
 import com.monarca.produto.dto.ProdutoEstoqueSaldoResponse
 import com.monarca.produto.dto.ProdutoMotoRequest
 import com.monarca.produto.dto.ProdutoMotoResponse
@@ -181,6 +182,13 @@ class ProdutoService(
         }
         if (!repository.excluir(id, idFilial)) {
             throw RecursoNaoEncontrado("Produto $id não encontrado")
+        }
+    }
+
+    suspend fun listarChassis(idFilial: Long?, idUsuario: Long): List<ProdutoChassiBuscaResponse> {
+        val filial = resolverFilialComAcesso(idUsuario, idFilial)
+        return repository.listarChassis(filial).map {
+            ProdutoChassiBuscaResponse(idProduto = it.idProduto, numero = it.numero)
         }
     }
 

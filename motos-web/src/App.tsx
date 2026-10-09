@@ -14,6 +14,7 @@ import CaixaOperacaoPage from "@/components/CaixaOperacaoPage";
 import VendasPage from "@/components/VendasPage";
 import HistoricoVendasPage from "@/components/HistoricoVendasPage";
 import RelatoriosPage from "@/components/RelatoriosPage";
+import CaixaRelatorioPage from "@/components/CaixaRelatorioPage";
 import { CotacaoAlerta, CotacaoChip, CotacaoHojeProvider } from "@/components/CotacaoBanner";
 import { FilialGate, FilialSwitcher } from "@/components/FilialUi";
 import CidadeSearchSelect from "@/components/CidadeSearchSelect";
@@ -229,7 +230,7 @@ const Icon = {
   more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "vendas" | "orcamentos" | "historico" | "relatorioReceber" | "relatorioPagar" | "relatorioVendas" | "relatorioEstoque" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "vendas" | "orcamentos" | "historico" | "relatorioReceber" | "relatorioPagar" | "relatorioVendas" | "relatorioEstoque" | "relatorioCaixa" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 type NavPermissao = string | readonly string[];
 type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: NavPermissao };
@@ -308,6 +309,7 @@ const navGrupos: NavGrupo[] = [
       { id: "relatorioPagar", label: "Contas a pagar", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
       { id: "relatorioVendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
       { id: "relatorioEstoque", label: "Estoque", icon: "estoques", permissao: [Permissao.ESTOQUE_CONSULTAR, Permissao.ESTOQUE_GERENCIAR] },
+      { id: "relatorioCaixa", label: "Movimentos de caixa", icon: "caixa", permissao: [Permissao.CAIXA_OPERAR, Permissao.CAIXA_GERENCIAR] },
     ],
   },
   {
@@ -564,7 +566,6 @@ function Dashboard({
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{t("nav.dashboard")}</h1>
-        <p className="text-sm mt-0.5" style={{ color: v("--text-muted") }}>{tf(t, "dashboard.subtitle", { app: t("app.name") })}</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -2938,6 +2939,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
     relatorioPagar: t("nav.relatorioPagar"),
     relatorioVendas: t("nav.relatorioVendas"),
     relatorioEstoque: t("nav.relatorioEstoque"),
+    relatorioCaixa: t("nav.relatorioCaixa"),
     contasReceber: t("nav.contasReceber"),
     contasPagar: t("nav.contasPagar"),
     entradaNota: t("nav.entradaNota"),
@@ -3039,6 +3041,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
           {view === "contasPagar" && <ContasPagarPage navReset={navReset} />}
           {view === "entradaNota" && <EntradaNotaPage navReset={navReset} />}
           {view === "facturas" && <FacturasPage navReset={navReset} />}
+          {view === "relatorioCaixa" && <CaixaRelatorioPage navReset={navReset} />}
           {view === "caixa" && <CaixaOperacaoPage navReset={navReset} />}
           {view === "clientes" && <PapelPage recurso="clientes" titulo={t("nav.clientes")} singular={t("entity.cliente")} cidades={cidades} paises={paises} navReset={navReset} onNavigate={navigateTo} />}
           {view === "fornecedores" && <PapelPage recurso="fornecedores" titulo={t("nav.fornecedores")} singular={t("entity.fornecedor")} cidades={cidades} paises={paises} navReset={navReset} onNavigate={navigateTo} />}

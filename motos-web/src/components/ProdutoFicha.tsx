@@ -4,8 +4,8 @@ import { atualizarProdutoStatus, buscarProduto, excluirProduto, listarMovimentos
 import { useFilial, useFilialId } from "@/auth/FilialContext";
 import { useCotacaoHoje } from "@/components/CotacaoBanner";
 import { FormTabs, Section } from "@/components/crud/Field";
-import { StatusTexto, Td } from "@/components/crud/ListUi";
-import { converterMoeda, formatMoeda, formatarDataHoraEpoch, moedaOperacaoDe } from "@/format";
+import { StatusTexto, TablePagination, Td } from "@/components/crud/ListUi";
+import { converterMoeda, formatMoeda, formatarDataHoraEpoch, moedaOperacaoDe, partesMovimento, slicePage } from "@/format";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import { useEffect, useState, type ReactNode } from "react";
@@ -64,7 +64,9 @@ export default function ProdutoFicha({
   const [item, setItem] = useState<Produto>(fallback);
   const [unidades, setUnidades] = useState<ProdutoUnidade[]>([]);
   const [movimentos, setMovimentos] = useState<EstoqueMovimento[]>([]);
-  const [guia, setGuia] = useState<"dados" | "estoque">("dados");
+  const [carregandoMov, setCarregandoMov] = useState(false);
+  const [guia, setGuia] = useState<"dados" | "estoque" | "movimentacao">("dados");
+  const [paginaMov, setPaginaMov] = useState(1);
   const [carregando, setCarregando] = useState(() => fallback.moto == null && fallback.bicicleta == null);
   const [loading, setLoading] = useState<"status" | "delete" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -96,11 +98,14 @@ export default function ProdutoFicha({
   }, [id, idFilial, item.controlaChassi]);
 
   useEffect(() => {
-    if (guia !== "estoque") return;
+    if (guia !== "movimentacao") return;
     let ativo = true;
+    setPaginaMov(1);
+    setCarregandoMov(true);
     void listarMovimentosEstoque(idFilial, id)
-      .then((lista) => { if (ativo) setMovimentos(lista); })
-      .catch(() => { if (ativo) setMovimentos([]); });
+      .then((lista) => { if (ativo) setMovimentos([...lista].sort((a, b) => b.criadoEm - a.criadoEm)); })
+      .catch(() => { if (ativo) setMovimentos([]); })
+      .finally(() => { if (ativo) setCarregandoMov(false); });
     return () => { ativo = false; };
   }, [guia, id, idFilial]);
 
@@ -168,7 +173,7 @@ export default function ProdutoFicha({
       aria-labelledby="produto-ficha-title"
     >
       <div
-        className="ficha-modal ficha-modal-locked w-full max-w-2xl rounded-xl shadow-2xl flex flex-col"
+        className="ficha-modal ficha-modal-locked ficha-modal-produto rounded-xl shadow-2xl flex flex-col"
         style={{ background: v("--card"), border: border1() }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -240,6 +245,7 @@ export default function ProdutoFicha({
             tabs={[
               { id: "dados", label: t("ficha.tab.dados") },
               { id: "estoque", label: t("ficha.tab.estoque") },
+              { id: "movimentacao", label: t("ficha.tab.movimentacao") },
             ]}
             value={guia}
             onChange={setGuia}
@@ -367,42 +373,6 @@ export default function ProdutoFicha({
                   </div>
                 )}
               </Section>
-              <Section title={t("produto.movimentos")}>
-                {movimentos.length === 0 ? (
-                  <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("produto.movimentosEmpty")}</p>
-                ) : (
-                  <div className="rounded-md overflow-auto max-h-56" style={{ border: border1() }}>
-                    <table className="drive-table w-full">
-                      <thead>
-                        <tr>
-                          <th className="drive-th">{t("col.date")}</th>
-                          <th className="drive-th">{t("nav.estoques")}</th>
-                          <th className="drive-th">{t("relatorio.tipo")}</th>
-                          <th className="drive-th">{t("estoque.qty")}</th>
-                          <th className="drive-th">{t("relatorio.saldoDepois")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {movimentos.map((m) => (
-                          <tr key={m.id} style={{ borderBottom: border1() }}>
-                            <td className="drive-td font-mono text-xs" style={{ color: v("--text-sub") }}>
-                              {formatarDataHoraEpoch(m.criadoEm, locale === "es" ? "es-PY" : "pt-BR")}
-                            </td>
-                            <td className="drive-td text-xs" style={{ color: v("--text") }}>{m.estoqueNome}</td>
-                            <td className="drive-td text-xs" style={{ color: v("--text-sub") }}>
-                              {t(m.tipo === "venda" ? "relatorio.tipo.venda" : m.tipo === "entrada" ? "relatorio.tipo.entrada" : "relatorio.tipo.ajuste")}
-                            </td>
-                            <td className="drive-td font-mono text-xs" style={{ color: m.quantidade < 0 ? "#ef4444" : "#16a34a" }}>
-                              {m.quantidade > 0 ? `+${m.quantidade}` : m.quantidade}
-                            </td>
-                            <td className="drive-td font-mono text-xs" style={{ color: v("--text") }}>{m.saldoDepois}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Section>
               {item.controlaChassi && (
                 <Section title={t("produto.chassiLote")}>
                   {unidades.length === 0 ? (
@@ -433,10 +403,54 @@ export default function ProdutoFicha({
                   )}
                 </Section>
               )}
-              <Section title={t("ficha.stockLog")}>
-                <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("ficha.stockLogSoon")}</p>
-              </Section>
             </>
+          )}
+
+          {guia === "movimentacao" && (
+            <Section title={t("ficha.stockLog")}>
+              {carregandoMov ? (
+                <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("common.loading")}</p>
+              ) : movimentos.length === 0 ? (
+                <p className="text-sm italic" style={{ color: v("--text-muted") }}>{t("produto.movimentosEmpty")}</p>
+              ) : (
+                <div className="rounded-md overflow-hidden" style={{ border: border1() }}>
+                  <table className="drive-table ficha-mov">
+                    <thead>
+                      <tr>
+                        <th className="drive-th">{t("col.date")}</th>
+                        <th className="drive-th">{t("nav.estoques")}</th>
+                        <th className="drive-th">{t("relatorio.tipo")}</th>
+                        <th className="drive-th">{t("relatorio.anterior")}</th>
+                        <th className="drive-th">{t("relatorio.tipo.entrada")}</th>
+                        <th className="drive-th">{t("relatorio.saida")}</th>
+                        <th className="drive-th">{t("relatorio.saldoEstoque")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {slicePage(movimentos, paginaMov).slice.map((m) => {
+                        const p = partesMovimento(m.quantidade, m.saldoDepois);
+                        return (
+                          <tr key={m.id} style={{ borderBottom: border1() }}>
+                            <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>
+                              {formatarDataHoraEpoch(m.criadoEm, locale === "es" ? "es-PY" : "pt-BR")}
+                            </td>
+                            <td className="drive-td" style={{ color: v("--text") }}>{m.estoqueNome}</td>
+                            <td className="drive-td" style={{ color: v("--text-sub") }}>
+                              {t(m.tipo === "venda" ? "relatorio.tipo.venda" : m.tipo === "entrada" ? "relatorio.tipo.entrada" : "relatorio.tipo.ajuste")}
+                            </td>
+                            <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{p.anterior}</td>
+                            <td className="drive-td font-mono" style={{ color: p.entrada > 0 ? "#16a34a" : v("--text-muted") }}>{p.entrada}</td>
+                            <td className="drive-td font-mono" style={{ color: p.saida > 0 ? "#ef4444" : v("--text-muted") }}>{p.saida}</td>
+                            <td className="drive-td font-mono" style={{ color: v("--text") }}>{p.estoque}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <TablePagination page={paginaMov} total={movimentos.length} onPageChange={setPaginaMov} />
+                </div>
+              )}
+            </Section>
           )}
         </div>
 

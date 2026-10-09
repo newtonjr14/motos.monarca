@@ -523,6 +523,7 @@ class VendaService(
         descontoPyg = descontoPyg,
         observacao = observacao,
         criadoEm = criadoEm,
+        finalizadaEm = finalizadaEm,
         status = StatusVenda.valueOf(status.uppercase()),
         itens = itens.map {
             VendaItemResponse(

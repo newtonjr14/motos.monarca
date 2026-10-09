@@ -24,6 +24,7 @@ object VendasTable : LongIdTable("venda") {
     val idVendaGerada = long("id_venda_gerada").nullable()
     val orcamentosIds = varchar("orcamentos_ids", 500).nullable()
     val criadoEm = long("criado_em")
+    val finalizadaEm = long("finalizada_em").nullable()
     val status = varchar("status", 20).default("finalizada")
 }
 

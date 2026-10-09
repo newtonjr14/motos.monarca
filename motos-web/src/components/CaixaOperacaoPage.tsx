@@ -11,12 +11,10 @@ import {
   buscarCaixaSessao,
   fecharCaixaSessao,
   lancamentoAvulsoCaixa,
-  listarCaixaMovimentacoes,
   listarCaixas,
   listarFinalizadores,
   transferirCaixa,
   type Caixa,
-  type CaixaMovimentacao,
   type CaixaSessao,
   type Finalizador,
   type Moeda,
@@ -26,7 +24,7 @@ import { formatMoeda, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
-type Modo = "abrir" | "fechar" | "transferir" | "lancamento" | "movimentos" | null;
+type Modo = "abrir" | "fechar" | "transferir" | "lancamento" | null;
 type LinhaConferencia = { idFinalizador: number; moeda: Moeda };
 type TipoAvulso = Extract<TipoMovimentacaoCaixa, "suprimento" | "sangria">;
 
@@ -98,9 +96,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
   const [valores, setValores] = useState<Record<string, string>>({});
   const [idDestino, setIdDestino] = useState<number | "">("");
   const [observacao, setObservacao] = useState("");
-  const [movs, setMovs] = useState<CaixaMovimentacao[]>([]);
   const [salvando, setSalvando] = useState(false);
-  const [addFinId, setAddFinId] = useState<number | "">("");
   const [tipoAvulso, setTipoAvulso] = useState<TipoAvulso>("suprimento");
   const [idFinAvulso, setIdFinAvulso] = useState<number | "">("");
   const [moedaAvulsa, setMoedaAvulsa] = useState<Moeda>("pyg");
@@ -153,16 +149,14 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
   }
 
   function setValorLinha(idFinalizador: number, moeda: Moeda, valor: string) {
-    setValores((atual) => ({ ...atual, [chaveValor(idFinalizador, moeda)]: valor }));
-  }
-
-  function temLinha(idFinalizador: number, moeda: Moeda) {
-    return linhas.some((l) => l.idFinalizador === idFinalizador && l.moeda === moeda);
-  }
-
-  function adicionarLinha(idFinalizador: number, moeda: Moeda) {
-    if (temLinha(idFinalizador, moeda)) return;
-    setLinhas((atual) => [...atual, { idFinalizador, moeda }]);
+    let next = valor;
+    if (modo === "transferir") {
+      const max = esperadoMap.get(chaveValor(idFinalizador, moeda)) ?? 0;
+      if (parseValor(valor) > max + 1e-9) {
+        next = moeda === "pyg" ? String(Math.floor(max)) : String(max);
+      }
+    }
+    setValores((atual) => ({ ...atual, [chaveValor(idFinalizador, moeda)]: next }));
   }
 
   function removerLinha(idFinalizador: number, moeda: Moeda) {
@@ -181,8 +175,6 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
     setObservacao("");
     setValores({});
     setIdDestino("");
-    setMovs([]);
-    setAddFinId("");
     setLinhas([]);
     setTipoAvulso("suprimento");
     setIdFinAvulso("");
@@ -229,9 +221,6 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
           }
           setValores(preset);
         }
-        if (next === "movimentos") {
-          setMovs(await listarCaixaMovimentacoes(caixa.sessaoAbertaId));
-        }
       }
       setModo(next);
     } catch (e) {
@@ -276,6 +265,11 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
     const conferencia = valoresBody();
     if (!conferencia.length) {
       setErro(t("caixa.error.valor"));
+      return;
+    }
+    const acima = conferencia.some((l) => l.valor > (esperadoMap.get(chaveValor(l.idFinalizador, l.moeda)) ?? 0) + 0.009);
+    if (acima) {
+      setErro(t("api.CAIXA_SALDO_INSUFICIENTE"));
       return;
     }
     setSalvando(true);
@@ -340,7 +334,6 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
       linhas: MOEDAS
         .filter((m) => linhas.some((l) => l.idFinalizador === id && l.moeda === m))
         .map((moeda) => ({ moeda, chave: chaveValor(id, moeda) })),
-      moedasFaltando: MOEDAS.filter((m) => !linhas.some((l) => l.idFinalizador === id && l.moeda === m)),
     }));
   }, [linhas, nomeFinalizador]);
 
@@ -375,8 +368,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
     const titulo = modo === "abrir" ? t("caixa.open")
       : modo === "fechar" ? t("caixa.close")
         : modo === "transferir" ? t("caixa.transfer")
-          : modo === "lancamento" ? t("caixa.lancamento")
-            : t("caixa.movements");
+          : t("caixa.lancamento");
     const comResumo = modo === "fechar" || modo === "transferir";
 
     return (
@@ -388,27 +380,6 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
           {titulo} · {alvo.nome}
         </h1>
 
-        {modo === "movimentos" ? (
-          <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
-            {erro && <p className="text-sm p-4" style={{ color: "#ef4444" }}>{erro}</p>}
-            <table className="drive-table w-full">
-              <thead>
-                <TableHeadRow cols={["caixa.movementType", "caixa.user", "caixa.amount", ""]} />
-              </thead>
-              <tbody>
-                {movs.map((m) => (
-                  <tr key={m.id} style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                    <Td>{t(`caixa.mov.${m.tipo}` as TranslationKey)}</Td>
-                    <Td>{m.usuarioNome}</Td>
-                    <Td mono>{m.finalizadores.map((f) => `${f.finalizadorNome ?? ""} ${formatMoeda(f.valor, f.moeda ?? "pyg")}`).join(" · ")}</Td>
-                    <Td sub>{m.observacao ?? ""}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!movs.length && <div className="py-12 text-center text-sm" style={{ color: v("--text-muted") }}>{t("common.noRecords")}</div>}
-          </div>
-        ) : (
           <form
             className={comResumo ? "grid gap-5 lg:grid-cols-[1fr_280px] lg:items-start" : undefined}
             onSubmit={(e) => {
@@ -495,18 +466,16 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
                       <thead>
                         <tr>
                           <th className="drive-th text-left w-28">{t("produto.currency")}</th>
-                          <th className="drive-th text-left">{t("caixa.informed")}</th>
-                          {modo === "fechar" && (
-                            <th className="drive-th text-right">{t("caixa.expected")}</th>
-                          )}
-                          {modo !== "fechar" && <th className="drive-th w-10" />}
+                          <th className="drive-th text-left">{modo === "transferir" ? t("caixa.amount") : t("caixa.informed")}</th>
+                          <th className="drive-th text-right">{modo === "transferir" ? t("caixa.disponivel") : t("caixa.expected")}</th>
+                          {modo === "transferir" && <th className="drive-th w-10" />}
                         </tr>
                       </thead>
                       <tbody>
                         {gruposConferencia.map((g) => (
                           <Fragment key={g.id}>
                             <tr style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                              <td className="drive-td" colSpan={3}>
+                              <td className="drive-td" colSpan={modo === "transferir" ? 4 : 3}>
                                 <span className="text-sm font-medium" style={{ color: v("--text") }}>{g.nome}</span>
                               </td>
                             </tr>
@@ -522,10 +491,8 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
                                       onChange={(val) => setValorLinha(g.id, linha.moeda, val)}
                                     />
                                   </td>
-                                  {modo === "fechar" && (
-                                    <Td mono right>{formatMoeda(esperado, linha.moeda)}</Td>
-                                  )}
-                                  {modo !== "fechar" && (
+                                  <Td mono right>{formatMoeda(esperado, linha.moeda)}</Td>
+                                  {modo === "transferir" && (
                                     <td className="drive-td">
                                       <button
                                         type="button"
@@ -542,69 +509,16 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
                                 </tr>
                               );
                             })}
-                            {modo !== "fechar" && g.moedasFaltando.length > 0 && (
-                              <tr style={{ borderBottom: `1px solid ${v("--border")}` }}>
-                                <td className="drive-td" colSpan={3}>
-                                  <div className="flex flex-wrap gap-3">
-                                    {g.moedasFaltando.map((m) => (
-                                      <button
-                                        key={m}
-                                        type="button"
-                                        className="text-xs cursor-pointer"
-                                        style={{ color: v("--gold") }}
-                                        onClick={() => adicionarLinha(g.id, m)}
-                                      >
-                                        {t("caixa.addCurrency")} · {prefixoMoeda(m)}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
                           </Fragment>
                         ))}
                       </tbody>
                     </table>
                     {!linhas.length && (
                       <div className="py-8 text-center text-sm" style={{ color: v("--text-muted") }}>
-                        {modo === "fechar" ? t("caixa.conferenciaEmpty") : t("common.noRecords")}
+                        {modo === "transferir" ? t("caixa.transferEmpty") : t("caixa.conferenciaEmpty")}
                       </div>
                     )}
                   </div>
-
-                  {modo !== "fechar" && (
-                  <div className="flex flex-wrap items-center gap-2 mt-3">
-                    <select
-                      className="field text-sm w-auto min-w-[12rem]"
-                      value={addFinId}
-                      onChange={(e) => setAddFinId(e.target.value ? Number(e.target.value) : "")}
-                    >
-                      <option value="">{t("caixa.addFinalizer")}</option>
-                      {finalizadores
-                        .filter((f) => MOEDAS.some((m) => !temLinha(f.id, m)))
-                        .map((f) => (
-                          <option key={f.id} value={f.id}>{f.nome}</option>
-                        ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="btn-ghost text-sm px-3 py-1.5"
-                      disabled={addFinId === ""}
-                      onClick={() => {
-                        if (addFinId === "") return;
-                        const moedaPadrao = (filial?.moedaOperacao ?? "pyg") as Moeda;
-                        if (!temLinha(addFinId, moedaPadrao)) adicionarLinha(addFinId, moedaPadrao);
-                        else {
-                          const prox = MOEDAS.find((m) => !temLinha(addFinId, m));
-                          if (prox) adicionarLinha(addFinId, prox);
-                        }
-                        setAddFinId("");
-                      }}
-                    >
-                      {t("caixa.include")}
-                    </button>
-                  </div>
-                  )}
                 </Section>
               )}
                 </>
@@ -634,15 +548,13 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
                     <div key={r.moeda} className="space-y-1 pb-3" style={{ borderBottom: `1px solid ${v("--border")}` }}>
                       <p className="text-xs font-medium" style={{ color: v("--text-sub") }}>{t(labelMoedaKey(r.moeda))}</p>
                       <div className="flex justify-between text-sm font-mono">
-                        <span style={{ color: v("--text-muted") }}>{t("caixa.informed")}</span>
+                        <span style={{ color: v("--text-muted") }}>{modo === "transferir" ? t("caixa.amount") : t("caixa.informed")}</span>
                         <span style={{ color: v("--text") }}>{formatMoeda(r.informado, r.moeda)}</span>
                       </div>
-                      {modo === "fechar" && (
-                        <div className="flex justify-between text-sm font-mono">
-                          <span style={{ color: v("--text-muted") }}>{t("caixa.expected")}</span>
-                          <span style={{ color: v("--text") }}>{formatMoeda(r.esperado, r.moeda)}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between text-sm font-mono">
+                        <span style={{ color: v("--text-muted") }}>{modo === "transferir" ? t("caixa.disponivel") : t("caixa.expected")}</span>
+                        <span style={{ color: v("--text") }}>{formatMoeda(r.esperado, r.moeda)}</span>
+                      </div>
                       {modo === "fechar" && (
                         <div className="flex justify-between text-sm font-mono pt-1">
                           <span style={{ color: corDiff(r.diff) }}>{rotuloDiff(r.diff)}</span>
@@ -655,7 +567,6 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
               </aside>
             )}
           </form>
-        )}
       </div>
     );
   }
@@ -693,7 +604,6 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
                       <button className="text-xs cursor-pointer" style={{ color: v("--gold") }} onClick={() => void iniciar(e, "fechar")}>{t("caixa.close")}</button>
                       <button className="text-xs cursor-pointer" style={{ color: v("--gold") }} onClick={() => void iniciar(e, "lancamento")}>{t("caixa.lancamento")}</button>
                       <button className="text-xs cursor-pointer" style={{ color: v("--gold") }} onClick={() => void iniciar(e, "transferir")}>{t("caixa.transfer")}</button>
-                      <button className="text-xs cursor-pointer" style={{ color: v("--gold") }} onClick={() => void iniciar(e, "movimentos")}>{t("caixa.movements")}</button>
                     </>
                   )}
                 </td>

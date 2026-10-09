@@ -25,7 +25,9 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.insert
@@ -435,6 +437,64 @@ class ExposedCaixaRepository(
                 finalizadorNomes = linhas.associate {
                     it[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value to it[FinalizadoresTable.nome]
                 },
+            )
+        }
+    }
+
+    override suspend fun listarMovimentacoesFilial(
+        idFilial: Long,
+        deInclusive: Long?,
+        ateExclusivo: Long?,
+    ): List<MovimentacaoDetalhe> = suspendTransaction(database) {
+        var filtro = (CaixasTable.idFilial eq idFilial) and
+            (CaixaMovimentacoesTable.status neq Status.DELETADO.name.lowercase())
+        if (deInclusive != null) filtro = filtro and (CaixaMovimentacoesTable.criadoEm greaterEq deInclusive)
+        if (ateExclusivo != null) filtro = filtro and (CaixaMovimentacoesTable.criadoEm less ateExclusivo)
+        val movimentos = CaixaMovimentacoesTable
+            .innerJoin(CaixaSessoesTable)
+            .innerJoin(CaixasTable)
+            .join(UsuariosTable, JoinType.INNER, CaixaMovimentacoesTable.idUsuario, UsuariosTable.id)
+            .selectAll()
+            .where { filtro }
+            .orderBy(CaixaMovimentacoesTable.criadoEm to SortOrder.DESC)
+            .toList()
+        val ids = movimentos.map { it[CaixaMovimentacoesTable.id].value }
+        val fins = if (ids.isEmpty()) emptyList() else {
+            CaixaMovimentacaoFinalizadoresTable
+                .innerJoin(FinalizadoresTable)
+                .selectAll()
+                .where { CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao inList ids }
+                .toList()
+        }
+        val porMov = fins.groupBy { it[CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao].value }
+        movimentos.map { row ->
+            val id = row[CaixaMovimentacoesTable.id].value
+            val linhas = porMov[id].orEmpty()
+            MovimentacaoDetalhe(
+                movimento = CaixaMovimentacao(
+                    id = id,
+                    idCaixaSessao = row[CaixaMovimentacoesTable.idCaixaSessao].value,
+                    tipo = TipoMovimentacaoCaixa.valueOf(row[CaixaMovimentacoesTable.tipo].uppercase()),
+                    idUsuario = row[CaixaMovimentacoesTable.idUsuario].value,
+                    idVenda = row[CaixaMovimentacoesTable.idVenda]?.value,
+                    idMovimentacaoPar = row[CaixaMovimentacoesTable.idMovimentacaoPar],
+                    criadoEm = row[CaixaMovimentacoesTable.criadoEm],
+                    observacao = row[CaixaMovimentacoesTable.observacao],
+                    status = Status.valueOf(row[CaixaMovimentacoesTable.status].uppercase()),
+                    finalizadores = linhas.map {
+                        ValorFinalizador(
+                            idFinalizador = it[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value,
+                            valor = it[CaixaMovimentacaoFinalizadoresTable.valor],
+                            moeda = Moeda.valueOf(it[CaixaMovimentacaoFinalizadoresTable.moeda].uppercase()),
+                            valorPyg = it[CaixaMovimentacaoFinalizadoresTable.valorPyg],
+                        )
+                    },
+                ),
+                usuarioNome = row[UsuariosTable.nome],
+                finalizadorNomes = linhas.associate {
+                    it[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value to it[FinalizadoresTable.nome]
+                },
+                caixaNome = row[CaixasTable.nome],
             )
         }
     }

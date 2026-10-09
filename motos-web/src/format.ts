@@ -279,6 +279,15 @@ export function formatarDataEpoch(ms: number, timeZone = "America/Asuncion"): st
   }).format(new Date(ms));
 }
 
+export function partesMovimento(quantidade: number, saldoDepois: number) {
+  return {
+    anterior: saldoDepois - quantidade,
+    entrada: quantidade > 0 ? quantidade : 0,
+    saida: quantidade < 0 ? -quantidade : 0,
+    estoque: saldoDepois,
+  };
+}
+
 export function formatarDataHoraEpoch(ms: number, locale = "pt-BR", timeZone = "America/Asuncion"): string {
   return new Intl.DateTimeFormat(locale, {
     timeZone,

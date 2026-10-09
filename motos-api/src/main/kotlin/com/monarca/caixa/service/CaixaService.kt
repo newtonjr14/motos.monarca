@@ -32,6 +32,7 @@ import com.monarca.produto.domain.Moeda
 import com.monarca.usuario.repository.UsuarioRepository
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeParseException
 
 class CaixaService(
     private val repository: CaixaRepository,
@@ -350,6 +351,28 @@ class CaixaService(
         return repository.listarMovimentacoes(sessao.id).map { it.toResponse() }
     }
 
+    suspend fun listarMovimentacoesFilial(
+        idFilial: Long?,
+        de: String?,
+        ate: String?,
+        idUsuario: Long,
+    ): List<CaixaMovimentacaoResponse> {
+        val filial = resolverFilialComAcesso(idUsuario, idFilial)
+        val inicio = parseDia(de)?.atStartOfDay(zona)?.toInstant()?.toEpochMilli()
+        val fim = parseDia(ate)?.plusDays(1)?.atStartOfDay(zona)?.toInstant()?.toEpochMilli()
+        return repository.listarMovimentacoesFilial(filial, inicio, fim).map { it.toResponse() }
+    }
+
+    private fun parseDia(valor: String?): LocalDate? {
+        val texto = valor?.trim().orEmpty()
+        if (texto.isEmpty()) return null
+        return try {
+            LocalDate.parse(texto)
+        } catch (_: DateTimeParseException) {
+            throw invalido("PERIODO_INVALIDO", "Período inválido")
+        }
+    }
+
     suspend fun exigirSessaoAbertaComAcesso(idSessao: Long, idUsuario: Long, idFilial: Long): SessaoDetalhe {
         val detalhe = repository.buscarSessao(idSessao) ?: throw RecursoNaoEncontrado("Sessão $idSessao não encontrada")
         if (detalhe.idFilial != idFilial) {
@@ -490,6 +513,7 @@ class CaixaService(
         idVenda = movimento.idVenda,
         criadoEm = movimento.criadoEm,
         observacao = movimento.observacao,
+        caixaNome = caixaNome.ifBlank { null },
         finalizadores = movimento.finalizadores.map {
             ValorFinalizadorResponse(
                 idFinalizador = it.idFinalizador,

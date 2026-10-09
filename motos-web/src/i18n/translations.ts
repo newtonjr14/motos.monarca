@@ -20,6 +20,7 @@ export type TranslationKey =
   | "nav.relatorioPagar"
   | "nav.relatorioVendas"
   | "nav.relatorioEstoque"
+  | "nav.relatorioCaixa"
   | "relatorio.vendas"
   | "relatorio.receber"
   | "relatorio.pagar"
@@ -39,6 +40,9 @@ export type TranslationKey =
   | "relatorio.tipo.ajuste"
   | "relatorio.atraso"
   | "relatorio.saldoDepois"
+  | "relatorio.anterior"
+  | "relatorio.saida"
+  | "relatorio.saldoEstoque"
   | "relatorio.comSaldo"
   | "relatorio.todosSaldos"
   | "relatorio.finalizador"
@@ -61,6 +65,11 @@ export type TranslationKey =
   | "relatorio.busca.pagar"
   | "relatorio.busca.baixasReceber"
   | "relatorio.busca.baixasPagar"
+  | "relatorio.busca.vendas"
+  | "relatorio.busca.estoque"
+  | "relatorio.busca.movimentos"
+  | "relatorio.busca.caixa"
+  | "relatorio.caixa"
   | "relatorio.legendaGs"
   | "relatorio.legendaGsPagar"
   | "relatorio.emAberto"
@@ -77,9 +86,9 @@ export type TranslationKey =
   | "relatorio.periodo.vencimento"
   | "relatorio.periodo.recebimento"
   | "relatorio.periodo.pagamento"
+  | "relatorio.fechamento"
   | "relatorio.periodoInvalido"
   | "estoque.ajusteObs"
-  | "estoque.ajusteObsHint"
   | "produto.movimentos"
   | "produto.movimentosEmpty"
   | "nav.dashboard"
@@ -282,8 +291,8 @@ export type TranslationKey =
   | "ficha.next"
   | "ficha.tab.dados"
   | "ficha.tab.estoque"
+  | "ficha.tab.movimentacao"
   | "ficha.stockLog"
-  | "ficha.stockLogSoon"
   | "papel.actionsMenu"
   | "papel.viewSheet"
   | "col.actions"
@@ -301,7 +310,6 @@ export type TranslationKey =
   | "col.division"
   | "col.divisionRegion"
   | "col.searchDocTypes"
-  | "dashboard.subtitle"
   | "dashboard.stat.clientes"
   | "dashboard.stat.clientesSub"
   | "dashboard.stat.fornecedores"
@@ -735,6 +743,8 @@ export type TranslationKey =
   | "caixa.note"
   | "caixa.destination"
   | "caixa.expected"
+  | "caixa.disponivel"
+  | "caixa.transferEmpty"
   | "caixa.user"
   | "caixa.amount"
   | "caixa.movementType"
@@ -1072,6 +1082,7 @@ const pt: Record<TranslationKey, string> = {
   "nav.relatorioPagar": "Contas a pagar",
   "nav.relatorioVendas": "Vendas",
   "nav.relatorioEstoque": "Estoque",
+  "nav.relatorioCaixa": "Movimentos de caixa",
   "relatorio.vendas": "Vendas",
   "relatorio.receber": "A receber",
   "relatorio.pagar": "A pagar",
@@ -1091,6 +1102,9 @@ const pt: Record<TranslationKey, string> = {
   "relatorio.tipo.ajuste": "Ajuste",
   "relatorio.atraso": "Atraso",
   "relatorio.saldoDepois": "Saldo depois",
+  "relatorio.anterior": "Anterior",
+  "relatorio.saida": "Saída",
+  "relatorio.saldoEstoque": "Estoque",
   "relatorio.comSaldo": "Com saldo",
   "relatorio.todosSaldos": "Todos",
   "relatorio.finalizador": "Finalizador",
@@ -1106,13 +1120,18 @@ const pt: Record<TranslationKey, string> = {
   "relatorio.nominal": "Nominal",
   "relatorio.cotacao": "Cotação",
   "relatorio.parcela": "Parc.",
-  "relatorio.documento": "Documento",
+  "relatorio.documento": "Doc.",
   "relatorio.venda": "Venda",
   "relatorio.vencidas": "Vencidas",
   "relatorio.busca.receber": "Cliente, venda ou parcela",
   "relatorio.busca.pagar": "Fornecedor ou parcela",
   "relatorio.busca.baixasReceber": "Cliente ou finalizador",
   "relatorio.busca.baixasPagar": "Fornecedor ou finalizador",
+  "relatorio.busca.vendas": "Número, cliente ou vendedor",
+  "relatorio.busca.estoque": "Código, nome ou estoque",
+  "relatorio.busca.movimentos": "Código, nome, estoque ou observação",
+  "relatorio.busca.caixa": "Caixa, usuário, tipo, observação ou venda",
+  "relatorio.caixa": "Caixa",
   "relatorio.legendaGs": "Os cálculos consideram a cotação do dia de cada parcela.",
   "relatorio.legendaGsPagar": "Os cálculos consideram a cotação do dia de cada parcela.",
   "relatorio.emAberto": "Em aberto",
@@ -1129,9 +1148,9 @@ const pt: Record<TranslationKey, string> = {
   "relatorio.periodo.vencimento": "Vencimento",
   "relatorio.periodo.recebimento": "Recebimento",
   "relatorio.periodo.pagamento": "Pagamento",
+  "relatorio.fechamento": "Data de fechamento",
   "relatorio.periodoInvalido": "Informe a data inicial e a final. A inicial não pode ser depois da final.",
   "estoque.ajusteObs": "Observação do ajuste",
-  "estoque.ajusteObsHint": "Entra no log de estoque quando a quantidade muda.",
   "produto.movimentos": "Movimentos",
   "produto.movimentosEmpty": "Ainda não há movimentos deste produto. O log começa a partir de agora.",
   "nav.dashboard": "Dashboard",
@@ -1370,8 +1389,8 @@ const pt: Record<TranslationKey, string> = {
   "ficha.next": "Próximo",
   "ficha.tab.dados": "Dados",
   "ficha.tab.estoque": "Estoque",
+  "ficha.tab.movimentacao": "Movimentação",
   "ficha.stockLog": "Movimentações",
-  "ficha.stockLogSoon": "O log de estoque entra nesta guia em breve.",
   "papel.actionsMenu": "Ações",
   "papel.viewSheet": "Ver ficha",
   "col.actions": "",
@@ -1389,7 +1408,6 @@ const pt: Record<TranslationKey, string> = {
   "col.division": "Divisão",
   "col.divisionRegion": "UF / departamento",
   "col.searchDocTypes": "Buscar código, nome, país...",
-  "dashboard.subtitle": "Resumo da filial · {app}",
   "dashboard.stat.clientes": "Clientes",
   "dashboard.stat.clientesSub": "Papel cliente ativo",
   "dashboard.stat.fornecedores": "Fornecedores",
@@ -1839,6 +1857,8 @@ const pt: Record<TranslationKey, string> = {
   "caixa.note": "Observação",
   "caixa.destination": "Caixa de destino",
   "caixa.expected": "Saldo esperado",
+  "caixa.disponivel": "Disponível",
+  "caixa.transferEmpty": "Não há saldo neste caixa para transferir.",
   "caixa.user": "Usuário",
   "caixa.amount": "Valor",
   "caixa.movementType": "Tipo",
@@ -1935,7 +1955,7 @@ const pt: Record<TranslationKey, string> = {
   "venda.seller": "Vendedor",
   "venda.changeSeller": "Trocar",
   "venda.sellerSearchPlaceholder": "Nome do usuário",
-  "venda.searchPlaceholder": "Cliente, vendedor...",
+  "venda.searchPlaceholder": "Número, cliente, vendedor ou data",
   "venda.error.seller": "Selecione o vendedor",
   "venda.error.product": "Selecione um produto",
   "venda.error.qty": "Informe uma quantidade válida",
@@ -2030,7 +2050,7 @@ const pt: Record<TranslationKey, string> = {
   "venda.clientSearchPlaceholder": "Nome ou documento",
   "venda.changeClient": "Trocar",
   "venda.productSearch": "Produto / SKU",
-  "venda.productSearchPlaceholder": "Código, SKU ou nome — Enter lança",
+  "venda.productSearchPlaceholder": "Código, nome, marca, modelo ou chassi — Enter lança",
   "venda.emptyCart": "Sua venda está vazia",
   "venda.emptyHint": "Clique em um produto ou busque pelo código. Na moto, escolha o chassi.",
   "venda.clear": "Limpar venda",
@@ -2125,6 +2145,7 @@ const es: Record<TranslationKey, string> = {
   "nav.relatorioPagar": "Cuentas por pagar",
   "nav.relatorioVendas": "Ventas",
   "nav.relatorioEstoque": "Stock",
+  "nav.relatorioCaixa": "Movimientos de caja",
   "relatorio.vendas": "Ventas",
   "relatorio.receber": "A cobrar",
   "relatorio.pagar": "A pagar",
@@ -2144,6 +2165,9 @@ const es: Record<TranslationKey, string> = {
   "relatorio.tipo.ajuste": "Ajuste",
   "relatorio.atraso": "Atraso",
   "relatorio.saldoDepois": "Saldo después",
+  "relatorio.anterior": "Anterior",
+  "relatorio.saida": "Salida",
+  "relatorio.saldoEstoque": "Stock",
   "relatorio.comSaldo": "Con saldo",
   "relatorio.todosSaldos": "Todos",
   "relatorio.finalizador": "Forma de pago",
@@ -2159,13 +2183,18 @@ const es: Record<TranslationKey, string> = {
   "relatorio.nominal": "Nominal",
   "relatorio.cotacao": "Cotización",
   "relatorio.parcela": "Cuota",
-  "relatorio.documento": "Documento",
+  "relatorio.documento": "Doc.",
   "relatorio.venda": "Venta",
   "relatorio.vencidas": "Vencidas",
   "relatorio.busca.receber": "Cliente, venta o cuota",
   "relatorio.busca.pagar": "Proveedor o cuota",
   "relatorio.busca.baixasReceber": "Cliente o forma de pago",
   "relatorio.busca.baixasPagar": "Proveedor o forma de pago",
+  "relatorio.busca.vendas": "Número, cliente o vendedor",
+  "relatorio.busca.estoque": "Código, nombre o stock",
+  "relatorio.busca.movimentos": "Código, nombre, stock u observación",
+  "relatorio.busca.caixa": "Caja, usuario, tipo, observación o venta",
+  "relatorio.caixa": "Caja",
   "relatorio.legendaGs": "Los cálculos consideran la cotización del día de cada cuota.",
   "relatorio.legendaGsPagar": "Los cálculos consideran la cotización del día de cada cuota.",
   "relatorio.emAberto": "En abierto",
@@ -2182,9 +2211,9 @@ const es: Record<TranslationKey, string> = {
   "relatorio.periodo.vencimento": "Vencimiento",
   "relatorio.periodo.recebimento": "Cobro",
   "relatorio.periodo.pagamento": "Pago",
+  "relatorio.fechamento": "Fecha de cierre",
   "relatorio.periodoInvalido": "Indique la fecha inicial y la final. La inicial no puede ser posterior a la final.",
   "estoque.ajusteObs": "Observación del ajuste",
-  "estoque.ajusteObsHint": "Queda en el registro de stock cuando cambia la cantidad.",
   "produto.movimentos": "Movimientos",
   "produto.movimentosEmpty": "Todavía no hay movimientos de este producto. El registro empieza a partir de ahora.",
   "nav.dashboard": "Panel",
@@ -2423,8 +2452,8 @@ const es: Record<TranslationKey, string> = {
   "ficha.next": "Siguiente",
   "ficha.tab.dados": "Datos",
   "ficha.tab.estoque": "Stock",
+  "ficha.tab.movimentacao": "Movimiento",
   "ficha.stockLog": "Movimientos",
-  "ficha.stockLogSoon": "El registro de stock estará en esta pestaña en breve.",
   "papel.actionsMenu": "Acciones",
   "papel.viewSheet": "Ver ficha",
   "col.actions": "",
@@ -2442,7 +2471,6 @@ const es: Record<TranslationKey, string> = {
   "col.division": "División",
   "col.divisionRegion": "UF / departamento",
   "col.searchDocTypes": "Buscar código, nombre, país...",
-  "dashboard.subtitle": "Resumen de la sucursal · {app}",
   "dashboard.stat.clientes": "Clientes",
   "dashboard.stat.clientesSub": "Rol cliente activo",
   "dashboard.stat.fornecedores": "Proveedores",
@@ -2902,6 +2930,8 @@ const es: Record<TranslationKey, string> = {
   "caixa.note": "Observación",
   "caixa.destination": "Caja de destino",
   "caixa.expected": "Saldo esperado",
+  "caixa.disponivel": "Disponible",
+  "caixa.transferEmpty": "No hay saldo en esta caja para transferir.",
   "caixa.user": "Usuario",
   "caixa.amount": "Valor",
   "caixa.movementType": "Tipo",
@@ -2998,7 +3028,7 @@ const es: Record<TranslationKey, string> = {
   "venda.seller": "Vendedor",
   "venda.changeSeller": "Cambiar",
   "venda.sellerSearchPlaceholder": "Nombre del usuario",
-  "venda.searchPlaceholder": "Cliente, vendedor...",
+  "venda.searchPlaceholder": "Número, cliente, vendedor o fecha",
   "venda.error.seller": "Seleccione el vendedor",
   "venda.error.product": "Seleccione un producto",
   "venda.error.qty": "Indique una cantidad válida",
@@ -3093,7 +3123,7 @@ const es: Record<TranslationKey, string> = {
   "venda.clientSearchPlaceholder": "Nombre o documento",
   "venda.changeClient": "Cambiar",
   "venda.productSearch": "Producto / SKU",
-  "venda.productSearchPlaceholder": "Código, SKU o nombre — Enter lanza",
+  "venda.productSearchPlaceholder": "Código, nombre, marca, modelo o chasis — Enter lanza",
   "venda.emptyCart": "La venta está vacía",
   "venda.emptyHint": "Haga clic en un producto o busque por código. En la moto, elija el chasis.",
   "venda.clear": "Limpiar venta",

@@ -53,6 +53,7 @@ data class VendaCompleta(
     val descontoPyg: Double = 0.0,
     val observacao: String?,
     val criadoEm: Long,
+    val finalizadaEm: Long? = null,
     val status: String,
     val itens: List<VendaItemPersistencia>,
     val negociacao: List<VendaNegociacaoPersistencia>,

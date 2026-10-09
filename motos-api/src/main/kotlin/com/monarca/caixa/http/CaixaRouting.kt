@@ -177,6 +177,19 @@ fun Application.configureCaixa() {
                     }
                 }
             }
+            get<CaixaMovimentacoesRelatorio> { resource ->
+                call.handleCaixa {
+                    call.podeConsultarCaixa()
+                    call.respond(
+                        service.listarMovimentacoesFilial(
+                            resource.idFilial,
+                            resource.de,
+                            resource.ate,
+                            call.usuarioAutenticado().id,
+                        ),
+                    )
+                }
+            }
             get<CaixaSessoes.Id.Movimentacoes> { resource ->
                 call.handleCaixa {
                     call.podeConsultarCaixa()

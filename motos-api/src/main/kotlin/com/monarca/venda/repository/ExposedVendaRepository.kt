@@ -103,6 +103,7 @@ class ExposedVendaRepository(
             it[VendasTable.validade] = validade
             it[VendasTable.orcamentosIds] = if (efetivar) null else textoOrcamentos(idsOrcamentos)
             it[VendasTable.criadoEm] = agora
+            it[VendasTable.finalizadaEm] = if (status == StatusVenda.FINALIZADA.name.lowercase()) agora else null
             it[VendasTable.status] = status
         }
         val idVenda = inserted[VendasTable.id].value
@@ -387,6 +388,7 @@ class ExposedVendaRepository(
         }
         VendaNegociacoesTable.deleteWhere { VendaNegociacoesTable.idVenda eq idVenda }
         VendaItensTable.deleteWhere { VendaItensTable.idVenda eq idVenda }
+        val agora = System.currentTimeMillis()
         VendasTable.update({ VendasTable.id eq idVenda }) {
             it[VendasTable.idCaixaSessao] = idCaixaSessao
             it[VendasTable.idCotacao] = idCotacao
@@ -394,9 +396,9 @@ class ExposedVendaRepository(
             it[VendasTable.descontoPct] = descontoPct
             it[VendasTable.descontoPyg] = descontoPyg
             it[VendasTable.observacao] = observacao
+            it[VendasTable.finalizadaEm] = agora
             it[VendasTable.status] = StatusVenda.FINALIZADA.name.lowercase()
         }
-        val agora = System.currentTimeMillis()
         gravarCorpo(idVenda, idCaixaSessao, agora, itens, negociacao, negociacaoCaixa, tituloReceber, idUsuario, true)
         consumirOrcamentos(idsOrcamentos, idVenda, idFilial, idCliente, hoje, confirmarVencido)
         gravarAuditLog("venda", idVenda.toString(), AuditAction.UPDATE, newValues = """{"status":"finalizada","totalPyg":$totalPyg}""")
@@ -539,6 +541,7 @@ class ExposedVendaRepository(
             descontoPyg = row[VendasTable.descontoPyg],
             observacao = row[VendasTable.observacao],
             criadoEm = row[VendasTable.criadoEm],
+            finalizadaEm = row[VendasTable.finalizadaEm],
             status = row[VendasTable.status],
             itens = itensComChassi,
             negociacao = negociacao,

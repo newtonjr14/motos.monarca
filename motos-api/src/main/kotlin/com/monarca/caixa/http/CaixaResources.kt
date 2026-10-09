@@ -33,6 +33,14 @@ class MeusCaixas(
 )
 
 @Serializable
+@Resource("/caixa-movimentacoes")
+class CaixaMovimentacoesRelatorio(
+    val idFilial: Long? = null,
+    val de: String? = null,
+    val ate: String? = null,
+)
+
+@Serializable
 @Resource("/caixa-sessoes")
 class CaixaSessoes {
     @Serializable

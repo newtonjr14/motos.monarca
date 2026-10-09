@@ -521,6 +521,54 @@ select.field {
   flex: 1 1 auto;
   min-height: 0;
 }
+.ficha-modal-produto {
+  width: min(50rem, calc(100vw - 2rem));
+  max-width: min(50rem, calc(100vw - 2rem));
+  flex-shrink: 0;
+}
+.ficha-mov {
+  table-layout: fixed;
+  width: 100%;
+}
+.ficha-mov th,
+.ficha-mov td {
+  padding: 0.45rem 0.4rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.ficha-mov th:nth-child(1),
+.ficha-mov td:nth-child(1) {
+  width: 8.6rem;
+}
+.ficha-mov th:nth-child(2),
+.ficha-mov td:nth-child(2) {
+  white-space: normal;
+}
+.ficha-mov th:nth-child(3),
+.ficha-mov td:nth-child(3) {
+  width: 4.6rem;
+}
+.ficha-mov th:nth-child(4),
+.ficha-mov td:nth-child(4) {
+  width: 5.1rem;
+  text-align: right;
+}
+.ficha-mov th:nth-child(5),
+.ficha-mov td:nth-child(5) {
+  width: 4.7rem;
+  text-align: right;
+}
+.ficha-mov th:nth-child(6),
+.ficha-mov td:nth-child(6) {
+  width: 3.8rem;
+  text-align: right;
+}
+.ficha-mov th:nth-child(7),
+.ficha-mov td:nth-child(7) {
+  width: 4.7rem;
+  text-align: right;
+}
 .search-picker-list {
   flex: 1 1 auto;
   min-height: 0;

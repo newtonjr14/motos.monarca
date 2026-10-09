@@ -103,6 +103,7 @@ data class VendaResponse(
     val descontoPyg: Double = 0.0,
     val observacao: String? = null,
     val criadoEm: Long,
+    val finalizadaEm: Long? = null,
     val status: StatusVenda,
     val itens: List<VendaItemResponse>,
     val negociacao: List<VendaNegociacaoResponse>,
