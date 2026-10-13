@@ -1151,10 +1151,14 @@ export interface TituloReceberResumo {
   moeda: Moeda;
   valor: number;
   valorPyg: number;
+  saldo: number;
   saldoPyg: number;
+  usdPyg: number;
+  brlPyg: number;
   criadoEm: number;
   status: StatusTitulo;
   proximoVencimento?: string | null;
+  parcelas?: ParcelaTitulo[];
 }
 
 export interface TituloPagarResumo {
@@ -1166,10 +1170,14 @@ export interface TituloPagarResumo {
   moeda: Moeda;
   valor: number;
   valorPyg: number;
+  saldo: number;
   saldoPyg: number;
+  usdPyg: number;
+  brlPyg: number;
   criadoEm: number;
   status: StatusTitulo;
   proximoVencimento?: string | null;
+  parcelas?: ParcelaTitulo[];
 }
 
 export interface TituloReceber extends TituloReceberResumo {

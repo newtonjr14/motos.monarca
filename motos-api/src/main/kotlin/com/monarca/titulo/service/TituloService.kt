@@ -570,12 +570,16 @@ class TituloService(
         moeda = moeda,
         valor = valor,
         valorPyg = valorPyg,
+        saldo = parcelas.sumOf { it.saldo },
         saldoPyg = parcelas.sumOf { p ->
             if (p.valor <= 0) 0.0 else p.saldo * (p.valorPyg / p.valor)
         },
+        usdPyg = usdPyg,
+        brlPyg = brlPyg,
         criadoEm = criadoEm,
         status = status,
         proximoVencimento = parcelas.filter { it.saldo > 0 }.minByOrNull { it.vencimento }?.vencimento,
+        parcelas = parcelas.map { it.toResponse() },
     )
 
     private fun TituloPagarCompleto.toResumo() = TituloPagarResumoResponse(
@@ -587,12 +591,16 @@ class TituloService(
         moeda = moeda,
         valor = valor,
         valorPyg = valorPyg,
+        saldo = parcelas.sumOf { it.saldo },
         saldoPyg = parcelas.sumOf { p ->
             if (p.valor <= 0) 0.0 else p.saldo * (p.valorPyg / p.valor)
         },
+        usdPyg = usdPyg,
+        brlPyg = brlPyg,
         criadoEm = criadoEm,
         status = status,
         proximoVencimento = parcelas.filter { it.saldo > 0 }.minByOrNull { it.vencimento }?.vencimento,
+        parcelas = parcelas.map { it.toResponse() },
     )
 
     private fun TituloReceberCompleto.toParcelasReceber(): List<RelatorioParcelaResponse> =

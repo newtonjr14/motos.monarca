@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/crud/Field";
 import { CatalogHeader, ListToolbar, TableHeadRow, TablePagination, Td, TituloFiltro, passaFiltroTitulo, useListSort, type FiltroTitulo } from "@/components/crud/ListUi";
-import TituloFicha from "@/components/TituloFicha";
+import TituloFicha, { chaveStatusLista, guaraniDoSaldo, linhasParcelaLista, textoCotacaoTitulo } from "@/components/TituloFicha";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
-import type { TranslationKey } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import { useFilialId } from "@/auth/FilialContext";
 import {
@@ -22,7 +21,7 @@ import {
   type TituloReceber,
   type TituloReceberResumo,
 } from "@/api";
-import { formatPyg, formatarDataIso, slicePage } from "@/format";
+import { formatMoeda, formatarDataIso, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
@@ -73,19 +72,26 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
   }
   useEffect(() => { void carregar(); }, [idFilial]);
 
-  const filtered = itens.filter((e) =>
+  const linhas = itens.flatMap((e) => linhasParcelaLista(e.clienteNome, e));
+  const filtered = linhas.filter((e) =>
     passaFiltroTitulo(e.status, filtroTitulo) &&
-    `${e.clienteNome} ${e.status} ${e.origem}`.toLowerCase().includes(search.toLowerCase()));
+    `${e.pessoaNome} ${e.numero ?? ""} ${e.status}`.toLowerCase().includes(search.toLowerCase()));
   const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => {
-    if (k === "cliente") return e.clienteNome;
-    if (k === "vencimento") return e.proximoVencimento ?? "";
-    if (k === "saldo") return e.saldoPyg;
+    if (k === "cliente") return e.pessoaNome;
+    if (k === "parcela") return e.numero ?? 0;
+    if (k === "vencimento") return e.vencimento ?? "";
+    if (k === "cotacao") return textoCotacaoTitulo(e.moeda, e.usdPyg, e.brlPyg);
+    if (k === "guarani") return guaraniDoSaldo(e.saldo, e.moeda, e.usdPyg, e.brlPyg);
     if (k === "status") return e.status;
-    return e.criadoEm;
-  }, "criadoEm", "desc");
+    return e.vencimento ?? "";
+  }, "vencimento", "asc");
   useEffect(() => { setPage(1); }, [search, filtroTitulo, sortKey, sortDir]);
 
-  const navIndex = detalhe ? ordenados.findIndex((e) => e.id === detalhe.id) : -1;
+  const titulosNav = ordenados.reduce<number[]>((ids, e) => {
+    if (!ids.includes(e.tituloId)) ids.push(e.tituloId);
+    return ids;
+  }, []);
+  const navIndex = detalhe ? titulosNav.findIndex((id) => id === detalhe.id) : -1;
 
   function abrirNovo() {
     setIdCliente("");
@@ -225,23 +231,34 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
               onSort={onSort}
               cols={[
                 { label: "venda.client", sort: "cliente" },
+                { label: "titulo.parc", sort: "parcela" },
                 { label: "titulo.vencimento", sort: "vencimento" },
-                { label: "titulo.saldo", sort: "saldo" },
+                { label: "titulo.cotacao", sort: "cotacao" },
+                { label: "titulo.valorNominal", align: "right" },
+                { label: "titulo.valorAberto", align: "right" },
+                { label: "titulo.abertoGuarani", sort: "guarani", align: "right" },
                 { label: "common.status", sort: "status" },
               ]}
             />
           </thead>
           <tbody>
             {paged.slice.map((e) => (
-              <tr key={e.id} className="drive-row-clickable" onClick={() => void abrirDetalhe(e.id)}>
-                <Td>{e.clienteNome}</Td>
-                <Td sub>{e.proximoVencimento ? formatarDataIso(e.proximoVencimento) : "—"}</Td>
-                <Td mono right>{formatPyg(e.saldoPyg)}</Td>
-                <Td>{t(`titulo.status.${e.status}` as TranslationKey)}</Td>
+              <tr key={e.parcelaId} className="drive-row-clickable" onClick={() => void abrirDetalhe(e.tituloId)}>
+                <Td>{e.pessoaNome}</Td>
+                <Td mono>{e.numero ?? "—"}</Td>
+                <Td sub>{e.vencimento ? formatarDataIso(e.vencimento) : "—"}</Td>
+                <Td mono>{textoCotacaoTitulo(e.moeda, e.usdPyg, e.brlPyg)}</Td>
+                <Td mono right>{formatMoeda(e.valor, e.moeda)}</Td>
+                <Td mono right>{formatMoeda(e.saldo, e.moeda)}</Td>
+                <Td mono right>{formatMoeda(guaraniDoSaldo(e.saldo, e.moeda, e.usdPyg, e.brlPyg), "pyg")}</Td>
+                <Td>{t(chaveStatusLista(e.status))}</Td>
               </tr>
             ))}
           </tbody>
         </table>
+        <p className="px-4 py-2 text-xs" style={{ color: v("--text-muted"), borderTop: `1px solid ${v("--border")}` }}>
+          {t("titulo.cotacaoLegenda")}
+        </p>
       </div>
       <TablePagination page={page} total={ordenados.length} onPageChange={setPage} />
 
@@ -253,9 +270,9 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
           caixas={caixas}
           nav={navIndex >= 0 ? {
             index: navIndex,
-            total: ordenados.length,
-            onPrev: () => { const prev = ordenados[navIndex - 1]; if (prev) void abrirDetalhe(prev.id); },
-            onNext: () => { const next = ordenados[navIndex + 1]; if (next) void abrirDetalhe(next.id); },
+            total: titulosNav.length,
+            onPrev: () => { const prev = titulosNav[navIndex - 1]; if (prev) void abrirDetalhe(prev); },
+            onNext: () => { const next = titulosNav[navIndex + 1]; if (next) void abrirDetalhe(next); },
           } : undefined}
           onClose={() => setDetalhe(null)}
           onUpdated={async (atualizado) => {

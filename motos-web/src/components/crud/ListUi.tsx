@@ -62,17 +62,18 @@ export type SortDir = "asc" | "desc";
 export type TableCol =
   | TranslationKey
   | ""
-  | { label: TranslationKey | ""; sort?: string };
+  | { label: TranslationKey | ""; sort?: string; align?: "right" };
 
 function specCol(col: TableCol, i: number): { label: TranslationKey | ""; sort?: string; key: string; thClass?: string } {
   const spec = typeof col === "string"
     ? { label: col, key: col || `col-${i}` }
     : { label: col.label, sort: col.sort, key: col.sort || col.label || `col-${i}` };
-  const thClass = spec.label === "common.status"
-    ? "drive-th-status"
-    : spec.label === "" || spec.label === "col.actions"
-      ? "drive-th-actions"
-      : undefined;
+  const align = typeof col === "string" ? undefined : col.align;
+  const thClass = [
+    spec.label === "common.status" ? "drive-th-status" : "",
+    spec.label === "" || spec.label === "col.actions" ? "drive-th-actions" : "",
+    align === "right" ? "drive-th-right" : "",
+  ].filter(Boolean).join(" ") || undefined;
   return { ...spec, thClass };
 }
 
@@ -243,8 +244,8 @@ export type FiltroTitulo = "todos" | "abertos" | "quitados";
 
 export function passaFiltroTitulo(status: string, filtro: FiltroTitulo): boolean {
   if (filtro === "todos") return true;
-  if (filtro === "quitados") return status === "quitado";
-  return status === "aberto" || status === "parcial";
+  if (filtro === "quitados") return status === "quitado" || status === "paga";
+  return status === "aberto" || status === "aberta" || status === "parcial";
 }
 
 export function TituloFiltro({ value, onChange }: {
@@ -253,8 +254,8 @@ export function TituloFiltro({ value, onChange }: {
 }) {
   const { t } = useI18n();
   const opcoes: { id: FiltroTitulo; label: TranslationKey }[] = [
-    { id: "abertos", label: "titulo.filtro.abertos" },
-    { id: "quitados", label: "titulo.filtro.quitados" },
+    { id: "abertos", label: "titulo.filtro.abertas" },
+    { id: "quitados", label: "titulo.filtro.pagas" },
     { id: "todos", label: "filter.status.all" },
   ];
   return (

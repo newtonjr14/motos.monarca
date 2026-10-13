@@ -859,6 +859,8 @@ export type TranslationKey =
   | "titulo.pagar.new"
   | "titulo.moeda"
   | "titulo.valor"
+  | "titulo.valorNominal"
+  | "titulo.valorAberto"
   | "titulo.saldo"
   | "titulo.vencimento"
   | "titulo.baixar"
@@ -866,9 +868,14 @@ export type TranslationKey =
   | "titulo.pagarSelecionadas"
   | "titulo.selecionadas"
   | "titulo.selecionarTodas"
+  | "titulo.cotacao"
+  | "titulo.cotacaoLegenda"
+  | "titulo.abertoGuarani"
   | "titulo.cotacaoTravada"
   | "titulo.fifoHint"
+  | "titulo.parc"
   | "titulo.searchPlaceholder"
+  | "titulo.searchPlaceholderPagar"
   | "titulo.filtro.abertos"
   | "titulo.filtro.quitados"
   | "titulo.filtro.abertas"
@@ -1063,7 +1070,7 @@ export type TranslationKey =
   | "empresa.seed.error";
 
 const pt: Record<TranslationKey, string> = {
-  "app.name": "Monarca Bike",
+  "app.name": "MONARCA MOBILIDADE ELÉTRICA",
   "login.title": "Acesso ao sistema",
   "login.login": "Login",
   "login.password": "Senha",
@@ -1973,6 +1980,8 @@ const pt: Record<TranslationKey, string> = {
   "titulo.pagar.new": "Novo título a pagar",
   "titulo.moeda": "Moeda",
   "titulo.valor": "Valor",
+  "titulo.valorNominal": "Valor nominal",
+  "titulo.valorAberto": "Valor aberto",
   "titulo.saldo": "Saldo",
   "titulo.vencimento": "Vencimento",
   "titulo.baixar": "Baixar",
@@ -1980,6 +1989,9 @@ const pt: Record<TranslationKey, string> = {
   "titulo.pagarSelecionadas": "Pagar selecionadas",
   "titulo.selecionadas": "Selecionadas",
   "titulo.selecionarTodas": "Selecionar todas as parcelas abertas",
+  "titulo.cotacao": "Cotação",
+  "titulo.cotacaoLegenda": "Cotação travada no momento da venda ou do lançamento do título.",
+  "titulo.abertoGuarani": "Aberto em guarani",
   "titulo.cotacaoTravada": "Cotação travada",
   "titulo.fifoHint": "Se o valor for menor que o saldo, quita primeiro as parcelas com vencimento mais próximo.",
   "titulo.filtro.abertos": "Abertos",
@@ -1992,7 +2004,9 @@ const pt: Record<TranslationKey, string> = {
   "titulo.acrescimo": "Acréscimo",
   "titulo.quitaSaldo": "Quita o saldo de",
   "titulo.ajusteValor": "Para quitar com este ajuste, o valor tem de ser",
-  "titulo.searchPlaceholder": "Cliente, status...",
+  "titulo.parc": "Parc.",
+  "titulo.searchPlaceholder": "Cliente ou parcela",
+  "titulo.searchPlaceholderPagar": "Fornecedor ou parcela",
   "titulo.error.cliente": "Selecione o cliente",
   "titulo.error.fornecedor": "Selecione o fornecedor",
   "titulo.error.valor": "Informe um valor válido",
@@ -2126,7 +2140,7 @@ const pt: Record<TranslationKey, string> = {
 };
 
 const es: Record<TranslationKey, string> = {
-  "app.name": "Monarca Bike",
+  "app.name": "MONARCA MOBILIDADE ELÉTRICA",
   "login.title": "Acceso al sistema",
   "login.login": "Usuario",
   "login.password": "Contraseña",
@@ -3046,6 +3060,8 @@ const es: Record<TranslationKey, string> = {
   "titulo.pagar.new": "Nuevo título por pagar",
   "titulo.moeda": "Moneda",
   "titulo.valor": "Valor",
+  "titulo.valorNominal": "Valor nominal",
+  "titulo.valorAberto": "Valor abierto",
   "titulo.saldo": "Saldo",
   "titulo.vencimento": "Vencimiento",
   "titulo.baixar": "Cobrar / pagar",
@@ -3053,6 +3069,9 @@ const es: Record<TranslationKey, string> = {
   "titulo.pagarSelecionadas": "Pagar seleccionadas",
   "titulo.selecionadas": "Seleccionadas",
   "titulo.selecionarTodas": "Seleccionar todas las cuotas abiertas",
+  "titulo.cotacao": "Cotización",
+  "titulo.cotacaoLegenda": "Cotización fijada al momento de la venta o del registro del título.",
+  "titulo.abertoGuarani": "Abierto en guaraníes",
   "titulo.cotacaoTravada": "Cotización fijada",
   "titulo.fifoHint": "Si el valor es menor que el saldo, liquida primero las cuotas con vencimiento más próximo.",
   "titulo.filtro.abertos": "Abiertos",
@@ -3065,7 +3084,9 @@ const es: Record<TranslationKey, string> = {
   "titulo.acrescimo": "Recargo",
   "titulo.quitaSaldo": "Liquida el saldo de",
   "titulo.ajusteValor": "Para liquidar con este ajuste, el valor tiene que ser",
-  "titulo.searchPlaceholder": "Cliente, estado...",
+  "titulo.parc": "Parc.",
+  "titulo.searchPlaceholder": "Cliente o cuota",
+  "titulo.searchPlaceholderPagar": "Proveedor o cuota",
   "titulo.error.cliente": "Seleccione el cliente",
   "titulo.error.fornecedor": "Seleccione el proveedor",
   "titulo.error.valor": "Indique un valor válido",

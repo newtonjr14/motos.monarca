@@ -130,10 +130,14 @@ data class TituloReceberResumoResponse(
     val moeda: Moeda,
     val valor: Double,
     val valorPyg: Double,
+    val saldo: Double = 0.0,
     val saldoPyg: Double,
+    val usdPyg: Double = 0.0,
+    val brlPyg: Double = 0.0,
     val criadoEm: Long,
     val status: StatusTitulo,
     val proximoVencimento: String? = null,
+    val parcelas: List<ParcelaResponse> = emptyList(),
 )
 
 @Serializable
@@ -146,10 +150,14 @@ data class TituloPagarResumoResponse(
     val moeda: Moeda,
     val valor: Double,
     val valorPyg: Double,
+    val saldo: Double = 0.0,
     val saldoPyg: Double,
+    val usdPyg: Double = 0.0,
+    val brlPyg: Double = 0.0,
     val criadoEm: Long,
     val status: StatusTitulo,
     val proximoVencimento: String? = null,
+    val parcelas: List<ParcelaResponse> = emptyList(),
 )
 
 @Serializable

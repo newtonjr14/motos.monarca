@@ -117,14 +117,88 @@ function Equivalentes({
   brlPyg: number;
 }) {
   const cotacao = { usdPyg, brlPyg } as Cotacao;
-  const pyg = converterMoeda(valor, moeda, "pyg", cotacao);
-  const usd = converterMoeda(valor, moeda, "usd", cotacao);
-  const brl = converterMoeda(valor, moeda, "brl", cotacao);
+  const outras = (["pyg", "usd", "brl"] as Moeda[]).filter((m) => m !== moeda);
+  if (!outras.length || valor <= 0) return null;
   return (
     <p className="text-[11px] font-mono leading-relaxed" style={{ color: v("--text-muted") }}>
-      {formatMoeda(pyg, "pyg")} · {formatMoeda(usd, "usd")} · {formatMoeda(brl, "brl")}
+      {outras.map((m) => formatMoeda(converterMoeda(valor, moeda, m, cotacao), m)).join(" · ")}
     </p>
   );
+}
+
+export function textoCotacaoTitulo(moeda: Moeda, usdPyg: number, brlPyg: number): string {
+  if (moeda === "usd" && usdPyg > 0) return `USD ${usdPyg}`;
+  if (moeda === "brl" && brlPyg > 0) return `BRL ${brlPyg}`;
+  return "—";
+}
+
+export function guaraniDoSaldo(saldo: number, moeda: Moeda, usdPyg: number, brlPyg: number): number {
+  if (moeda === "pyg" || saldo <= 0) return saldo;
+  return converterMoeda(saldo, moeda, "pyg", { usdPyg, brlPyg });
+}
+
+export type LinhaParcelaLista = {
+  tituloId: number;
+  parcelaId: number;
+  pessoaNome: string;
+  numero: number | null;
+  vencimento: string | null;
+  moeda: Moeda;
+  usdPyg: number;
+  brlPyg: number;
+  valor: number;
+  saldo: number;
+  status: string;
+};
+
+export function linhasParcelaLista(
+  pessoaNome: string,
+  titulo: {
+    id: number;
+    moeda: Moeda;
+    usdPyg: number;
+    brlPyg: number;
+    valor: number;
+    saldo: number;
+    status: string;
+    proximoVencimento?: string | null;
+    parcelas?: ParcelaTitulo[];
+  },
+): LinhaParcelaLista[] {
+  const base = {
+    tituloId: titulo.id,
+    pessoaNome,
+    moeda: titulo.moeda,
+    usdPyg: titulo.usdPyg,
+    brlPyg: titulo.brlPyg,
+  };
+  if (!titulo.parcelas) {
+    return [{
+      ...base,
+      parcelaId: titulo.id,
+      numero: null,
+      vencimento: titulo.proximoVencimento ?? null,
+      valor: titulo.valor,
+      saldo: titulo.saldo,
+      status: titulo.status,
+    }];
+  }
+  return titulo.parcelas.map((p) => ({
+    ...base,
+    parcelaId: p.id,
+    numero: p.numero,
+    vencimento: p.vencimento,
+    valor: p.valor,
+    saldo: p.saldo,
+    status: p.status,
+  }));
+}
+
+export function chaveStatusLista(status: string): TranslationKey {
+  if (status === "aberta" || status === "paga" || status === "cancelada" || status === "parcial") {
+    return `titulo.parcela.${status}` as TranslationKey;
+  }
+  return `titulo.status.${status}` as TranslationKey;
 }
 
 export default function TituloFicha({
@@ -367,11 +441,13 @@ export default function TituloFicha({
               <span className="text-xs" style={{ color: v("--text-sub") }}>
                 {t(`titulo.status.${item.status}` as TranslationKey)} · {formatMoeda(item.valor, item.moeda)}
               </span>
+              {(item.usdPyg > 0 || item.brlPyg > 0) && (
+                <span className="text-[11px] font-mono" style={{ color: v("--text-muted") }} title={t("titulo.cotacaoTravada")}>
+                  USD {item.usdPyg} · BRL {item.brlPyg}
+                </span>
+              )}
             </div>
             <Equivalentes valor={item.valor} moeda={item.moeda} usdPyg={item.usdPyg} brlPyg={item.brlPyg} />
-            <p className="text-[11px]" style={{ color: v("--text-muted") }}>
-              {t("titulo.cotacaoTravada")}: USD {item.usdPyg} / BRL {item.brlPyg}
-            </p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {nav && nav.total > 1 && (
@@ -424,7 +500,7 @@ export default function TituloFicha({
             <table className="drive-table w-full">
               <thead>
                 <tr>
-                  <th className="w-10">
+                  <th className="drive-th w-10">
                     {abertasVisiveis.length > 0 && (
                       <input
                         type="checkbox"
@@ -434,11 +510,11 @@ export default function TituloFicha({
                       />
                     )}
                   </th>
-                  <th>#</th>
-                  <th>{t("titulo.vencimento")}</th>
-                  <th>{t("titulo.valor")}</th>
-                  <th>{t("titulo.saldo")}</th>
-                  <th>{t("common.status")}</th>
+                  <th className="drive-th">#</th>
+                  <th className="drive-th">{t("titulo.vencimento")}</th>
+                  <th className="drive-th drive-th-right">{t("titulo.valor")}</th>
+                  <th className="drive-th drive-th-right">{t("titulo.saldo")}</th>
+                  <th className="drive-th">{t("common.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -470,13 +546,13 @@ export default function TituloFicha({
                       </Td>
                       <Td>{p.numero}</Td>
                       <Td>{formatarDataIso(p.vencimento)}</Td>
-                      <Td>
+                      <Td right>
                         <div className="space-y-0.5">
                           <span className="font-mono text-sm">{formatMoeda(p.valor, item.moeda)}</span>
                           <Equivalentes valor={p.valor} moeda={item.moeda} usdPyg={item.usdPyg} brlPyg={item.brlPyg} />
                         </div>
                       </Td>
-                      <Td>
+                      <Td right>
                         <div className="space-y-0.5">
                           <span className="font-mono text-sm">{formatMoeda(p.saldo, item.moeda)}</span>
                           {p.saldo > 0 && (

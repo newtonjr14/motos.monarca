@@ -227,6 +227,12 @@ select.field {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+.drive-th.drive-th-right {
+  text-align: right;
+}
+.drive-th-right .drive-th-sort {
+  margin-left: auto;
+}
 .drive-table-produtos th:nth-child(5),
 .drive-table-produtos th:nth-child(6) {
   text-align: right;
