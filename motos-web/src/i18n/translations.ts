@@ -816,8 +816,6 @@ export type TranslationKey =
   | "venda.filtro.cancelada"
   | "venda.filtro.utilizada"
   | "venda.documentoEletronico"
-  | "venda.montarJsonSudtax"
-  | "venda.copiarJsonSudtax"
   | "venda.client"
   | "venda.till"
   | "venda.tillHint"
@@ -1937,8 +1935,6 @@ const pt: Record<TranslationKey, string> = {
   "venda.filtro.cancelada": "Cancelada",
   "venda.filtro.utilizada": "Utilizado",
   "venda.documentoEletronico": "Documento eletrônico (SudTax)",
-  "venda.montarJsonSudtax": "Montar JSON",
-  "venda.copiarJsonSudtax": "Copiar JSON",
   "venda.client": "Cliente",
   "venda.till": "Caixa",
   "venda.tillHint": "Precisa estar aberto na filial atual",
@@ -3017,8 +3013,6 @@ const es: Record<TranslationKey, string> = {
   "venda.filtro.cancelada": "Cancelada",
   "venda.filtro.utilizada": "Utilizado",
   "venda.documentoEletronico": "Documento electrónico (SudTax)",
-  "venda.montarJsonSudtax": "Armar JSON",
-  "venda.copiarJsonSudtax": "Copiar JSON",
   "venda.client": "Cliente",
   "venda.till": "Caja",
   "venda.tillHint": "Debe estar abierta en la sucursal actual",

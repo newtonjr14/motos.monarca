@@ -1,4 +1,4 @@
-import { buscarFacturaPorVenda, emitirFactura, previewDocumentoEletronico, type Factura, type Venda } from "@/api";
+import { buscarFacturaPorVenda, emitirFactura, type Factura, type Venda } from "@/api";
 import { Section } from "@/components/crud/Field";
 import { Td } from "@/components/crud/ListUi";
 import { dataAsuncion, formatarDataHoraEpoch, formatarDataIso, formatMoeda, formatPyg } from "@/format";
@@ -76,10 +76,7 @@ export default function VendaFicha({
   onClose: () => void;
 }) {
   const { t } = useI18n();
-  const [jsonSudtax, setJsonSudtax] = useState<string | null>(null);
-  const [avisosDoc, setAvisosDoc] = useState<string[]>([]);
   const [erroDoc, setErroDoc] = useState<string | null>(null);
-  const [carregandoDoc, setCarregandoDoc] = useState(false);
   const [factura, setFactura] = useState<Factura | null | undefined>(undefined);
   const [emitindo, setEmitindo] = useState(false);
 
@@ -107,8 +104,6 @@ export default function VendaFicha({
   }, [onClose, nav]);
 
   useEffect(() => {
-    setJsonSudtax(null);
-    setAvisosDoc([]);
     setErroDoc(null);
     setFactura(undefined);
     void (async () => {
@@ -120,25 +115,6 @@ export default function VendaFicha({
       }
     })();
   }, [item.id]);
-
-  async function montarJsonSudtax() {
-    setCarregandoDoc(true);
-    setErroDoc(null);
-    try {
-      const preview = await previewDocumentoEletronico(item.id);
-      if (!preview.pronto) {
-        setAvisosDoc(preview.avisos);
-        setJsonSudtax(null);
-        return;
-      }
-      setAvisosDoc([]);
-      setJsonSudtax(JSON.stringify(preview.documento ?? preview.payload, null, 2));
-    } catch (e) {
-      setErroDoc(mensagemErroApi(e, t, "common.error.loadFailed"));
-    } finally {
-      setCarregandoDoc(false);
-    }
-  }
 
   async function emitir() {
     setEmitindo(true);
@@ -153,14 +129,6 @@ export default function VendaFicha({
     }
   }
 
-  async function copiarJson() {
-    if (!jsonSudtax) return;
-    try {
-      await navigator.clipboard.writeText(jsonSudtax);
-    } catch {
-      /* ignore */
-    }
-  }
   return createPortal(
     <div
       className="ficha-modal-overlay fixed inset-0 z-[200] flex items-start justify-center p-4 sm:p-6 overflow-y-auto"
@@ -329,33 +297,12 @@ export default function VendaFicha({
                   )}
                 </div>
               )}
-              <div className="flex flex-wrap gap-2">
-                {!factura && item.status === "finalizada" && (
-                  <button type="button" className="btn-gold px-3 py-1.5 text-sm" disabled={emitindo} onClick={() => void emitir()}>
-                    {emitindo ? t("common.loading") : t("factura.emitir")}
-                  </button>
-                )}
-                <button type="button" className="btn-ghost px-3 py-1.5 text-sm" disabled={carregandoDoc} onClick={() => void montarJsonSudtax()}>
-                  {carregandoDoc ? t("common.loading") : t("venda.montarJsonSudtax")}
+              {!factura && (
+                <button type="button" className="btn-gold px-3 py-1.5 text-sm" disabled={emitindo} onClick={() => void emitir()}>
+                  {emitindo ? t("common.loading") : t("factura.emitir")}
                 </button>
-                {jsonSudtax && (
-                  <button type="button" className="btn-ghost px-3 py-1.5 text-sm" onClick={() => void copiarJson()}>
-                    {t("venda.copiarJsonSudtax")}
-                  </button>
-                )}
-              </div>
+              )}
               {erroDoc && <p className="text-sm" style={{ color: "#ef4444" }}>{erroDoc}</p>}
-              {avisosDoc.length > 0 && (
-                <ul className="text-xs space-y-1" style={{ color: v("--text-muted") }}>
-                  {avisosDoc.map((a) => <li key={a}>• {a}</li>)}
-                </ul>
-              )}
-              {jsonSudtax && (
-                <pre className="text-[11px] font-mono p-3 rounded-md overflow-auto max-h-64 whitespace-pre-wrap break-all"
-                  style={{ background: v("--card2"), border: border1(), color: v("--text-sub") }}>
-                  {jsonSudtax}
-                </pre>
-              )}
             </div>
           </Section>}
         </div>
