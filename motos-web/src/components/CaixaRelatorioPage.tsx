@@ -165,6 +165,7 @@ export default function CaixaRelatorioPage({ navReset }: { navReset: number }) {
     setSearch("");
     setPage(1);
     setIndice(0);
+    setIdCaixa(null);
     setFolha(null);
   };
   useCrudReset(navReset, reset);
@@ -176,7 +177,7 @@ export default function CaixaRelatorioPage({ navReset }: { navReset: number }) {
         if (cancel) return;
         const ativos = lista.filter((c) => c.status === "ativo");
         setCaixas(ativos);
-        setIdCaixa((atual) => (ativos.some((c) => c.id === atual) ? atual : (ativos[0]?.id ?? null)));
+        setIdCaixa((atual) => (atual != null && ativos.some((c) => c.id === atual) ? atual : null));
         setErro(null);
       })
       .catch((e) => { if (!cancel) setErro(mensagemErroApi(e, t, "common.error.loadFailed")); });
@@ -390,6 +391,7 @@ export default function CaixaRelatorioPage({ navReset }: { navReset: number }) {
             value={idCaixa ?? ""}
             onChange={(e) => setIdCaixa(e.target.value === "" ? null : Number(e.target.value))}
           >
+            <option value="">{t("common.select")}</option>
             {caixas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
         </label>
@@ -397,8 +399,8 @@ export default function CaixaRelatorioPage({ navReset }: { navReset: number }) {
           <span>{t("caixa.relatorio.abertura")}</span>
           <button
             type="button"
-            className="btn-ghost px-2 py-1 text-xs"
-            disabled={indice >= sessoes.length - 1}
+            className="caixa-nav-btn px-2 py-1 text-sm"
+            disabled={!sessao || indice >= sessoes.length - 1}
             aria-label={t("caixa.relatorio.anterior")}
             onClick={() => setIndice((i) => Math.min(sessoes.length - 1, i + 1))}
           >
@@ -409,17 +411,26 @@ export default function CaixaRelatorioPage({ navReset }: { navReset: number }) {
           </span>
           <button
             type="button"
-            className="btn-ghost px-2 py-1 text-xs"
-            disabled={indice <= 0}
+            className="caixa-nav-btn px-2 py-1 text-sm"
+            disabled={!sessao || indice <= 0}
             aria-label={t("caixa.relatorio.proxima")}
             onClick={() => setIndice((i) => Math.max(0, i - 1))}
           >
             ›
           </button>
+          <button
+            type="button"
+            className="caixa-nav-btn px-2 py-1 text-sm"
+            disabled={!sessao || indice <= 0}
+            aria-label={t("caixa.relatorio.maisRecente")}
+            onClick={() => setIndice(0)}
+          >
+            »
+          </button>
         </div>
       </ListToolbar>
       {caixas.length === 0 && <p className="text-sm" style={{ color: v("--text-muted") }}>{t("caixa.relatorio.semCaixa")}</p>}
-      {caixas.length > 0 && sessoes.length === 0 && <p className="text-sm" style={{ color: v("--text-muted") }}>{t("caixa.relatorio.semSessao")}</p>}
+      {idCaixa != null && sessoes.length === 0 && <p className="text-sm" style={{ color: v("--text-muted") }}>{t("caixa.relatorio.semSessao")}</p>}
       {aviso && <p className="text-sm break-words" style={{ color: v("--text-muted") }}>{aviso}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm" style={{ color: v("--text-muted") }}>{tf(t, "relatorio.registros", { n: String(filtrados.length) })}</span>

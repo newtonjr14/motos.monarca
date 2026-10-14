@@ -738,6 +738,7 @@ export type TranslationKey =
   | "caixa.relatorio.abertura"
   | "caixa.relatorio.anterior"
   | "caixa.relatorio.proxima"
+  | "caixa.relatorio.maisRecente"
   | "caixa.relatorio.sessaoAberta"
   | "caixa.relatorio.sessaoFechada"
   | "caixa.relatorio.semSessao"
@@ -1867,6 +1868,7 @@ const pt: Record<TranslationKey, string> = {
   "caixa.relatorio.abertura": "Abertura",
   "caixa.relatorio.anterior": "Abertura anterior",
   "caixa.relatorio.proxima": "Abertura seguinte",
+  "caixa.relatorio.maisRecente": "Abertura mais recente",
   "caixa.relatorio.sessaoAberta": "Aberto por {usuario} · sessão aberta",
   "caixa.relatorio.sessaoFechada": "Aberto por {usuario} · fechado por {fechou} em {fechamento}",
   "caixa.relatorio.semSessao": "Este caixa ainda não foi aberto.",
@@ -2955,6 +2957,7 @@ const es: Record<TranslationKey, string> = {
   "caixa.relatorio.abertura": "Apertura",
   "caixa.relatorio.anterior": "Apertura anterior",
   "caixa.relatorio.proxima": "Apertura siguiente",
+  "caixa.relatorio.maisRecente": "Apertura más reciente",
   "caixa.relatorio.sessaoAberta": "Abierta por {usuario} · sesión abierta",
   "caixa.relatorio.sessaoFechada": "Abierta por {usuario} · cerrada por {fechou} el {fechamento}",
   "caixa.relatorio.semSessao": "Esta caja todavía no fue abierta.",
