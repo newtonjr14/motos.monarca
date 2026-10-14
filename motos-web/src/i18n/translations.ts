@@ -735,6 +735,16 @@ export type TranslationKey =
   | "caixa.session"
   | "caixa.session.open"
   | "caixa.session.closed"
+  | "caixa.relatorio.abertura"
+  | "caixa.relatorio.anterior"
+  | "caixa.relatorio.proxima"
+  | "caixa.relatorio.sessaoAberta"
+  | "caixa.relatorio.sessaoFechada"
+  | "caixa.relatorio.semSessao"
+  | "caixa.relatorio.semCaixa"
+  | "caixa.relatorio.historico"
+  | "caixa.relatorio.saldoPorFinalizador"
+  | "caixa.relatorio.saldoPorMoeda"
   | "caixa.open"
   | "caixa.close"
   | "caixa.transfer"
@@ -1135,7 +1145,7 @@ const pt: Record<TranslationKey, string> = {
   "relatorio.busca.vendas": "Número, cliente ou vendedor",
   "relatorio.busca.estoque": "Código, nome ou estoque",
   "relatorio.busca.movimentos": "Código, nome, estoque ou observação",
-  "relatorio.busca.caixa": "Caixa, usuário, tipo, observação ou venda",
+  "relatorio.busca.caixa": "Usuário, tipo, observação ou venda",
   "relatorio.caixa": "Caixa",
   "relatorio.legendaGs": "Os cálculos consideram a cotação do dia de cada parcela.",
   "relatorio.legendaGsPagar": "Os cálculos consideram a cotação do dia de cada parcela.",
@@ -1854,6 +1864,16 @@ const pt: Record<TranslationKey, string> = {
   "caixa.session": "Sessão",
   "caixa.session.open": "Aberto",
   "caixa.session.closed": "Fechado",
+  "caixa.relatorio.abertura": "Abertura",
+  "caixa.relatorio.anterior": "Abertura anterior",
+  "caixa.relatorio.proxima": "Abertura seguinte",
+  "caixa.relatorio.sessaoAberta": "Aberto por {usuario} · sessão aberta",
+  "caixa.relatorio.sessaoFechada": "Aberto por {usuario} · fechado por {fechou} em {fechamento}",
+  "caixa.relatorio.semSessao": "Este caixa ainda não foi aberto.",
+  "caixa.relatorio.semCaixa": "Nenhum caixa nesta filial.",
+  "caixa.relatorio.historico": "Histórico",
+  "caixa.relatorio.saldoPorFinalizador": "Saldo por finalizador",
+  "caixa.relatorio.saldoPorMoeda": "Saldo por moeda",
   "caixa.open": "Abrir caixa",
   "caixa.close": "Fechar caixa",
   "caixa.transfer": "Transferir",
@@ -2203,7 +2223,7 @@ const es: Record<TranslationKey, string> = {
   "relatorio.busca.vendas": "Número, cliente o vendedor",
   "relatorio.busca.estoque": "Código, nombre o stock",
   "relatorio.busca.movimentos": "Código, nombre, stock u observación",
-  "relatorio.busca.caixa": "Caja, usuario, tipo, observación o venta",
+  "relatorio.busca.caixa": "Usuario, tipo, observación o venta",
   "relatorio.caixa": "Caja",
   "relatorio.legendaGs": "Los cálculos consideran la cotización del día de cada cuota.",
   "relatorio.legendaGsPagar": "Los cálculos consideran la cotización del día de cada cuota.",
@@ -2932,6 +2952,16 @@ const es: Record<TranslationKey, string> = {
   "caixa.session": "Sesión",
   "caixa.session.open": "Abierta",
   "caixa.session.closed": "Cerrada",
+  "caixa.relatorio.abertura": "Apertura",
+  "caixa.relatorio.anterior": "Apertura anterior",
+  "caixa.relatorio.proxima": "Apertura siguiente",
+  "caixa.relatorio.sessaoAberta": "Abierta por {usuario} · sesión abierta",
+  "caixa.relatorio.sessaoFechada": "Abierta por {usuario} · cerrada por {fechou} el {fechamento}",
+  "caixa.relatorio.semSessao": "Esta caja todavía no fue abierta.",
+  "caixa.relatorio.semCaixa": "Ninguna caja en esta sucursal.",
+  "caixa.relatorio.historico": "Historial",
+  "caixa.relatorio.saldoPorFinalizador": "Saldo por forma de pago",
+  "caixa.relatorio.saldoPorMoeda": "Saldo por moneda",
   "caixa.open": "Abrir caja",
   "caixa.close": "Cerrar caja",
   "caixa.transfer": "Transferir",

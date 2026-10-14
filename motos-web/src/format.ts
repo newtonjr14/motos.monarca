@@ -170,6 +170,11 @@ export function formatMoeda(valor: number, moeda: string): string {
   return `Gs. ${formatPyg(valor)}`;
 }
 
+export function formatNaCotacao(totalPyg: number, taxa: number | null | undefined, moeda: "usd" | "brl"): string {
+  if (!taxa || taxa <= 0) return moeda === "brl" ? "R$ —" : "US$ —";
+  return formatMoeda(totalPyg / taxa, moeda);
+}
+
 export const MOEDAS: Moeda[] = ["pyg", "usd", "brl"];
 
 export function moedaOperacaoDe(valor: string | null | undefined): Moeda {

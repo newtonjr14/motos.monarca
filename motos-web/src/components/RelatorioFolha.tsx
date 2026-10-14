@@ -16,6 +16,12 @@ export type FolhaRelatorio = {
   destaques?: number[];
   direita: number[];
   rodapes: { rotulo: string; celulas: string[] }[];
+  anexos?: {
+    titulo: string;
+    colunas: string[];
+    linhas: string[][];
+    direita: number[];
+  }[];
 };
 
 function escapar(valor: string): string {
@@ -49,6 +55,12 @@ export function baixarPlanilha(folha: FolhaRelatorio) {
     secao,
     ...folha.linhas.map((linha, i) => linhaXml(linha, destaques.has(i))),
     ...folha.rodapes.map((r) => linhaXml([r.rotulo, ...r.celulas.slice(1)], true)),
+    ...(folha.anexos ?? []).flatMap((anexo) => [
+      "<Row></Row>",
+      linhaXml([anexo.titulo], true),
+      linhaXml(anexo.colunas, true),
+      ...anexo.linhas.map((linha) => linhaXml(linha)),
+    ]),
   ].join("");
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
@@ -85,6 +97,7 @@ export default function RelatorioFolha({ folha, onClose }: { folha: FolhaRelator
 
   const direita = new Set(folha.direita);
   const destaques = new Set(folha.destaques ?? []);
+  const anexos = folha.anexos ?? [];
 
   return createPortal(
     <div
@@ -179,6 +192,44 @@ export default function RelatorioFolha({ folha, onClose }: { folha: FolhaRelator
               </tfoot>
             )}
           </table>
+          {anexos.map((anexo) => {
+            const direitaAnexo = new Set(anexo.direita);
+            return (
+              <div key={anexo.titulo}>
+                <p className="mt-4 text-[11px] font-semibold">{anexo.titulo}</p>
+                <table className="mt-1 w-full border-collapse text-[10px]">
+                  <thead>
+                    <tr>
+                      {anexo.colunas.map((c, i) => (
+                        <th
+                          key={c}
+                          className={`border px-1 py-1 font-semibold ${direitaAnexo.has(i) ? "text-right" : "text-left"}`}
+                          style={{ borderColor: "#ccc", background: "#fafafa" }}
+                        >
+                          {c}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {anexo.linhas.map((linha, ri) => (
+                      <tr key={ri}>
+                        {linha.map((c, i) => (
+                          <td
+                            key={i}
+                            className={`border px-1 py-0.5 font-mono ${direitaAnexo.has(i) ? "text-right" : "text-left"}`}
+                            style={{ borderColor: "#e5e5e5" }}
+                          >
+                            {c}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
           {folha.nota && (
             <p className="mt-2 text-[10px]" style={{ color: "#555" }}>{folha.nota}</p>
           )}

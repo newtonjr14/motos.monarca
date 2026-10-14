@@ -1,5 +1,5 @@
 import type { Venda } from "@/api";
-import { formatPyg, formatarDataHoraEpoch, formatarDataIso, formatMoeda } from "@/format";
+import { formatPyg, formatarDataHoraEpoch, formatarDataIso, formatMoeda, formatNaCotacao } from "@/format";
 import { useI18n } from "@/i18n";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -156,22 +156,14 @@ export default function ReciboVenda({
                 <div className="grid grid-cols-[3rem_auto] justify-items-end gap-x-2 font-mono text-sm">
                   <span>Gs.</span>
                   <span className="whitespace-nowrap">{formatPyg(venda.totalPyg)}</span>
-                  {venda.usdPyg ? (
-                    <>
-                      <span className="font-normal" style={{ color: "#555" }}>US$</span>
-                      <span className="whitespace-nowrap font-normal" style={{ color: "#555" }}>
-                        {(venda.totalPyg / venda.usdPyg).toLocaleString("es-PY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </>
-                  ) : null}
-                  {venda.brlPyg ? (
-                    <>
-                      <span className="font-normal" style={{ color: "#555" }}>R$</span>
-                      <span className="whitespace-nowrap font-normal" style={{ color: "#555" }}>
-                        {(venda.totalPyg / venda.brlPyg).toLocaleString("es-PY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </>
-                  ) : null}
+                  <span className="font-normal" style={{ color: "#555" }}>US$</span>
+                  <span className="whitespace-nowrap font-normal" style={{ color: "#555" }}>
+                    {formatNaCotacao(venda.totalPyg, venda.usdPyg, "usd").replace(/^US\$\s*/, "")}
+                  </span>
+                  <span className="font-normal" style={{ color: "#555" }}>R$</span>
+                  <span className="whitespace-nowrap font-normal" style={{ color: "#555" }}>
+                    {formatNaCotacao(venda.totalPyg, venda.brlPyg, "brl").replace(/^R\$\s*/, "")}
+                  </span>
                 </div>
               </div>
               {venda.negociacao.length > 0 && (

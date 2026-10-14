@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { TableHeadRow, TablePagination, Td, useListSort } from "@/components/crud/ListUi";
+import ReciboVenda from "@/components/ReciboVenda";
 import VendaFicha from "@/components/VendaFicha";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n, type TranslationKey } from "@/i18n";
@@ -68,6 +69,7 @@ export default function HistoricoVendasPage({
   const [erro, setErro] = useState<string | null>(null);
   const [fichaId, setFichaId] = useState<number | null>(null);
   const [filtro, setFiltro] = useState<FiltroVenda>("todos");
+  const [recibo, setRecibo] = useState<Venda | null>(null);
   const [selecionados, setSelecionados] = useState<number[]>([]);
 
   const resetLista = useCallback(() => { setFichaId(null); }, []);
@@ -193,9 +195,20 @@ export default function HistoricoVendasPage({
                 <Td mono>Gs. {formatPyg(e.totalPyg)}</Td>
                 <Td>{e.vendedorNome}</Td>
                 <Td>
-                  {e.status === "orcamento" && e.idVendaGerada != null
-                    ? tf(t, "venda.orcamentoNaVenda", { n: String(e.idVendaGerada) })
-                    : t(rotuloStatus(e.status, e.validade))}
+                  <span className="inline-flex items-center gap-2">
+                    {e.status === "orcamento" && e.idVendaGerada != null
+                      ? tf(t, "venda.orcamentoNaVenda", { n: String(e.idVendaGerada) })
+                      : t(rotuloStatus(e.status, e.validade))}
+                    {e.status === "finalizada" && (
+                      <button
+                        type="button"
+                        className="btn-ghost px-2 py-1 text-xs whitespace-nowrap"
+                        onClick={(ev) => { ev.stopPropagation(); setRecibo(e); }}
+                      >
+                        {t("venda.recibo.print")}
+                      </button>
+                    )}
+                  </span>
                 </Td>
               </tr>
             ))}
@@ -230,6 +243,7 @@ export default function HistoricoVendasPage({
           onClose={() => setFichaId(null)}
         />
       )}
+      {recibo && <ReciboVenda venda={recibo} onClose={() => setRecibo(null)} />}
     </div>
   );
 }

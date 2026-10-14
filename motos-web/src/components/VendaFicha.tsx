@@ -1,7 +1,8 @@
 import { buscarFacturaPorVenda, emitirFactura, type Factura, type Venda } from "@/api";
-import { Section } from "@/components/crud/Field";
+import { FormTabs, Section } from "@/components/crud/Field";
+import ReciboVenda from "@/components/ReciboVenda";
 import { Td } from "@/components/crud/ListUi";
-import { dataAsuncion, formatarDataHoraEpoch, formatarDataIso, formatMoeda, formatPyg } from "@/format";
+import { dataAsuncion, formatarDataHoraEpoch, formatarDataIso, formatMoeda, formatNaCotacao, formatPyg } from "@/format";
 import { useI18n } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -76,13 +77,18 @@ export default function VendaFicha({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const [guia, setGuia] = useState<"itens" | "pagamento">("itens");
   const [erroDoc, setErroDoc] = useState<string | null>(null);
   const [factura, setFactura] = useState<Factura | null | undefined>(undefined);
   const [emitindo, setEmitindo] = useState(false);
+  const [recibo, setRecibo] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if (recibo) return;
+        onClose();
+      }
       if (nav) {
         if (e.key === "ArrowUp" && nav.index > 0) {
           e.preventDefault();
@@ -101,9 +107,11 @@ export default function VendaFicha({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose, nav]);
+  }, [onClose, nav, recibo]);
 
   useEffect(() => {
+    setGuia("itens");
+    setRecibo(false);
     setErroDoc(null);
     setFactura(undefined);
     void (async () => {
@@ -196,11 +204,36 @@ export default function VendaFicha({
           </div>
         </div>
 
+        <div className="px-6 py-3 shrink-0 space-y-1 text-sm" style={{ borderBottom: border1() }}>
+          <p className="break-words" style={{ color: v("--text") }}>
+            <span style={{ color: v("--text-muted") }}>{t("venda.client")}: </span>{item.clienteNome}
+          </p>
+          {item.clienteEndereco && (
+            <p className="break-words" style={{ color: v("--text") }}>
+              <span style={{ color: v("--text-muted") }}>{t("venda.dav.endereco")}: </span>{item.clienteEndereco}
+            </p>
+          )}
+          {item.clienteTelefone && (
+            <p className="break-words" style={{ color: v("--text") }}>
+              <span style={{ color: v("--text-muted") }}>{t("venda.dav.telefone")}: </span>{item.clienteTelefone}
+            </p>
+          )}
+          <p className="break-words" style={{ color: v("--text") }}>
+            <span style={{ color: v("--text-muted") }}>{t("venda.seller")}: </span>{item.vendedorNome}
+          </p>
+        </div>
+
         <div className="px-6 py-3 shrink-0" style={{ background: v("--card2"), borderBottom: border1() }}>
           <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: v("--text-muted") }}>
             {t("venda.total")}
           </p>
-          <p className="text-sm font-mono mt-0.5" style={{ color: v("--gold") }}>Gs. {formatPyg(item.totalPyg)}</p>
+          <p className="text-sm font-mono mt-0.5" style={{ color: v("--gold") }}>
+            Gs. {formatPyg(item.totalPyg)}
+            <span className="font-normal" style={{ color: v("--text-sub") }}>
+              {" · "}{formatNaCotacao(item.totalPyg, item.usdPyg, "usd")}
+              {" · "}{formatNaCotacao(item.totalPyg, item.brlPyg, "brl")}
+            </span>
+          </p>
           {(item.status === "aberta" || item.status === "orcamento") && (
             <div className="flex flex-wrap gap-2 mt-3">
               {item.status === "aberta" && onContinuar && (
@@ -222,17 +255,19 @@ export default function VendaFicha({
           )}
         </div>
 
-        <div className="ficha-modal-body px-6 py-5 space-y-5">
-          <div className="grid gap-5 sm:grid-cols-2 sm:items-start">
-            <Section title={t("venda.client")}>
-              <p className="text-sm break-words" style={{ color: v("--text") }}>{item.clienteNome}</p>
-            </Section>
-            <Section title={t("venda.seller")}>
-              <p className="text-sm break-words" style={{ color: v("--text") }}>{item.vendedorNome}</p>
-            </Section>
-          </div>
+        <div className="ficha-modal-tabs px-6 shrink-0">
+          <FormTabs
+            tabs={[
+              { id: "itens", label: t("venda.items") },
+              { id: "pagamento", label: t("venda.pay") },
+            ]}
+            value={guia}
+            onChange={setGuia}
+          />
+        </div>
 
-          <Section title={t("venda.items")}>
+        <div className="ficha-modal-body px-6 py-5 space-y-5">
+          {guia === "itens" && (
             <div className="rounded-md overflow-hidden" style={{ border: border1() }}>
               <table className="drive-table w-full">
                 <thead>
@@ -249,8 +284,11 @@ export default function VendaFicha({
                       <Td mono>{i.produtoCodigo}</Td>
                       <td className="drive-td">
                         <p className="text-xs font-medium" style={{ color: v("--text") }}>{i.produtoNome}</p>
-                        {(i.descontoPct ?? 0) > 0 && (
-                          <p className="text-[11px]" style={{ color: v("--text-muted") }}>−{i.descontoPct}%</p>
+                        {((i.descontoPct ?? 0) > 0 || (i.descontoPyg ?? 0) > 0) && (
+                          <p className="text-[11px]" style={{ color: v("--text-muted") }}>
+                            −{i.descontoPct ?? 0}%
+                            {(i.descontoPyg ?? 0) > 0 ? ` · − Gs. ${formatPyg(i.descontoPyg ?? 0)}` : ""}
+                          </p>
                         )}
                         {i.chassis && i.chassis.length > 0 && (
                           <p className="text-[11px] font-mono break-all" style={{ color: v("--text-muted") }}>{i.chassis.join(" · ")}</p>
@@ -264,55 +302,89 @@ export default function VendaFicha({
                 </tbody>
               </table>
             </div>
-          </Section>
-
-          {item.negociacao.length > 0 && <Section title={t("venda.pay")}>
-            <div className="space-y-2">
-              {item.negociacao.map((n) => (
-                <div key={n.id} className="flex items-baseline justify-between gap-3">
-                  <p className="text-sm min-w-0 break-words" style={{ color: v("--text") }}>{n.finalizadorNome}{n.quantidadeParcelas ? ` ${n.quantidadeParcelas}x` : ""}</p>
-                  <p className="text-sm font-mono shrink-0" style={{ color: v("--text-sub") }}>
-                    {formatMoeda(n.valor, n.moeda ?? "pyg")}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </Section>}
-
-          {item.observacao && (
-            <Section title={t("caixa.note")}>
-              <p className="text-sm leading-relaxed break-words" style={{ color: v("--text") }}>{item.observacao}</p>
-            </Section>
           )}
 
-          {item.status === "finalizada" && <Section title={t("venda.documentoEletronico")}>
-            <div className="space-y-2">
-              {factura && (
-                <div className="text-sm space-y-1" style={{ color: v("--text") }}>
-                  <p>{t("factura.estado")}: {t(estadoFacturaKey(factura.estado))}</p>
-                  {factura.cdc && (
-                    <p className="font-mono text-xs break-all" style={{ color: v("--text-sub") }}>
-                      CDC: {factura.cdcFormatado || factura.cdc}
-                    </p>
+          {guia === "pagamento" && (
+            <>
+              {((item.descontoPyg ?? 0) > 0 || item.itens.some((i) => (i.descontoPyg ?? 0) > 0)) && (
+                <div className="space-y-1 text-sm">
+                  {(item.descontoPyg ?? 0) > 0 && (
+                    <>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span style={{ color: v("--text-muted") }}>{t("venda.subtotal")}</span>
+                        <span className="font-mono shrink-0" style={{ color: v("--text") }}>Gs. {formatPyg(item.totalPyg + (item.descontoPyg ?? 0))}</span>
+                      </div>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span style={{ color: v("--text-muted") }}>{t("venda.saleDiscount")} {item.descontoPct}%</span>
+                        <span className="font-mono shrink-0" style={{ color: v("--text") }}>− Gs. {formatPyg(item.descontoPyg ?? 0)}</span>
+                      </div>
+                    </>
                   )}
+                  {item.itens.filter((i) => (i.descontoPyg ?? 0) > 0).map((i) => (
+                    <div key={i.id} className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 break-words" style={{ color: v("--text-muted") }}>{i.produtoNome} −{i.descontoPct ?? 0}%</span>
+                      <span className="font-mono shrink-0" style={{ color: v("--text") }}>− Gs. {formatPyg(i.descontoPyg ?? 0)}</span>
+                    </div>
+                  ))}
                 </div>
               )}
-              {!factura && (
-                <button type="button" className="btn-gold px-3 py-1.5 text-sm" disabled={emitindo} onClick={() => void emitir()}>
-                  {emitindo ? t("common.loading") : t("factura.emitir")}
-                </button>
+              {item.negociacao.length > 0 ? (
+                <div className="space-y-2">
+                  {item.negociacao.map((n) => (
+                    <div key={n.id} className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm min-w-0 break-words" style={{ color: v("--text") }}>{n.finalizadorNome}{n.quantidadeParcelas ? ` ${n.quantidadeParcelas}x` : ""}</p>
+                      <p className="text-sm font-mono shrink-0" style={{ color: v("--text-sub") }}>
+                        {formatMoeda(n.valor, n.moeda ?? "pyg")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm" style={{ color: v("--text-muted") }}>{t("venda.payEmpty")}</p>
               )}
-              {erroDoc && <p className="text-sm" style={{ color: "#ef4444" }}>{erroDoc}</p>}
-            </div>
-          </Section>}
+
+              {item.observacao && (
+                <Section title={t("caixa.note")}>
+                  <p className="text-sm leading-relaxed break-words" style={{ color: v("--text") }}>{item.observacao}</p>
+                </Section>
+              )}
+
+              {item.status === "finalizada" && <Section title={t("venda.documentoEletronico")}>
+                <div className="space-y-2">
+                  {factura && (
+                    <div className="text-sm space-y-1" style={{ color: v("--text") }}>
+                      <p>{t("factura.estado")}: {t(estadoFacturaKey(factura.estado))}</p>
+                      {factura.cdc && (
+                        <p className="font-mono text-xs break-all" style={{ color: v("--text-sub") }}>
+                          CDC: {factura.cdcFormatado || factura.cdc}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {!factura && (
+                    <button type="button" className="btn-gold px-3 py-1.5 text-sm" disabled={emitindo} onClick={() => void emitir()}>
+                      {emitindo ? t("common.loading") : t("factura.emitir")}
+                    </button>
+                  )}
+                  {erroDoc && <p className="text-sm" style={{ color: "#ef4444" }}>{erroDoc}</p>}
+                </div>
+              </Section>}
+            </>
+          )}
         </div>
 
-        <div className="ficha-modal-actions px-6 py-3 shrink-0" style={{ borderTop: border1(), background: v("--card2") }}>
-          <button type="button" className="btn-action-edit w-full py-2 text-sm" onClick={onClose}>
+        <div className="ficha-modal-actions px-6 py-3 shrink-0 flex gap-2" style={{ borderTop: border1(), background: v("--card2") }}>
+          {item.status === "finalizada" && (
+            <button type="button" className="btn-gold flex-1 py-2 text-sm" onClick={() => setRecibo(true)}>
+              {t("venda.recibo.print")}
+            </button>
+          )}
+          <button type="button" className="btn-action-edit flex-1 py-2 text-sm" onClick={onClose}>
             {t("ficha.close")}
           </button>
         </div>
       </div>
+      {recibo && <ReciboVenda venda={item} onClose={() => setRecibo(false)} />}
     </div>,
     document.body,
   );

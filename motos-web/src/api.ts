@@ -893,6 +893,7 @@ export interface CaixaSessao {
   idUsuarioAbertura: number;
   usuarioAberturaNome: string;
   idUsuarioFechamento?: number | null;
+  usuarioFechamentoNome?: string | null;
   observacaoAbertura?: string | null;
   observacaoFechamento?: string | null;
   status: StatusSessaoCaixa;

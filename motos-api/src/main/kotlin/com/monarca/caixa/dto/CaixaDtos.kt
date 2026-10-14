@@ -114,6 +114,7 @@ data class CaixaSessaoResponse(
     val idUsuarioAbertura: Long,
     val usuarioAberturaNome: String,
     val idUsuarioFechamento: Long? = null,
+    val usuarioFechamentoNome: String? = null,
     val observacaoAbertura: String? = null,
     val observacaoFechamento: String? = null,
     val status: StatusSessaoCaixa,

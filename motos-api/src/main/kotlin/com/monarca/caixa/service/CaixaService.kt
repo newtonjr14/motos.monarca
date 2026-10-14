@@ -343,7 +343,11 @@ class CaixaService(
         val caixa = repository.buscarCaixa(idCaixa) ?: throw RecursoNaoEncontrado("Caixa $idCaixa não encontrado")
         exigirAcessoFilial(idUsuario, caixa.caixa.idFilial)
         val nomes = nomesFinalizadores()
-        return repository.listarSessoes(idCaixa).map { it.toResponse(nomes) }
+        val detalhes = repository.listarSessoes(idCaixa)
+        val nomesFechamento = detalhes.mapNotNull { it.sessao.idUsuarioFechamento }.distinct()
+            .mapNotNull { id -> usuarioRepository.buscar(id)?.let { id to it.nome } }
+            .toMap()
+        return detalhes.map { it.toResponse(nomes, nomesFechamento[it.sessao.idUsuarioFechamento]) }
     }
 
     suspend fun listarMovimentacoes(idSessao: Long, idUsuario: Long): List<CaixaMovimentacaoResponse> {
@@ -479,7 +483,7 @@ class CaixaService(
         status = status,
     )
 
-    private fun SessaoDetalhe.toResponse(nomes: Map<Long, String>) = CaixaSessaoResponse(
+    private fun SessaoDetalhe.toResponse(nomes: Map<Long, String>, usuarioFechamentoNome: String? = null) = CaixaSessaoResponse(
             id = sessao.id,
             idCaixa = sessao.idCaixa,
             caixaNome = caixaNome,
@@ -490,6 +494,7 @@ class CaixaService(
             idUsuarioAbertura = sessao.idUsuarioAbertura,
             usuarioAberturaNome = usuarioAberturaNome,
             idUsuarioFechamento = sessao.idUsuarioFechamento,
+            usuarioFechamentoNome = usuarioFechamentoNome,
             observacaoFechamento = sessao.observacaoFechamento,
             observacaoAbertura = sessao.observacaoAbertura,
             status = sessao.status,
