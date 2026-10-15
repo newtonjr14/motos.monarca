@@ -34,6 +34,15 @@ fun Application.configureEntrada() {
                     call.respond(service.listar(idFilial, call.usuarioAutenticado().id))
                 }
             }
+            get<Entradas.Adiantamentos> {
+                call.handleEntrada {
+                    call.podeOperarFinanceiro()
+                    val idFilial = call.request.queryParameters["idFilial"]?.toLongOrNull()
+                    val idFornecedor = call.request.queryParameters["idFornecedor"]?.toLongOrNull()
+                        ?: throw RequisicaoInvalida("FORNECEDOR_OBRIGATORIO", "Informe o fornecedor")
+                    call.respond(service.listarAdiantamentos(idFilial, idFornecedor, call.usuarioAutenticado().id))
+                }
+            }
             get<Entradas.Id> { resource ->
                 call.handleEntrada {
                     call.podeOperarFinanceiro()

@@ -785,6 +785,8 @@ export type TranslationKey =
   | "caixa.lancamento.tipo"
   | "caixa.lancamento.suprimento"
   | "caixa.lancamento.sangria"
+  | "caixa.lancamento.fornecedor"
+  | "caixa.lancamento.fornecedorHint"
   | "caixa.lancamento.valor"
   | "caixa.error.lancamento"
   | "caixa.error.noAvulso"
@@ -925,12 +927,21 @@ export type TranslationKey =
   | "entrada.valorUnitario"
   | "entrada.chassisHint"
   | "entrada.prazo"
+  | "entrada.adiantamento"
+  | "entrada.adiantamento.nenhum"
+  | "entrada.adiantamento.tag"
   | "entrada.total"
   | "entrada.tituloGerado"
   | "entrada.searchPlaceholder"
   | "entrada.error.itens"
   | "entrada.error.pagamento"
   | "api.VENDA_CREDITO_UNICO"
+  | "api.ENTRADA_CREDITO_UNICO"
+  | "api.ADIANTAMENTO_INVALIDO"
+  | "api.ADIANTAMENTO_MOEDA"
+  | "api.ADIANTAMENTO_EXCEDIDO"
+  | "api.CAIXA_ADIANTAMENTO_SUPRIMENTO"
+  | "api.FORNECEDOR_OBRIGATORIO"
   | "api.PARCELAS_QTD"
   | "api.DIA_VENCIMENTO_INVALIDO"
   | "api.PARCELAS_OBRIGATORIAS"
@@ -1903,6 +1914,8 @@ const pt: Record<TranslationKey, string> = {
   "caixa.lancamento.tipo": "Tipo",
   "caixa.lancamento.suprimento": "Suprimento (entrada)",
   "caixa.lancamento.sangria": "Sangria (saída)",
+  "caixa.lancamento.fornecedor": "Fornecedor",
+  "caixa.lancamento.fornecedorHint": "Opcional. Marca esta saída para abater na entrada, sem tirar o dinheiro de novo.",
   "caixa.lancamento.valor": "Valor",
   "caixa.addFinalizer": "+ Adicionar outro finalizador",
   "caixa.addCurrency": "+ Adicionar moeda",
@@ -2055,12 +2068,21 @@ const pt: Record<TranslationKey, string> = {
   "entrada.valorUnitario": "Valor unitário",
   "entrada.chassisHint": "Chassis (um por linha ou INICIO~FIM)",
   "entrada.prazo": "prazo",
+  "entrada.adiantamento": "Sangria já lançada",
+  "entrada.adiantamento.nenhum": "Não usar",
+  "entrada.adiantamento.tag": "adiantamento",
   "entrada.total": "Total",
   "entrada.tituloGerado": "Título a pagar",
   "entrada.searchPlaceholder": "Fornecedor, documento...",
   "entrada.error.itens": "Informe ao menos um item",
   "entrada.error.pagamento": "Informe ao menos uma forma de pagamento",
   "api.VENDA_CREDITO_UNICO": "Use só uma forma a prazo por venda",
+  "api.ENTRADA_CREDITO_UNICO": "Use só uma forma a prazo por entrada",
+  "api.ADIANTAMENTO_INVALIDO": "O adiantamento não é uma sangria deste fornecedor",
+  "api.ADIANTAMENTO_MOEDA": "O adiantamento não confere com a forma e a moeda da sangria",
+  "api.ADIANTAMENTO_EXCEDIDO": "O valor passa do que ainda resta nessa sangria",
+  "api.CAIXA_ADIANTAMENTO_SUPRIMENTO": "Fornecedor só se informa na sangria",
+  "api.FORNECEDOR_OBRIGATORIO": "Informe o fornecedor",
   "api.PARCELAS_QTD": "Informe entre 1 e 120 parcelas",
   "api.DIA_VENCIMENTO_INVALIDO": "O dia de vencimento deve ser entre 1 e 28",
   "api.PARCELAS_OBRIGATORIAS": "Informe as parcelas do crediário",
@@ -2992,6 +3014,8 @@ const es: Record<TranslationKey, string> = {
   "caixa.lancamento.tipo": "Tipo",
   "caixa.lancamento.suprimento": "Suministro (entrada)",
   "caixa.lancamento.sangria": "Sangría (salida)",
+  "caixa.lancamento.fornecedor": "Proveedor",
+  "caixa.lancamento.fornecedorHint": "Opcional. Marca esta salida para descontar en la entrada, sin sacar el dinero otra vez.",
   "caixa.lancamento.valor": "Valor",
   "caixa.addFinalizer": "+ Agregar otro finalizador",
   "caixa.addCurrency": "+ Agregar moneda",
@@ -3144,12 +3168,21 @@ const es: Record<TranslationKey, string> = {
   "entrada.valorUnitario": "Valor unitario",
   "entrada.chassisHint": "Chasis (uno por línea o INICIO~FIM)",
   "entrada.prazo": "plazo",
+  "entrada.adiantamento": "Sangría ya registrada",
+  "entrada.adiantamento.nenhum": "No usar",
+  "entrada.adiantamento.tag": "adelanto",
   "entrada.total": "Total",
   "entrada.tituloGerado": "Título por pagar",
   "entrada.searchPlaceholder": "Proveedor, documento...",
   "entrada.error.itens": "Indique al menos un ítem",
   "entrada.error.pagamento": "Indique al menos una forma de pago",
   "api.VENDA_CREDITO_UNICO": "Use solo una forma a plazo por venta",
+  "api.ENTRADA_CREDITO_UNICO": "Use solo una forma a plazo por entrada",
+  "api.ADIANTAMENTO_INVALIDO": "El adelanto no es una sangría de este proveedor",
+  "api.ADIANTAMENTO_MOEDA": "El adelanto no coincide con la forma y la moneda de la sangría",
+  "api.ADIANTAMENTO_EXCEDIDO": "El valor supera lo que aún queda en esa sangría",
+  "api.CAIXA_ADIANTAMENTO_SUPRIMENTO": "El proveedor solo se informa en la sangría",
+  "api.FORNECEDOR_OBRIGATORIO": "Indique el proveedor",
   "api.PARCELAS_QTD": "Indique entre 1 y 120 cuotas",
   "api.DIA_VENCIMENTO_INVALIDO": "El día de vencimiento debe estar entre 1 y 28",
   "api.PARCELAS_OBRIGATORIAS": "Indique las cuotas del crédito",

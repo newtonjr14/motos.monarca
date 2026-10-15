@@ -59,5 +59,6 @@ data class CaixaMovimentacao(
     val criadoEm: Long,
     val observacao: String?,
     val status: Status,
+    val idFornecedor: Long? = null,
     val finalizadores: List<ValorFinalizador>,
 )

@@ -21,6 +21,7 @@ data class EntradaNegociacaoRequest(
     val idFinalizador: Long,
     val valor: Double,
     val moeda: Moeda = Moeda.PYG,
+    val idCaixaMovimentacao: Long? = null,
 )
 
 @Serializable
@@ -70,6 +71,19 @@ data class EntradaNegociacaoResponse(
     val moeda: Moeda,
     val valor: Double,
     val valorPyg: Double,
+    val idCaixaMovimentacao: Long? = null,
+)
+
+@Serializable
+data class AdiantamentoResponse(
+    val id: Long,
+    val criadoEm: Long,
+    val observacao: String? = null,
+    val idFinalizador: Long,
+    val finalizadorNome: String,
+    val moeda: Moeda,
+    val valor: Double,
+    val valorAberto: Double,
 )
 
 @Serializable

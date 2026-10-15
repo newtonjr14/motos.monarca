@@ -6,6 +6,7 @@ import com.monarca.cotacao.dto.CotacaoResponse
 import com.monarca.cotacao.service.CotacaoService
 import com.monarca.empresa.service.EmpresaService
 import com.monarca.entrada.domain.TipoDocumentoEntrada
+import com.monarca.entrada.dto.AdiantamentoResponse
 import com.monarca.entrada.dto.EntradaItemResponse
 import com.monarca.entrada.dto.EntradaNegociacaoRequest
 import com.monarca.entrada.dto.EntradaNegociacaoResponse
@@ -58,6 +59,25 @@ class EntradaService(
         return entrada.toResponse()
     }
 
+    suspend fun listarAdiantamentos(idFilial: Long?, idFornecedor: Long, idUsuario: Long): List<AdiantamentoResponse> {
+        val filial = resolverFilial(idUsuario, idFilial)
+        validarFornecedor(idFornecedor, filial)
+        return caixaService.listarAdiantamentos(filial, idFornecedor)
+            .filter { it.valor - it.valorUsado > 0.009 }
+            .map {
+                AdiantamentoResponse(
+                    id = it.id,
+                    criadoEm = it.criadoEm,
+                    observacao = it.observacao,
+                    idFinalizador = it.idFinalizador,
+                    finalizadorNome = it.finalizadorNome,
+                    moeda = it.moeda,
+                    valor = it.valor,
+                    valorAberto = it.valor - it.valorUsado,
+                )
+            }
+    }
+
     suspend fun criar(request: EntradaRequest, idUsuario: Long): EntradaResponse {
         cotacaoService.exigirAtiva()
         val cotacao = cotacaoService.buscarHoje()
@@ -74,9 +94,14 @@ class EntradaService(
             throw invalido("ENTRADA_TOTAL_INVALIDO", "O total da entrada deve ser maior que zero")
         }
         val negociacao = montarNegociacao(request.negociacao, totalPyg, cotacao)
+        validarAdiantamentos(negociacao, idFilial, request.idFornecedor)
         val finais = caixaService.listarFinalizadores().associateBy { it.id }
-        val credito = negociacao.filter { finais[it.idFinalizador]?.geraContasPagar == true }
-        val vista = negociacao.filter { finais[it.idFinalizador]?.geraContasPagar != true }
+        val credito = negociacao.filter {
+            it.idCaixaMovimentacao == null && finais[it.idFinalizador]?.geraContasPagar == true
+        }
+        val vista = negociacao.filter {
+            it.idCaixaMovimentacao == null && finais[it.idFinalizador]?.geraContasPagar != true
+        }
         if (credito.size > 1) {
             throw invalido("ENTRADA_CREDITO_UNICO", "Use só uma forma a prazo por entrada")
         }
@@ -264,7 +289,7 @@ class EntradaService(
         if (linhas.isEmpty()) {
             throw invalido("ENTRADA_NEGOCIACAO_OBRIGATORIA", "Informe ao menos uma forma de pagamento")
         }
-        val agrupado = linkedMapOf<Pair<Long, Moeda>, Double>()
+        val agrupado = linkedMapOf<Triple<Long, Moeda, Long?>, Double>()
         for (linha in linhas) {
             if (linha.valor <= 0) {
                 throw invalido("ENTRADA_VALOR_INVALIDO", "O valor do pagamento deve ser maior que zero")
@@ -273,24 +298,47 @@ class EntradaService(
             if (fin.geraContasReceber) {
                 throw invalido("FINALIZADOR_RECEBER_NA_ENTRADA", "Não use finalizador de contas a receber na entrada")
             }
-            val chave = linha.idFinalizador to linha.moeda
+            val chave = Triple(linha.idFinalizador, linha.moeda, linha.idCaixaMovimentacao)
             agrupado[chave] = (agrupado[chave] ?: 0.0) + linha.valor
         }
         val montado = agrupado.map { (chave, valor) ->
-            val (idFinalizador, moeda) = chave
-            Triple(idFinalizador, moeda, valor to paraPyg(valor, moeda, cotacao))
+            EntradaNegociacaoPersistencia(
+                idFinalizador = chave.first,
+                moeda = chave.second.name.lowercase(),
+                valor = valor,
+                valorPyg = paraPyg(valor, chave.second, cotacao),
+                idCaixaMovimentacao = chave.third,
+            )
         }
-        val soma = montado.sumOf { it.third.second }
+        val soma = montado.sumOf { it.valorPyg }
         if (abs(soma - totalPyg) > 1.0) {
             throw invalido("ENTRADA_NEGOCIACAO_DIVERGENTE", "A soma das formas de pagamento deve igualar o total")
         }
-        return montado.map { (idFinalizador, moeda, valores) ->
-            EntradaNegociacaoPersistencia(
-                idFinalizador = idFinalizador,
-                moeda = moeda.name.lowercase(),
-                valor = valores.first,
-                valorPyg = valores.second,
-            )
+        return montado
+    }
+
+    private suspend fun validarAdiantamentos(
+        linhas: List<EntradaNegociacaoPersistencia>,
+        idFilial: Long,
+        idFornecedor: Long,
+    ) {
+        val ja = mutableMapOf<Long, Double>()
+        for (linha in linhas) {
+            val idMov = linha.idCaixaMovimentacao ?: continue
+            val mov = caixaService.buscarAdiantamento(idMov)
+                ?: throw invalido("ADIANTAMENTO_INVALIDO", "O adiantamento não é uma sangria deste fornecedor")
+            if (mov.idFilial != idFilial || mov.idFornecedor != idFornecedor) {
+                throw invalido("ADIANTAMENTO_INVALIDO", "O adiantamento não é uma sangria deste fornecedor")
+            }
+            val moeda = Moeda.valueOf(linha.moeda.uppercase())
+            if (mov.idFinalizador != linha.idFinalizador || mov.moeda != moeda) {
+                throw invalido("ADIANTAMENTO_MOEDA", "O adiantamento não confere com a forma e a moeda da sangria")
+            }
+            val aberto = mov.valor - mov.valorUsado - (ja[idMov] ?: 0.0)
+            if (linha.valor > aberto + 0.009) {
+                throw invalido("ADIANTAMENTO_EXCEDIDO", "O valor passa do que ainda resta nessa sangria")
+            }
+            ja[idMov] = (ja[idMov] ?: 0.0) + linha.valor
         }
     }
 
@@ -395,6 +443,7 @@ class EntradaService(
                 moeda = it.moeda,
                 valor = it.valor,
                 valorPyg = it.valorPyg,
+                idCaixaMovimentacao = it.idCaixaMovimentacao,
             )
         },
     )

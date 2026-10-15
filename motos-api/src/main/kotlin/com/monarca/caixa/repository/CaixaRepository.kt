@@ -8,6 +8,7 @@ import com.monarca.caixa.domain.Finalizador
 import com.monarca.caixa.domain.TipoMovimentacaoCaixa
 import com.monarca.caixa.domain.ValorFinalizador
 import com.monarca.common.enums.Status
+import com.monarca.produto.domain.Moeda
 
 data class CaixaDetalhe(
     val caixa: Caixa,
@@ -28,6 +29,20 @@ data class MovimentacaoDetalhe(
     val usuarioNome: String,
     val finalizadorNomes: Map<Long, String>,
     val caixaNome: String = "",
+    val fornecedorNome: String? = null,
+)
+
+data class AdiantamentoAberto(
+    val id: Long,
+    val idFilial: Long,
+    val idFornecedor: Long,
+    val criadoEm: Long,
+    val observacao: String?,
+    val idFinalizador: Long,
+    val finalizadorNome: String,
+    val moeda: Moeda,
+    val valor: Double,
+    val valorUsado: Double,
 )
 
 interface CaixaRepository {
@@ -79,5 +94,9 @@ interface CaixaRepository {
         idUsuario: Long,
         valores: List<ValorFinalizador>,
         observacao: String?,
+        idFornecedor: Long?,
     )
+    suspend fun fornecedorNaFilial(idFornecedor: Long, idFilial: Long): Boolean
+    suspend fun listarAdiantamentos(idFilial: Long, idFornecedor: Long): List<AdiantamentoAberto>
+    suspend fun buscarAdiantamento(id: Long): AdiantamentoAberto?
 }

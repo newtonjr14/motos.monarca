@@ -100,6 +100,7 @@ data class LancamentoAvulsoRequest(
     val valor: Double,
     val moeda: Moeda = Moeda.PYG,
     val observacao: String? = null,
+    val idFornecedor: Long? = null,
 )
 
 @Serializable
@@ -132,5 +133,6 @@ data class CaixaMovimentacaoResponse(
     val criadoEm: Long,
     val observacao: String? = null,
     val caixaNome: String? = null,
+    val fornecedorNome: String? = null,
     val finalizadores: List<ValorFinalizadorResponse>,
 )

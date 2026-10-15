@@ -1,5 +1,6 @@
 package com.monarca.entrada.repository
 
+import com.monarca.caixa.repository.CaixaMovimentacoesTable
 import com.monarca.caixa.repository.CaixaSessoesTable
 import com.monarca.caixa.repository.FinalizadoresTable
 import com.monarca.cotacao.repository.CotacoesTable
@@ -58,4 +59,5 @@ object EntradaNegociacoesTable : LongIdTable("entrada_negociacao") {
     val moeda = varchar("moeda", 3)
     val valor = double("valor")
     val valorPyg = double("valor_pyg")
+    val idCaixaMovimentacao = optReference("id_caixa_movimentacao", CaixaMovimentacoesTable)
 }

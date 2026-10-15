@@ -910,6 +910,7 @@ export interface CaixaMovimentacao {
   criadoEm: number;
   observacao?: string | null;
   caixaNome?: string | null;
+  fornecedorNome?: string | null;
   finalizadores: ValorFinalizador[];
 }
 
@@ -1316,6 +1317,18 @@ export interface EntradaNegociacao {
   moeda: Moeda;
   valor: number;
   valorPyg: number;
+  idCaixaMovimentacao?: number | null;
+}
+
+export interface AdiantamentoFornecedor {
+  id: number;
+  criadoEm: number;
+  observacao?: string | null;
+  idFinalizador: number;
+  finalizadorNome: string;
+  moeda: Moeda;
+  valor: number;
+  valorAberto: number;
 }
 
 export interface Entrada extends EntradaResumo {
@@ -1345,6 +1358,10 @@ export const listarEntradas = (idFilial?: number) => {
 export const buscarEntrada = (id: number) => api<Entrada>(`/entradas/${id}`);
 export const criarEntrada = (body: unknown) =>
   api<Entrada>("/entradas", { method: "POST", body: JSON.stringify(body) });
+export const listarAdiantamentos = (idFilial: number | undefined, idFornecedor: number) => {
+  const filial = idFilial != null ? `&idFilial=${idFilial}` : "";
+  return api<AdiantamentoFornecedor[]>(`/entradas/adiantamentos?idFornecedor=${idFornecedor}${filial}`);
+};
 
 export interface SeedDemoStatus {
   habilitado?: boolean;

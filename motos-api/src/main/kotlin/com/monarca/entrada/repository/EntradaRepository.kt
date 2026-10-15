@@ -26,6 +26,7 @@ data class EntradaNegociacaoPersistencia(
     val moeda: String,
     val valor: Double,
     val valorPyg: Double,
+    val idCaixaMovimentacao: Long? = null,
 )
 
 data class EntradaNova(
@@ -79,6 +80,7 @@ data class EntradaNegociacaoCompleta(
     val moeda: Moeda,
     val valor: Double,
     val valorPyg: Double,
+    val idCaixaMovimentacao: Long? = null,
 )
 
 data class EntradaCompleta(

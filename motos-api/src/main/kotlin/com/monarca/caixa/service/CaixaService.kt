@@ -44,6 +44,11 @@ class CaixaService(
     suspend fun listarFinalizadores(): List<FinalizadorResponse> =
         repository.listarFinalizadores().map { it.toResponse() }
 
+    suspend fun listarAdiantamentos(idFilial: Long, idFornecedor: Long) =
+        repository.listarAdiantamentos(idFilial, idFornecedor)
+
+    suspend fun buscarAdiantamento(id: Long) = repository.buscarAdiantamento(id)
+
     suspend fun buscarFinalizador(id: Long): FinalizadorResponse =
         repository.buscarFinalizador(id)?.toResponse()
             ?: throw RecursoNaoEncontrado("Finalizador $id não encontrado")
@@ -314,6 +319,13 @@ class CaixaService(
                 ),
             ),
         )
+        val idFornecedor = request.idFornecedor
+        if (idFornecedor != null && tipo != TipoMovimentacaoCaixa.SANGRIA) {
+            throw invalido("CAIXA_ADIANTAMENTO_SUPRIMENTO", "Fornecedor só se informa na sangria")
+        }
+        if (idFornecedor != null && !repository.fornecedorNaFilial(idFornecedor, detalhe.idFilial)) {
+            throw invalido("FORNECEDOR_FILIAL", "O fornecedor não pertence a esta filial")
+        }
         if (tipo == TipoMovimentacaoCaixa.SANGRIA) {
             val saldo = detalhe.saldos
                 .firstOrNull { it.idFinalizador == request.idFinalizador && it.moeda == request.moeda }
@@ -328,6 +340,7 @@ class CaixaService(
             idUsuario = idUsuario,
             valores = valores,
             observacao = request.observacao?.trim()?.ifBlank { null },
+            idFornecedor = idFornecedor,
         )
         return listarMovimentacoes(idSessao, idUsuario).maxByOrNull { it.id }
             ?: throw RecursoNaoEncontrado("Movimentação não encontrada após o lançamento")
@@ -519,6 +532,7 @@ class CaixaService(
         criadoEm = movimento.criadoEm,
         observacao = movimento.observacao,
         caixaNome = caixaNome.ifBlank { null },
+        fornecedorNome = fornecedorNome,
         finalizadores = movimento.finalizadores.map {
             ValorFinalizadorResponse(
                 idFinalizador = it.idFinalizador,

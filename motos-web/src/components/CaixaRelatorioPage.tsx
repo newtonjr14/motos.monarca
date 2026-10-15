@@ -233,8 +233,9 @@ export default function CaixaRelatorioPage({ navReset }: { navReset: number }) {
         const venda = m.idVenda ? ` ${m.idVenda}` : "";
         const nome = f?.finalizadorNome?.trim() ?? "";
         const fin = nome ? ` · ${nome}` : "";
+        const forn = m.fornecedorNome?.trim() ? ` · ${m.fornecedorNome.trim()}` : "";
         const obs = m.observacao?.trim() ? ` · ${m.observacao.trim()}` : "";
-        const historico = `${tipo}${venda}${fin}${obs}`;
+        const historico = `${tipo}${venda}${fin}${forn}${obs}`;
         const valor = f ? formatMoeda(f.valor, f.moeda ?? "pyg") : "";
         saida.push({
           chave: `${m.id}-${i}`,

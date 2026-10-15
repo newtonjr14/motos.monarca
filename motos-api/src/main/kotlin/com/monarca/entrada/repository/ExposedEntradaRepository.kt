@@ -153,6 +153,7 @@ class ExposedEntradaRepository(
                 it[EntradaNegociacoesTable.moeda] = linha.moeda
                 it[EntradaNegociacoesTable.valor] = linha.valor
                 it[EntradaNegociacoesTable.valorPyg] = linha.valorPyg
+                it[EntradaNegociacoesTable.idCaixaMovimentacao] = linha.idCaixaMovimentacao
             }
         }
 
@@ -336,6 +337,7 @@ class ExposedEntradaRepository(
                     moeda = Moeda.valueOf(it[EntradaNegociacoesTable.moeda].uppercase()),
                     valor = it[EntradaNegociacoesTable.valor],
                     valorPyg = it[EntradaNegociacoesTable.valorPyg],
+                    idCaixaMovimentacao = it[EntradaNegociacoesTable.idCaixaMovimentacao]?.value,
                 )
             }
             .toList()

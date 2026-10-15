@@ -13,6 +13,12 @@ import com.monarca.caixa.domain.TipoMovimentacaoCaixa
 import com.monarca.caixa.domain.ValorFinalizador
 import com.monarca.common.enums.Status
 import com.monarca.empresa.repository.FiliaisTable
+import com.monarca.entrada.domain.StatusEntrada
+import com.monarca.entrada.repository.EntradaNegociacoesTable
+import com.monarca.entrada.repository.EntradasTable
+import com.monarca.pessoa.repository.FornecedorFilialTable
+import com.monarca.pessoa.repository.FornecedoresTable
+import com.monarca.pessoa.repository.PessoasTable
 import com.monarca.produto.domain.Moeda
 import com.monarca.usuario.repository.UsuarioFiliaisTable
 import com.monarca.usuario.repository.UsuariosTable
@@ -410,6 +416,7 @@ class ExposedCaixaRepository(
                 .toList()
         }
         val porMov = fins.groupBy { it[CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao].value }
+        val nomesForn = nomesFornecedores(movimentos.mapNotNull { it[CaixaMovimentacoesTable.idFornecedor]?.value })
         movimentos.map { row ->
             val id = row[CaixaMovimentacoesTable.id].value
             val linhas = porMov[id].orEmpty()
@@ -424,6 +431,7 @@ class ExposedCaixaRepository(
                     criadoEm = row[CaixaMovimentacoesTable.criadoEm],
                     observacao = row[CaixaMovimentacoesTable.observacao],
                     status = Status.valueOf(row[CaixaMovimentacoesTable.status].uppercase()),
+                    idFornecedor = row[CaixaMovimentacoesTable.idFornecedor]?.value,
                     finalizadores = linhas.map {
                         ValorFinalizador(
                             idFinalizador = it[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value,
@@ -437,6 +445,7 @@ class ExposedCaixaRepository(
                 finalizadorNomes = linhas.associate {
                     it[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value to it[FinalizadoresTable.nome]
                 },
+                fornecedorNome = row[CaixaMovimentacoesTable.idFornecedor]?.value?.let { nomesForn[it] },
             )
         }
     }
@@ -467,6 +476,7 @@ class ExposedCaixaRepository(
                 .toList()
         }
         val porMov = fins.groupBy { it[CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao].value }
+        val nomesForn = nomesFornecedores(movimentos.mapNotNull { it[CaixaMovimentacoesTable.idFornecedor]?.value })
         movimentos.map { row ->
             val id = row[CaixaMovimentacoesTable.id].value
             val linhas = porMov[id].orEmpty()
@@ -481,6 +491,7 @@ class ExposedCaixaRepository(
                     criadoEm = row[CaixaMovimentacoesTable.criadoEm],
                     observacao = row[CaixaMovimentacoesTable.observacao],
                     status = Status.valueOf(row[CaixaMovimentacoesTable.status].uppercase()),
+                    idFornecedor = row[CaixaMovimentacoesTable.idFornecedor]?.value,
                     finalizadores = linhas.map {
                         ValorFinalizador(
                             idFinalizador = it[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value,
@@ -495,6 +506,7 @@ class ExposedCaixaRepository(
                     it[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value to it[FinalizadoresTable.nome]
                 },
                 caixaNome = row[CaixasTable.nome],
+                fornecedorNome = row[CaixaMovimentacoesTable.idFornecedor]?.value?.let { nomesForn[it] },
             )
         }
     }
@@ -526,6 +538,7 @@ class ExposedCaixaRepository(
         idUsuario: Long,
         valores: List<ValorFinalizador>,
         observacao: String?,
+        idFornecedor: Long?,
     ) {
         suspendTransaction(database) {
             inserirMovimento(
@@ -534,9 +547,70 @@ class ExposedCaixaRepository(
                 idUsuario = idUsuario,
                 valores = valores,
                 observacao = observacao,
+                idFornecedor = idFornecedor,
             )
         }
     }
+
+    override suspend fun fornecedorNaFilial(idFornecedor: Long, idFilial: Long): Boolean = suspendTransaction(database) {
+        val row = FornecedoresTable.selectAll().where { FornecedoresTable.id eq idFornecedor }.singleOrNull()
+            ?: return@suspendTransaction false
+        if (row[FornecedoresTable.status] != Status.ATIVO.name.lowercase()) return@suspendTransaction false
+        if (row[FornecedoresTable.idFilialCadastro]?.value == idFilial) return@suspendTransaction true
+        FornecedorFilialTable.selectAll().where {
+            (FornecedorFilialTable.idFornecedor eq idFornecedor) and
+                (FornecedorFilialTable.idFilial eq idFilial) and
+                (FornecedorFilialTable.status eq Status.ATIVO.name.lowercase())
+        }.count() > 0
+    }
+
+    override suspend fun listarAdiantamentos(idFilial: Long, idFornecedor: Long): List<AdiantamentoAberto> =
+        suspendTransaction(database) {
+            val movimentos = CaixaMovimentacoesTable
+                .innerJoin(CaixaSessoesTable)
+                .innerJoin(CaixasTable)
+                .join(CaixaMovimentacaoFinalizadoresTable, JoinType.INNER, CaixaMovimentacoesTable.id, CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao)
+                .join(FinalizadoresTable, JoinType.INNER, CaixaMovimentacaoFinalizadoresTable.idFinalizador, FinalizadoresTable.id)
+                .selectAll()
+                .where {
+                    (CaixasTable.idFilial eq idFilial) and
+                        (CaixaMovimentacoesTable.idFornecedor eq idFornecedor) and
+                        (CaixaMovimentacoesTable.tipo eq TipoMovimentacaoCaixa.SANGRIA.name.lowercase()) and
+                        (CaixaMovimentacoesTable.status eq Status.ATIVO.name.lowercase())
+                }
+                .toList()
+            if (movimentos.isEmpty()) return@suspendTransaction emptyList()
+            val ids = movimentos.map { it[CaixaMovimentacoesTable.id].value }
+            val usados = EntradaNegociacoesTable
+                .innerJoin(EntradasTable)
+                .selectAll()
+                .where {
+                    (EntradaNegociacoesTable.idCaixaMovimentacao inList ids) and
+                        (EntradasTable.status neq StatusEntrada.CANCELADA.name.lowercase())
+                }
+                .toList()
+                .groupBy { it[EntradaNegociacoesTable.idCaixaMovimentacao]!!.value to it[EntradaNegociacoesTable.moeda] }
+            movimentos.map { row ->
+                val id = row[CaixaMovimentacoesTable.id].value
+                val moeda = row[CaixaMovimentacaoFinalizadoresTable.moeda]
+                val usado = usados[id to moeda].orEmpty().sumOf { it[EntradaNegociacoesTable.valor] }
+                AdiantamentoAberto(
+                    id = id,
+                    idFilial = row[CaixasTable.idFilial].value,
+                    idFornecedor = row[CaixaMovimentacoesTable.idFornecedor]!!.value,
+                    criadoEm = row[CaixaMovimentacoesTable.criadoEm],
+                    observacao = row[CaixaMovimentacoesTable.observacao],
+                    idFinalizador = row[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value,
+                    finalizadorNome = row[FinalizadoresTable.nome],
+                    moeda = Moeda.valueOf(moeda.uppercase()),
+                    valor = row[CaixaMovimentacaoFinalizadoresTable.valor],
+                    valorUsado = usado,
+                )
+            }
+        }
+
+    override suspend fun buscarAdiantamento(id: Long): AdiantamentoAberto? =
+        listarAdiantamentoPorId(id)
 
     private fun queryCaixas() = CaixasTable
         .innerJoin(FiliaisTable)
@@ -555,6 +629,7 @@ class ExposedCaixaRepository(
         observacao: String? = null,
         idVenda: Long? = null,
         idPar: Long? = null,
+        idFornecedor: Long? = null,
     ): Long {
         val inserted = CaixaMovimentacoesTable.insert {
             it[idCaixaSessao] = idSessao
@@ -562,6 +637,7 @@ class ExposedCaixaRepository(
             it[CaixaMovimentacoesTable.idUsuario] = idUsuario
             it[CaixaMovimentacoesTable.idVenda] = idVenda
             it[idMovimentacaoPar] = idPar
+            it[CaixaMovimentacoesTable.idFornecedor] = idFornecedor
             it[criadoEm] = System.currentTimeMillis()
             it[CaixaMovimentacoesTable.observacao] = observacao
             it[status] = Status.ATIVO.name.lowercase()
@@ -577,6 +653,54 @@ class ExposedCaixaRepository(
             }
         }
         return id
+    }
+
+    private suspend fun listarAdiantamentoPorId(id: Long): AdiantamentoAberto? = suspendTransaction(database) {
+        val movimentos = CaixaMovimentacoesTable
+            .innerJoin(CaixaSessoesTable)
+            .innerJoin(CaixasTable)
+            .join(CaixaMovimentacaoFinalizadoresTable, JoinType.INNER, CaixaMovimentacoesTable.id, CaixaMovimentacaoFinalizadoresTable.idCaixaMovimentacao)
+            .join(FinalizadoresTable, JoinType.INNER, CaixaMovimentacaoFinalizadoresTable.idFinalizador, FinalizadoresTable.id)
+            .selectAll()
+            .where {
+                (CaixaMovimentacoesTable.id eq id) and
+                    (CaixaMovimentacoesTable.tipo eq TipoMovimentacaoCaixa.SANGRIA.name.lowercase()) and
+                    (CaixaMovimentacoesTable.status eq Status.ATIVO.name.lowercase())
+            }
+            .toList()
+            .filter { it[CaixaMovimentacoesTable.idFornecedor] != null }
+        if (movimentos.isEmpty()) return@suspendTransaction null
+        val usados = EntradaNegociacoesTable
+            .innerJoin(EntradasTable)
+            .selectAll()
+            .where {
+                (EntradaNegociacoesTable.idCaixaMovimentacao eq id) and
+                    (EntradasTable.status neq StatusEntrada.CANCELADA.name.lowercase())
+            }
+            .toList()
+            .groupBy { it[EntradaNegociacoesTable.moeda] }
+        val row = movimentos.first()
+        val moeda = row[CaixaMovimentacaoFinalizadoresTable.moeda]
+        AdiantamentoAberto(
+            id = id,
+            idFilial = row[CaixasTable.idFilial].value,
+            idFornecedor = row[CaixaMovimentacoesTable.idFornecedor]!!.value,
+            criadoEm = row[CaixaMovimentacoesTable.criadoEm],
+            observacao = row[CaixaMovimentacoesTable.observacao],
+            idFinalizador = row[CaixaMovimentacaoFinalizadoresTable.idFinalizador].value,
+            finalizadorNome = row[FinalizadoresTable.nome],
+            moeda = Moeda.valueOf(moeda.uppercase()),
+            valor = row[CaixaMovimentacaoFinalizadoresTable.valor],
+            valorUsado = usados[moeda].orEmpty().sumOf { it[EntradaNegociacoesTable.valor] },
+        )
+    }
+
+    private suspend fun nomesFornecedores(ids: List<Long>): Map<Long, String> {
+        if (ids.isEmpty()) return emptyMap()
+        return FornecedoresTable.innerJoin(PessoasTable).selectAll()
+            .where { FornecedoresTable.id inList ids.distinct() }
+            .toList()
+            .associate { it[FornecedoresTable.id].value to it[PessoasTable.nomeRazaoSocial] }
     }
 
     private suspend fun saldosInterno(idSessao: Long): List<ValorFinalizador> {

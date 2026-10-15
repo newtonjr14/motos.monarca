@@ -1,6 +1,7 @@
 package com.monarca.caixa.repository
 
 import com.monarca.empresa.repository.FiliaisTable
+import com.monarca.pessoa.repository.FornecedoresTable
 import com.monarca.usuario.repository.UsuariosTable
 import com.monarca.venda.repository.VendasTable
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
@@ -52,6 +53,7 @@ object CaixaMovimentacoesTable : LongIdTable("caixa_movimentacao") {
     val idBaixaReceber = long("id_baixa_receber").nullable()
     val idBaixaPagar = long("id_baixa_pagar").nullable()
     val idEntrada = long("id_entrada").nullable()
+    val idFornecedor = optReference("id_fornecedor", FornecedoresTable)
     val idMovimentacaoPar = long("id_movimentacao_par").nullable()
     val criadoEm = long("criado_em")
     val observacao = varchar("observacao", 500).nullable()

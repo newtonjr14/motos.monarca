@@ -162,7 +162,10 @@ export default function EntradaFicha({
             <div className="space-y-2">
               {item.negociacao.map((n) => (
                 <div key={n.id} className="flex items-baseline justify-between gap-3">
-                  <p className="text-sm" style={{ color: v("--text") }}>{n.finalizadorNome}</p>
+                  <p className="text-sm" style={{ color: v("--text") }}>
+                    {n.finalizadorNome}
+                    {n.idCaixaMovimentacao != null ? ` · ${t("entrada.adiantamento.tag")}` : ""}
+                  </p>
                   <p className="text-sm font-mono" style={{ color: v("--text-sub") }}>{formatMoeda(n.valor, n.moeda)}</p>
                 </div>
               ))}

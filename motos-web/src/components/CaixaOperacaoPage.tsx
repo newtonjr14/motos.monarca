@@ -13,11 +13,13 @@ import {
   lancamentoAvulsoCaixa,
   listarCaixas,
   listarFinalizadores,
+  listarPapeis,
   transferirCaixa,
   type Caixa,
   type CaixaSessao,
   type Finalizador,
   type Moeda,
+  type Papel,
   type TipoMovimentacaoCaixa,
 } from "@/api";
 import { formatMoeda, slicePage } from "@/format";
@@ -101,6 +103,8 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
   const [idFinAvulso, setIdFinAvulso] = useState<number | "">("");
   const [moedaAvulsa, setMoedaAvulsa] = useState<Moeda>("pyg");
   const [valorAvulso, setValorAvulso] = useState("");
+  const [idFornecedorAvulso, setIdFornecedorAvulso] = useState<number | "">("");
+  const [fornecedores, setFornecedores] = useState<Papel[]>([]);
 
   const resetLista = useCallback(() => {
     setModo(null);
@@ -112,11 +116,13 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
   async function carregar() {
     try {
       setErro(null);
-      const [lista, fins] = await Promise.all([
+      const [lista, fins, pap] = await Promise.all([
         listarCaixas(idFilial, true),
         listarFinalizadores(),
+        listarPapeis("fornecedores", idFilial),
       ]);
       setCaixas(lista);
+      setFornecedores(pap);
       setFinalizadores(fins.filter((f) => f.status === "ativo"));
     } catch (e) {
       setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
@@ -180,6 +186,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
     setIdFinAvulso("");
     setMoedaAvulsa((filial?.moedaOperacao ?? "pyg") as Moeda);
     setValorAvulso("");
+    setIdFornecedorAvulso("");
     try {
       if (next === "abrir") {
         const fundos = finalizadores.filter((f) => f.fundoTroco);
@@ -302,6 +309,7 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
         moeda: moedaAvulsa,
         valor,
         observacao: observacao.trim() || null,
+        idFornecedor: tipoAvulso === "sangria" && idFornecedorAvulso !== "" ? idFornecedorAvulso : null,
       });
       setModo(null);
       await carregar();
@@ -396,11 +404,27 @@ export default function CaixaOperacaoPage({ navReset }: { navReset: number }) {
               {modo === "lancamento" ? (
                 <>
                   <Field label={t("caixa.lancamento.tipo")} required>
-                    <select className="field" value={tipoAvulso} onChange={(e) => setTipoAvulso(e.target.value as TipoAvulso)}>
+                    <select className="field" value={tipoAvulso} onChange={(e) => {
+                      const next = e.target.value as TipoAvulso;
+                      setTipoAvulso(next);
+                      if (next !== "sangria") setIdFornecedorAvulso("");
+                    }}>
                       <option value="suprimento">{t("caixa.lancamento.suprimento")}</option>
                       <option value="sangria">{t("caixa.lancamento.sangria")}</option>
                     </select>
                   </Field>
+                  {tipoAvulso === "sangria" && (
+                    <Field label={t("caixa.lancamento.fornecedor")}>
+                      <select className="field" value={idFornecedorAvulso === "" ? "" : String(idFornecedorAvulso)}
+                        onChange={(e) => setIdFornecedorAvulso(e.target.value ? Number(e.target.value) : "")}>
+                        <option value="">{t("common.select")}</option>
+                        {fornecedores.filter((c) => c.status === "ativo").map((c) => (
+                          <option key={c.id} value={c.id}>{c.pessoa.nomeRazaoSocial}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs mt-1" style={{ color: v("--text-muted") }}>{t("caixa.lancamento.fornecedorHint")}</p>
+                    </Field>
+                  )}
                   <Field label={t("nav.finalizadores")} required>
                     <select className="field" value={idFinAvulso} onChange={(e) => setIdFinAvulso(e.target.value ? Number(e.target.value) : "")}>
                       <option value="">{t("common.select")}</option>
