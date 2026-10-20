@@ -43,6 +43,7 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
   const [tipo, setTipo] = useState<TipoFinalizador>("dinheiro");
   const [geraReceber, setGeraReceber] = useState(false);
   const [geraPagar, setGeraPagar] = useState(false);
+  const [geraCredito, setGeraCredito] = useState(false);
   const [fundoTroco, setFundoTroco] = useState(false);
   const [permiteAvulso, setPermiteAvulso] = useState(false);
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
@@ -93,6 +94,7 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
     setTipo(tipoIni);
     setGeraReceber(item?.geraContasReceber ?? false);
     setGeraPagar(item?.geraContasPagar ?? false);
+    setGeraCredito(item?.geraCreditoCliente ?? false);
     setFundoTroco(item?.fundoTroco ?? (!item && tipoIni === "dinheiro"));
     setPermiteAvulso(item?.permiteLancamentoAvulso ?? (!item && tipoIni === "dinheiro"));
     setStatus(item?.status === "inativo" ? "inativo" : "ativo");
@@ -113,6 +115,7 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
         tipo,
         geraContasReceber: geraReceber,
         geraContasPagar: geraPagar,
+        geraCreditoCliente: geraCredito,
         fundoTroco,
         permiteLancamentoAvulso: permiteAvulso,
         status,
@@ -160,14 +163,29 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
           <Section title={t("finalizador.section.params")}>
             <Field label={t("finalizador.geraReceber")} hint={t("finalizador.geraReceberHint")}>
               <label className="field flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={geraReceber} onChange={(e) => setGeraReceber(e.target.checked)} />
+                <input type="checkbox" checked={geraReceber} onChange={(e) => {
+                  setGeraReceber(e.target.checked);
+                  if (e.target.checked) { setGeraPagar(false); setGeraCredito(false); }
+                }} />
                 <span className="text-sm" style={{ color: v("--text") }}>{geraReceber ? t("common.yes") : t("common.no")}</span>
               </label>
             </Field>
             <Field label={t("finalizador.geraPagar")} hint={t("finalizador.geraPagarHint")}>
               <label className="field flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={geraPagar} onChange={(e) => setGeraPagar(e.target.checked)} />
+                <input type="checkbox" checked={geraPagar} onChange={(e) => {
+                  setGeraPagar(e.target.checked);
+                  if (e.target.checked) { setGeraReceber(false); setGeraCredito(false); }
+                }} />
                 <span className="text-sm" style={{ color: v("--text") }}>{geraPagar ? t("common.yes") : t("common.no")}</span>
+              </label>
+            </Field>
+            <Field label={t("finalizador.geraCredito")} hint={t("finalizador.geraCreditoHint")}>
+              <label className="field flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={geraCredito} onChange={(e) => {
+                  setGeraCredito(e.target.checked);
+                  if (e.target.checked) { setGeraReceber(false); setGeraPagar(false); }
+                }} />
+                <span className="text-sm" style={{ color: v("--text") }}>{geraCredito ? t("common.yes") : t("common.no")}</span>
               </label>
             </Field>
             <Field label={t("finalizador.fundoTroco")} hint={t("finalizador.fundoTrocoHint")}>
@@ -242,6 +260,7 @@ export default function FinalizadoresPage({ navReset }: { navReset: number }) {
                     {e.permiteLancamentoAvulso && <Chip label={t("finalizador.chip.avulso")} />}
                     {e.geraContasReceber && <Chip label={t("finalizador.chip.receber")} />}
                     {e.geraContasPagar && <Chip label={t("finalizador.chip.pagar")} />}
+                    {e.geraCreditoCliente && <Chip label={t("finalizador.chip.credito")} />}
                   </div>
                 </td>
                 <td className="drive-td drive-td-status" onClick={(ev) => ev.stopPropagation()}>

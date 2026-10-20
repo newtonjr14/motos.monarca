@@ -78,6 +78,7 @@ class ExposedCaixaRepository(
             it[tipo] = item.tipo.name.lowercase()
             it[geraContasReceber] = item.geraContasReceber
             it[geraContasPagar] = item.geraContasPagar
+            it[geraCreditoCliente] = item.geraCreditoCliente
             it[fundoTroco] = item.fundoTroco
             it[permiteLancamentoAvulso] = item.permiteLancamentoAvulso
             it[status] = item.status.name.lowercase()
@@ -95,6 +96,7 @@ class ExposedCaixaRepository(
             it[tipo] = item.tipo.name.lowercase()
             it[geraContasReceber] = item.geraContasReceber
             it[geraContasPagar] = item.geraContasPagar
+            it[geraCreditoCliente] = item.geraCreditoCliente
             it[fundoTroco] = item.fundoTroco
             it[permiteLancamentoAvulso] = item.permiteLancamentoAvulso
             it[status] = item.status.name.lowercase()
@@ -727,6 +729,7 @@ class ExposedCaixaRepository(
                 TipoMovimentacaoCaixa.TRANSFERENCIA_SAIDA.name.lowercase(),
                 TipoMovimentacaoCaixa.PAGAMENTO.name.lowercase(),
                 TipoMovimentacaoCaixa.SANGRIA.name.lowercase(),
+                TipoMovimentacaoCaixa.DEVOLUCAO.name.lowercase(),
                 -> -1.0
                 else -> 1.0
             }
@@ -753,6 +756,7 @@ class ExposedCaixaRepository(
         tipo = TipoFinalizador.valueOf(this[FinalizadoresTable.tipo].uppercase()),
         geraContasReceber = this[FinalizadoresTable.geraContasReceber],
         geraContasPagar = this[FinalizadoresTable.geraContasPagar],
+        geraCreditoCliente = this[FinalizadoresTable.geraCreditoCliente],
         fundoTroco = this[FinalizadoresTable.fundoTroco],
         permiteLancamentoAvulso = this[FinalizadoresTable.permiteLancamentoAvulso],
         status = Status.valueOf(this[FinalizadoresTable.status].uppercase()),

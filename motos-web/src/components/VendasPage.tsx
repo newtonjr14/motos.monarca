@@ -5,6 +5,7 @@ import {
   criarVenda,
   finalizarVenda,
   listarVendas,
+  saldoCreditoCliente,
   listarCaixas,
   listarFinalizadores,
   listarPapeis,
@@ -241,6 +242,7 @@ function VendaForm({
   const caixaPadrao = caixas.find((c) => c.padrao) ?? (caixas.length === 1 ? caixas[0] : undefined);
   const sessaoPadrao = caixaPadrao?.sessaoAbertaId ?? null;
   const [idCliente, setIdCliente] = useState<number | "">("");
+  const [creditoSaldo, setCreditoSaldo] = useState<number | null>(null);
   const [idVendedor, setIdVendedor] = useState<number | "">(user?.id ?? "");
   const [vendedores, setVendedores] = useState<VendedorOpcao[]>([]);
   const [idSessao, setIdSessao] = useState<number | "">("");
@@ -662,6 +664,16 @@ function VendaForm({
       setErro(t("api.VENDA_CREDITO_UNICO"));
       return;
     }
+    if (fin?.geraCreditoCliente) {
+      const ja = pagamentos.reduce((soma, p) => {
+        const outro = finalizadores.find((f) => f.id === p.idFinalizador);
+        return outro?.geraCreditoCliente ? soma + Math.round(paraPyg(parseGs(p.valor), p.moeda, cotacao)) : soma;
+      }, 0);
+      if (pyg + ja > (creditoSaldo ?? 0) + 1) {
+        setErro(t("api.CREDITO_CLIENTE_INSUFICIENTE"));
+        return;
+      }
+    }
     if (fin?.tipo !== "dinheiro" && pyg > Math.max(0, falta) + toleranciaFechamentoPyg(cotacao)) {
       setErro(t("venda.payOver"));
       return;
@@ -785,6 +797,18 @@ function VendaForm({
       });
     return () => { cancel = true; };
   }, [modo, idCliente, idFilial, idsOrcamentos]);
+
+  useEffect(() => {
+    if (modo !== "venda" || idCliente === "") {
+      setCreditoSaldo(null);
+      return;
+    }
+    let cancel = false;
+    void saldoCreditoCliente(idFilial, idCliente)
+      .then((r) => { if (!cancel) setCreditoSaldo(r.saldoPyg); })
+      .catch(() => { if (!cancel) setCreditoSaldo(0); });
+    return () => { cancel = true; };
+  }, [modo, idCliente, idFilial]);
 
   useEffect(() => {
     if (retomarId == null) return;
@@ -1773,6 +1797,11 @@ function VendaForm({
                   }}
                 />
               </div>
+              {finDefinindo?.geraCreditoCliente && (
+                <p className="pdv-def-span text-xs" style={{ color: v("--text-sub") }}>
+                  {tf(t, "venda.creditoSaldo", { n: formatPyg(creditoSaldo ?? 0) })}
+                </p>
+              )}
               {defMoeda !== "pyg" && paraPyg(parseGs(defValor), defMoeda, cotacao) > 0 && (
                 <p className="pdv-def-span text-xs font-mono" style={{ color: v("--text-muted") }}>
                   {tf(t, "venda.equivalent", { n: formatPyg(paraPyg(parseGs(defValor), defMoeda, cotacao)) })}

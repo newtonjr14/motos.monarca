@@ -298,6 +298,9 @@ class EntradaService(
             if (fin.geraContasReceber) {
                 throw invalido("FINALIZADOR_RECEBER_NA_ENTRADA", "Não use finalizador de contas a receber na entrada")
             }
+            if (fin.geraCreditoCliente) {
+                throw invalido("FINALIZADOR_CREDITO_NA_ENTRADA", "Não use crédito do cliente na entrada")
+            }
             val chave = Triple(linha.idFinalizador, linha.moeda, linha.idCaixaMovimentacao)
             agrupado[chave] = (agrupado[chave] ?: 0.0) + linha.valor
         }

@@ -20,6 +20,15 @@ import { formatPyg, formatarDataHoraEpoch, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
+function AvisoFatura({ titulo, detalhe }: { titulo: string; detalhe: string }) {
+  return (
+    <div className="rounded-lg px-4 py-3" style={{ background: v("--card"), border: `1px solid ${v("--gold-border")}` }}>
+      <p className="text-sm font-medium" style={{ color: v("--gold") }}>{titulo}</p>
+      <p className="text-sm mt-1" style={{ color: v("--text-sub") }}>{detalhe}</p>
+    </div>
+  );
+}
+
 function estadoKey(estado: string): TranslationKey {
   return `factura.estado.${estado}` as TranslationKey;
 }
@@ -116,6 +125,7 @@ export default function FacturasPage({ navReset }: { navReset: number }) {
         <button type="button" className="text-sm" style={{ color: v("--gold") }} onClick={() => setFormAberto(false)}>
           ← {t("common.back")}
         </button>
+        <AvisoFatura titulo={t("factura.emBreve")} detalhe={t("factura.emBreveDetalhe")} />
         <form
           className="rounded-lg p-5 space-y-4"
           style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
@@ -163,6 +173,7 @@ export default function FacturasPage({ navReset }: { navReset: number }) {
   return (
     <div className="space-y-5">
       <CatalogHeader titulo={t("nav.facturas")} novoLabel={t("factura.emitir")} onNovo={abrirNovo} />
+      <AvisoFatura titulo={t("factura.emBreve")} detalhe={t("factura.emBreveDetalhe")} />
       {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
       <ListToolbar>
         <input

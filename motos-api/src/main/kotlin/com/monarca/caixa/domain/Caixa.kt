@@ -9,6 +9,7 @@ data class Finalizador(
     val tipo: TipoFinalizador,
     val geraContasReceber: Boolean = false,
     val geraContasPagar: Boolean = false,
+    val geraCreditoCliente: Boolean = false,
     val fundoTroco: Boolean = false,
     val permiteLancamentoAvulso: Boolean = false,
     val status: Status,

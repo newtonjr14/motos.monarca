@@ -418,12 +418,17 @@ class CaixaService(
         val nome = Texto.titleCase(request.nome.trim())
         if (nome.isEmpty()) throw invalido("FINALIZADOR_NOME_OBRIGATORIO", "O nome do finalizador é obrigatório")
         if (request.status == Status.DELETADO) throw invalido("USE_DELETE", "Use DELETE para marcar como deletado")
+        val flags = listOf(request.geraContasReceber, request.geraContasPagar, request.geraCreditoCliente).count { it }
+        if (flags > 1) {
+            throw invalido("FINALIZADOR_FLAG_EXCLUSIVA", "Use só uma flag: receber, pagar ou crédito do cliente")
+        }
         return Finalizador(
             id = id,
             nome = nome,
             tipo = request.tipo,
             geraContasReceber = request.geraContasReceber,
             geraContasPagar = request.geraContasPagar,
+            geraCreditoCliente = request.geraCreditoCliente,
             fundoTroco = request.fundoTroco,
             permiteLancamentoAvulso = request.permiteLancamentoAvulso,
             status = request.status,
@@ -491,6 +496,7 @@ class CaixaService(
         tipo = tipo,
         geraContasReceber = geraContasReceber,
         geraContasPagar = geraContasPagar,
+        geraCreditoCliente = geraCreditoCliente,
         fundoTroco = fundoTroco,
         permiteLancamentoAvulso = permiteLancamentoAvulso,
         status = status,

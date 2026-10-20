@@ -9,6 +9,7 @@ import com.monarca.cotacao.repository.CotacoesTable
 import com.monarca.caixa.repository.CaixaMovimentacoesTable
 import com.monarca.caixa.repository.FinalizadoresTable
 import com.monarca.common.enums.Status
+import com.monarca.devolucao.repository.ClienteCreditoTable
 import com.monarca.empresa.repository.FiliaisTable
 import com.monarca.estoque.repository.EstoqueProdutosTable
 import com.monarca.estoque.repository.EstoquesTable
@@ -88,6 +89,7 @@ class ExposedVendaRepository(
         idsOrcamentos: List<Long>,
         hoje: String,
         confirmarVencido: Boolean,
+        creditoClientePyg: Double,
     ): Long = suspendTransaction(database) {
         val agora = System.currentTimeMillis()
         val inserted = VendasTable.insert {
@@ -108,8 +110,10 @@ class ExposedVendaRepository(
         }
         val idVenda = inserted[VendasTable.id].value
         gravarCorpo(idVenda, idCaixaSessao, agora, itens, negociacao, negociacaoCaixa, tituloReceber, idUsuario, efetivar)
-        if (efetivar) consumirOrcamentos(idsOrcamentos, idVenda, idFilial, idCliente, hoje, confirmarVencido)
-        else sincronizarReserva(idVenda, idsOrcamentos, idFilial, idCliente)
+        if (efetivar) {
+            consumirOrcamentos(idsOrcamentos, idVenda, idFilial, idCliente, hoje, confirmarVencido)
+            consumirCreditoCliente(idFilial, idCliente, idVenda, creditoClientePyg, agora)
+        } else sincronizarReserva(idVenda, idsOrcamentos, idFilial, idCliente)
         gravarAuditLog("venda", idVenda.toString(), AuditAction.INSERT, newValues = """{"totalPyg":$totalPyg,"status":"$status"}""")
         idVenda
     }
@@ -186,6 +190,32 @@ class ExposedVendaRepository(
             it[VendasTable.idVendaGerada] = idVenda
         }
         if (n != desejados.size) throw invalido("ORCAMENTO_INDISPONIVEL", "Um dos orçamentos não está mais disponível")
+    }
+
+    private suspend fun consumirCreditoCliente(
+        idFilial: Long,
+        idCliente: Long,
+        idVenda: Long,
+        valorPyg: Double,
+        agora: Long,
+    ) {
+        if (valorPyg <= 0.5) return
+        val saldo = ClienteCreditoTable.selectAll().where {
+            (ClienteCreditoTable.idFilial eq idFilial) and
+                (ClienteCreditoTable.idCliente eq idCliente) and
+                (ClienteCreditoTable.status eq Status.ATIVO.name.lowercase())
+        }.toList().sumOf { it[ClienteCreditoTable.valorPyg] }
+        if (valorPyg > saldo + 1.0) {
+            throw invalido("CREDITO_CLIENTE_INSUFICIENTE", "O crédito do cliente não cobre este valor")
+        }
+        ClienteCreditoTable.insert {
+            it[ClienteCreditoTable.idFilial] = idFilial
+            it[ClienteCreditoTable.idCliente] = idCliente
+            it[ClienteCreditoTable.idVenda] = idVenda
+            it[ClienteCreditoTable.valorPyg] = -valorPyg
+            it[criadoEm] = agora
+            it[status] = Status.ATIVO.name.lowercase()
+        }
     }
 
     private suspend fun consumirOrcamentos(
@@ -381,6 +411,7 @@ class ExposedVendaRepository(
         confirmarVencido: Boolean,
         idFilial: Long,
         idCliente: Long,
+        creditoClientePyg: Double,
     ) = suspendTransaction(database) {
         val apagados = VendaItensTable.selectAll().where { VendaItensTable.idVenda eq idVenda }.map { it[VendaItensTable.id].value }.toList()
         if (apagados.isNotEmpty()) {
@@ -401,6 +432,7 @@ class ExposedVendaRepository(
         }
         gravarCorpo(idVenda, idCaixaSessao, agora, itens, negociacao, negociacaoCaixa, tituloReceber, idUsuario, true)
         consumirOrcamentos(idsOrcamentos, idVenda, idFilial, idCliente, hoje, confirmarVencido)
+        consumirCreditoCliente(idFilial, idCliente, idVenda, creditoClientePyg, agora)
         gravarAuditLog("venda", idVenda.toString(), AuditAction.UPDATE, newValues = """{"status":"finalizada","totalPyg":$totalPyg}""")
     }
 

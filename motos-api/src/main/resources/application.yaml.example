@@ -24,6 +24,7 @@ ktor:
       - com.monarca.venda.http.VendaRoutingKt.configureVenda
       - com.monarca.titulo.http.TituloRoutingKt.configureTitulo
       - com.monarca.entrada.http.EntradaRoutingKt.configureEntrada
+      - com.monarca.devolucao.http.DevolucaoRoutingKt.configureDevolucao
       - com.monarca.factura.http.FacturaRoutingKt.configureFactura
       - com.monarca.seed.http.SeedDemoRoutingKt.configureSeed
 

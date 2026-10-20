@@ -38,6 +38,7 @@ export type TranslationKey =
   | "relatorio.tipo.venda"
   | "relatorio.tipo.entrada"
   | "relatorio.tipo.ajuste"
+  | "relatorio.tipo.devolucao"
   | "relatorio.atraso"
   | "relatorio.saldoDepois"
   | "relatorio.anterior"
@@ -677,11 +678,38 @@ export type TranslationKey =
   | "nav.vendas"
   | "nav.orcamentos"
   | "nav.historico"
+  | "nav.devolucao"
+  | "devolucao.new"
+  | "devolucao.searchPlaceholder"
+  | "devolucao.pickSale"
+  | "devolucao.sold"
+  | "devolucao.returned"
+  | "devolucao.available"
+  | "devolucao.qty"
+  | "devolucao.chassis"
+  | "devolucao.empty"
+  | "devolucao.aberto"
+  | "devolucao.abate"
+  | "devolucao.excesso"
+  | "devolucao.tratamento"
+  | "devolucao.tratamento.credito"
+  | "devolucao.tratamento.ignorar"
+  | "devolucao.tratamento.caixa"
+  | "devolucao.tratamento.abater"
+  | "devolucao.ignorarConfirma"
+  | "devolucao.semCaixa"
+  | "devolucao.col.cliente"
+  | "devolucao.col.venda"
+  | "devolucao.col.valor"
+  | "devolucao.col.tratamento"
+  | "venda.creditoSaldo"
   | "nav.contasReceber"
   | "nav.contasPagar"
   | "nav.entradaNota"
   | "nav.facturas"
   | "factura.emitir"
+  | "factura.emBreve"
+  | "factura.emBreveDetalhe"
   | "factura.escolherVenda"
   | "factura.selecioneVenda"
   | "factura.semVendasElegiveis"
@@ -717,6 +745,9 @@ export type TranslationKey =
   | "finalizador.tipo.outro"
   | "finalizador.geraReceber"
   | "finalizador.geraReceberHint"
+  | "finalizador.geraCredito"
+  | "finalizador.geraCreditoHint"
+  | "finalizador.chip.credito"
   | "finalizador.geraPagar"
   | "finalizador.geraPagarHint"
   | "finalizador.fundoTroco"
@@ -797,6 +828,7 @@ export type TranslationKey =
   | "caixa.mov.transferencia_entrada"
   | "caixa.mov.suprimento"
   | "caixa.mov.sangria"
+  | "caixa.mov.devolucao"
   | "caixa.mov.recebimento"
   | "caixa.mov.pagamento"
   | "venda.new"
@@ -935,6 +967,11 @@ export type TranslationKey =
   | "entrada.searchPlaceholder"
   | "entrada.error.itens"
   | "entrada.error.pagamento"
+  | "entrada.itensEmpty"
+  | "entrada.error.produto"
+  | "entrada.error.valor"
+  | "entrada.error.qtd"
+  | "entrada.chassiRepetido"
   | "api.VENDA_CREDITO_UNICO"
   | "api.ENTRADA_CREDITO_UNICO"
   | "api.ADIANTAMENTO_INVALIDO"
@@ -1042,6 +1079,18 @@ export type TranslationKey =
   | "api.CAIXA_DESTINO_FECHADO"
   | "api.CAIXA_VALOR_INVALIDO"
   | "api.CAIXA_SALDO_INSUFICIENTE"
+  | "api.CREDITO_CLIENTE_INSUFICIENTE"
+  | "api.DEVOLUCAO_QTD"
+  | "api.DEVOLUCAO_CHASSI"
+  | "api.DEVOLUCAO_TRATAMENTO"
+  | "api.DEVOLUCAO_VENDA"
+  | "api.DEVOLUCAO_FILIAL"
+  | "api.DEVOLUCAO_ITEM"
+  | "api.DEVOLUCAO_ITENS"
+  | "api.DEVOLUCAO_CAIXA"
+  | "api.FINALIZADOR_FLAG_EXCLUSIVA"
+  | "api.FINALIZADOR_CREDITO_NA_ENTRADA"
+  | "api.CLIENTE_OBRIGATORIO"
   | "api.CAIXA_LANCAMENTO_TIPO"
   | "api.CAIXA_FINALIZADOR_INATIVO"
   | "api.CAIXA_FINALIZADOR_SEM_AVULSO"
@@ -1127,6 +1176,7 @@ const pt: Record<TranslationKey, string> = {
   "relatorio.tipo.venda": "Venda",
   "relatorio.tipo.entrada": "Entrada",
   "relatorio.tipo.ajuste": "Ajuste",
+  "relatorio.tipo.devolucao": "Devolução",
   "relatorio.atraso": "Atraso",
   "relatorio.saldoDepois": "Saldo depois",
   "relatorio.anterior": "Anterior",
@@ -1193,6 +1243,8 @@ const pt: Record<TranslationKey, string> = {
   "nav.entradaNota": "Entrada de nota",
   "nav.facturas": "Faturas",
   "factura.emitir": "Emitir fatura",
+  "factura.emBreve": "Fatura eletrônica em breve",
+  "factura.emBreveDetalhe": "A integração com a SUDTAX ainda não está ligada. A venda, o recibo e o caixa seguem valendo. O envio oficial da fatura entra numa próxima versão.",
   "factura.escolherVenda": "Venda",
   "factura.selecioneVenda": "Selecione uma venda…",
   "factura.semVendasElegiveis": "Não há vendas finalizadas sem fatura nesta filial.",
@@ -1224,6 +1276,31 @@ const pt: Record<TranslationKey, string> = {
   "nav.vendas": "Vendas",
   "nav.orcamentos": "Orçamento",
   "nav.historico": "Histórico",
+  "nav.devolucao": "Devolução",
+  "devolucao.new": "Nova devolução",
+  "devolucao.searchPlaceholder": "Cliente ou número da venda",
+  "devolucao.pickSale": "Venda",
+  "devolucao.sold": "Vendido",
+  "devolucao.returned": "Já devolvido",
+  "devolucao.available": "Disponível",
+  "devolucao.qty": "Devolver",
+  "devolucao.chassis": "Chassis que voltam",
+  "devolucao.empty": "Nenhuma devolução",
+  "devolucao.aberto": "Esta venda ainda tem Gs. {n} em aberto. A devolução abate esse saldo primeiro, da última parcela para a primeira.",
+  "devolucao.abate": "Abate do título",
+  "devolucao.excesso": "Já recebido",
+  "devolucao.tratamento": "O que fazer com o valor já recebido",
+  "devolucao.tratamento.credito": "Gerar crédito do cliente",
+  "devolucao.tratamento.ignorar": "Ignorar financeiro",
+  "devolucao.tratamento.caixa": "Sair do caixa",
+  "devolucao.tratamento.abater": "Só abateu o título",
+  "devolucao.ignorarConfirma": "Confirmo que o valor já recebido fica com a empresa e o produto volta ao estoque",
+  "devolucao.semCaixa": "Abra o caixa de hoje para devolver o dinheiro",
+  "devolucao.col.cliente": "Cliente",
+  "devolucao.col.venda": "Venda",
+  "devolucao.col.valor": "Valor",
+  "devolucao.col.tratamento": "Tratamento",
+  "venda.creditoSaldo": "Crédito do cliente: Gs. {n}",
   "nav.usuarios": "Usuários",
   "nav.paises": "Países",
   "nav.divisoes": "UFs / Departamentos",
@@ -1620,6 +1697,18 @@ const pt: Record<TranslationKey, string> = {
   "api.CAIXA_DESTINO_FECHADO": "Abra o caixa de destino antes de transferir",
   "api.CAIXA_VALOR_INVALIDO": "O valor não pode ser negativo",
   "api.CAIXA_SALDO_INSUFICIENTE": "Saldo insuficiente para transferir",
+  "api.CREDITO_CLIENTE_INSUFICIENTE": "O crédito do cliente não cobre este valor",
+  "api.DEVOLUCAO_QTD": "A quantidade devolve mais do que ainda está na venda",
+  "api.DEVOLUCAO_CHASSI": "Um chassi desta devolução já não está vendido",
+  "api.DEVOLUCAO_TRATAMENTO": "Escolha crédito, ignorar ou sair do caixa",
+  "api.DEVOLUCAO_VENDA": "Só uma venda finalizada pode ser devolvida",
+  "api.DEVOLUCAO_FILIAL": "A venda não é desta filial",
+  "api.DEVOLUCAO_ITEM": "O item não pertence a esta venda",
+  "api.DEVOLUCAO_ITENS": "Informe ao menos um item para devolver",
+  "api.DEVOLUCAO_CAIXA": "A saída do caixa usa uma forma que entra no caixa",
+  "api.FINALIZADOR_FLAG_EXCLUSIVA": "Use só uma flag: receber, pagar ou crédito do cliente",
+  "api.FINALIZADOR_CREDITO_NA_ENTRADA": "Não use crédito do cliente na entrada",
+  "api.CLIENTE_OBRIGATORIO": "Informe o cliente",
   "api.CAIXA_LANCAMENTO_TIPO": "Tipo de lançamento inválido",
   "api.CAIXA_FINALIZADOR_INATIVO": "O finalizador não está ativo",
   "api.CAIXA_FINALIZADOR_SEM_AVULSO": "Este finalizador não permite lançamento avulso",
@@ -1858,6 +1947,9 @@ const pt: Record<TranslationKey, string> = {
   "finalizador.tipo.outro": "Outro",
   "finalizador.geraReceber": "Gera contas a receber",
   "finalizador.geraReceberHint": "Na venda, esta forma abre o parcelamento e não entra no caixa na hora.",
+  "finalizador.geraCredito": "Gera crédito do cliente",
+  "finalizador.geraCreditoHint": "Na devolução cria saldo para o cliente. Na próxima venda consome esse saldo e não entra no caixa.",
+  "finalizador.chip.credito": "Crédito do cliente",
   "finalizador.geraPagar": "Gera contas a pagar",
   "finalizador.geraPagarHint": "Para nota de entrada futura. Não use na liquidação de parcela.",
   "finalizador.fundoTroco": "Fundo de troco / saldo de abertura",
@@ -1938,6 +2030,7 @@ const pt: Record<TranslationKey, string> = {
   "caixa.mov.transferencia_entrada": "Transferência (entrada)",
   "caixa.mov.suprimento": "Suprimento",
   "caixa.mov.sangria": "Sangria",
+  "caixa.mov.devolucao": "Devolução",
   "caixa.mov.recebimento": "Recebimento",
   "caixa.mov.pagamento": "Pagamento",
   "venda.new": "Nova venda",
@@ -2076,6 +2169,11 @@ const pt: Record<TranslationKey, string> = {
   "entrada.searchPlaceholder": "Fornecedor, documento...",
   "entrada.error.itens": "Informe ao menos um item",
   "entrada.error.pagamento": "Informe ao menos uma forma de pagamento",
+  "entrada.itensEmpty": "Nenhum item",
+  "entrada.error.produto": "Selecione o produto",
+  "entrada.error.valor": "Informe o valor unitário",
+  "entrada.error.qtd": "Informe a quantidade",
+  "entrada.chassiRepetido": "O chassi {chassi} já está em outro item",
   "api.VENDA_CREDITO_UNICO": "Use só uma forma a prazo por venda",
   "api.ENTRADA_CREDITO_UNICO": "Use só uma forma a prazo por entrada",
   "api.ADIANTAMENTO_INVALIDO": "O adiantamento não é uma sangria deste fornecedor",
@@ -2217,6 +2315,7 @@ const es: Record<TranslationKey, string> = {
   "relatorio.tipo.venda": "Venta",
   "relatorio.tipo.entrada": "Entrada",
   "relatorio.tipo.ajuste": "Ajuste",
+  "relatorio.tipo.devolucao": "Devolución",
   "relatorio.atraso": "Atraso",
   "relatorio.saldoDepois": "Saldo después",
   "relatorio.anterior": "Anterior",
@@ -2283,6 +2382,8 @@ const es: Record<TranslationKey, string> = {
   "nav.entradaNota": "Entrada de nota",
   "nav.facturas": "Facturas",
   "factura.emitir": "Emitir factura",
+  "factura.emBreve": "Factura electrónica en breve",
+  "factura.emBreveDetalhe": "La integración con SUDTAX todavía no está activa. La venta, el recibo y la caja siguen valiendo. El envío oficial de la factura entra en una próxima versión.",
   "factura.escolherVenda": "Venta",
   "factura.selecioneVenda": "Seleccione una venta…",
   "factura.semVendasElegiveis": "No hay ventas finalizadas sin factura en esta sucursal.",
@@ -2314,6 +2415,31 @@ const es: Record<TranslationKey, string> = {
   "nav.vendas": "Ventas",
   "nav.orcamentos": "Presupuesto",
   "nav.historico": "Historial",
+  "nav.devolucao": "Devolución",
+  "devolucao.new": "Nueva devolución",
+  "devolucao.searchPlaceholder": "Cliente o número de la venta",
+  "devolucao.pickSale": "Venta",
+  "devolucao.sold": "Vendido",
+  "devolucao.returned": "Ya devuelto",
+  "devolucao.available": "Disponible",
+  "devolucao.qty": "Devolver",
+  "devolucao.chassis": "Chasis que vuelven",
+  "devolucao.empty": "Ninguna devolución",
+  "devolucao.aberto": "Esta venta todavía tiene Gs. {n} abierto. La devolución descuenta ese saldo primero, de la última cuota a la primera.",
+  "devolucao.abate": "Descuento del título",
+  "devolucao.excesso": "Ya cobrado",
+  "devolucao.tratamento": "Qué hacer con el valor ya cobrado",
+  "devolucao.tratamento.credito": "Generar crédito del cliente",
+  "devolucao.tratamento.ignorar": "Ignorar finanzas",
+  "devolucao.tratamento.caixa": "Salir de la caja",
+  "devolucao.tratamento.abater": "Solo descontó el título",
+  "devolucao.ignorarConfirma": "Confirmo que el valor ya cobrado queda en la empresa y el producto vuelve al stock",
+  "devolucao.semCaixa": "Abra la caja de hoy para devolver el dinero",
+  "devolucao.col.cliente": "Cliente",
+  "devolucao.col.venda": "Venta",
+  "devolucao.col.valor": "Valor",
+  "devolucao.col.tratamento": "Tratamiento",
+  "venda.creditoSaldo": "Crédito del cliente: Gs. {n}",
   "nav.usuarios": "Usuarios",
   "nav.paises": "Países",
   "nav.divisoes": "UF / Departamentos",
@@ -2710,6 +2836,18 @@ const es: Record<TranslationKey, string> = {
   "api.CAIXA_DESTINO_FECHADO": "Abra la caja de destino antes de transferir",
   "api.CAIXA_VALOR_INVALIDO": "El valor no puede ser negativo",
   "api.CAIXA_SALDO_INSUFICIENTE": "Saldo insuficiente para transferir",
+  "api.CREDITO_CLIENTE_INSUFICIENTE": "El crédito del cliente no cubre este valor",
+  "api.DEVOLUCAO_QTD": "La cantidad devuelve más de lo que todavía está en la venta",
+  "api.DEVOLUCAO_CHASSI": "Un chasis de esta devolución ya no está vendido",
+  "api.DEVOLUCAO_TRATAMENTO": "Elija crédito, ignorar o salir de la caja",
+  "api.DEVOLUCAO_VENDA": "Solo una venta finalizada puede devolverse",
+  "api.DEVOLUCAO_FILIAL": "La venta no es de esta sucursal",
+  "api.DEVOLUCAO_ITEM": "El ítem no pertenece a esta venta",
+  "api.DEVOLUCAO_ITENS": "Indique al menos un ítem para devolver",
+  "api.DEVOLUCAO_CAIXA": "La salida de caja usa una forma que entra en caja",
+  "api.FINALIZADOR_FLAG_EXCLUSIVA": "Use solo una marca: cobrar, pagar o crédito del cliente",
+  "api.FINALIZADOR_CREDITO_NA_ENTRADA": "No use crédito del cliente en la entrada",
+  "api.CLIENTE_OBRIGATORIO": "Indique el cliente",
   "api.CAIXA_LANCAMENTO_TIPO": "Tipo de movimiento inválido",
   "api.CAIXA_FINALIZADOR_INATIVO": "El finalizador no está activo",
   "api.CAIXA_FINALIZADOR_SEM_AVULSO": "Este finalizador no permite movimiento manual",
@@ -2958,6 +3096,9 @@ const es: Record<TranslationKey, string> = {
   "finalizador.tipo.outro": "Otro",
   "finalizador.geraReceber": "Genera cuentas por cobrar",
   "finalizador.geraReceberHint": "En la venta, esta forma abre el plan de cuotas y no entra en caja al momento.",
+  "finalizador.geraCredito": "Genera crédito del cliente",
+  "finalizador.geraCreditoHint": "En la devolución crea saldo para el cliente. En la próxima venta consume ese saldo y no entra en caja.",
+  "finalizador.chip.credito": "Crédito del cliente",
   "finalizador.geraPagar": "Genera cuentas por pagar",
   "finalizador.geraPagarHint": "Para nota de entrada futura. No use al liquidar una cuota.",
   "finalizador.fundoTroco": "Fondo de cambio / saldo de apertura",
@@ -3038,6 +3179,7 @@ const es: Record<TranslationKey, string> = {
   "caixa.mov.transferencia_entrada": "Transferencia (entrada)",
   "caixa.mov.suprimento": "Suministro",
   "caixa.mov.sangria": "Sangría",
+  "caixa.mov.devolucao": "Devolución",
   "caixa.mov.recebimento": "Cobro",
   "caixa.mov.pagamento": "Pago",
   "venda.new": "Nueva venta",
@@ -3176,6 +3318,11 @@ const es: Record<TranslationKey, string> = {
   "entrada.searchPlaceholder": "Proveedor, documento...",
   "entrada.error.itens": "Indique al menos un ítem",
   "entrada.error.pagamento": "Indique al menos una forma de pago",
+  "entrada.itensEmpty": "Ningún ítem",
+  "entrada.error.produto": "Seleccione el producto",
+  "entrada.error.valor": "Indique el valor unitario",
+  "entrada.error.qtd": "Indique la cantidad",
+  "entrada.chassiRepetido": "El chasis {chassi} ya está en otro ítem",
   "api.VENDA_CREDITO_UNICO": "Use solo una forma a plazo por venta",
   "api.ENTRADA_CREDITO_UNICO": "Use solo una forma a plazo por entrada",
   "api.ADIANTAMENTO_INVALIDO": "El adelanto no es una sangría de este proveedor",

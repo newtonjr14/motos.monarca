@@ -23,7 +23,7 @@ const v = (name: string) => `var(${name})`;
 const ORDEM_MOEDA = ["pyg", "usd", "brl"];
 
 const ENTRADA = new Set<TipoMovimentacaoCaixa>(["venda", "recebimento", "suprimento", "transferencia_entrada"]);
-const SAIDA = new Set<TipoMovimentacaoCaixa>(["pagamento", "sangria", "transferencia_saida"]);
+const SAIDA = new Set<TipoMovimentacaoCaixa>(["pagamento", "sangria", "transferencia_saida", "devolucao"]);
 
 type LinhaMov = {
   chave: string;

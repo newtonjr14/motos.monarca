@@ -12,6 +12,7 @@ import com.monarca.localidade.service.localidadeModule
 import com.monarca.pessoa.service.pessoaModule
 import com.monarca.produto.service.produtoModule
 import com.monarca.seed.service.seedModule
+import com.monarca.devolucao.service.devolucaoModule
 import com.monarca.entrada.service.entradaModule
 import com.monarca.factura.service.facturaModule
 import com.monarca.factura.service.sudtaxConfig
@@ -84,6 +85,7 @@ fun Application.configureKoin() {
             vendaModule,
             tituloModule,
             entradaModule,
+            devolucaoModule,
             facturaModule,
             seedModule,
         )

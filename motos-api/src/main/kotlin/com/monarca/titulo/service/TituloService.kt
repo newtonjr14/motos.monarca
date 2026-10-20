@@ -145,7 +145,7 @@ class TituloService(
             }
         }
         val finalizador = caixaService.buscarFinalizador(request.idFinalizador)
-        if (finalizador.geraContasReceber || finalizador.geraContasPagar) {
+        if (finalizador.geraContasReceber || finalizador.geraContasPagar || finalizador.geraCreditoCliente) {
             throw invalido("FINALIZADOR_NAO_LIQUIDA", "Use uma forma de caixa para liquidar a parcela")
         }
         if (finalizador.status != Status.ATIVO) {
@@ -256,7 +256,7 @@ class TituloService(
             }
         }
         val finalizador = caixaService.buscarFinalizador(request.idFinalizador)
-        if (finalizador.geraContasReceber || finalizador.geraContasPagar) {
+        if (finalizador.geraContasReceber || finalizador.geraContasPagar || finalizador.geraCreditoCliente) {
             throw invalido("FINALIZADOR_NAO_LIQUIDA", "Use uma forma de caixa para liquidar a parcela")
         }
         if (finalizador.status != Status.ATIVO) {

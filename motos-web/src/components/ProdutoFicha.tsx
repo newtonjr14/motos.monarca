@@ -436,7 +436,7 @@ export default function ProdutoFicha({
                             </td>
                             <td className="drive-td" style={{ color: v("--text") }}>{m.estoqueNome}</td>
                             <td className="drive-td" style={{ color: v("--text-sub") }}>
-                              {t(m.tipo === "venda" ? "relatorio.tipo.venda" : m.tipo === "entrada" ? "relatorio.tipo.entrada" : "relatorio.tipo.ajuste")}
+                              {t(m.tipo === "venda" ? "relatorio.tipo.venda" : m.tipo === "entrada" ? "relatorio.tipo.entrada" : m.tipo === "devolucao" ? "relatorio.tipo.devolucao" : "relatorio.tipo.ajuste")}
                             </td>
                             <td className="drive-td font-mono" style={{ color: v("--text-sub") }}>{p.anterior}</td>
                             <td className="drive-td font-mono" style={{ color: p.entrada > 0 ? "#16a34a" : v("--text-muted") }}>{p.entrada}</td>

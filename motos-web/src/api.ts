@@ -849,7 +849,8 @@ export type TipoMovimentacaoCaixa =
   | "transferencia_saida"
   | "transferencia_entrada"
   | "suprimento"
-  | "sangria";
+  | "sangria"
+  | "devolucao";
 export type StatusSessaoCaixa = "aberto" | "fechado";
 export type StatusVenda = "finalizada" | "cancelada" | "aberta" | "orcamento" | "utilizada";
 
@@ -859,6 +860,7 @@ export interface Finalizador {
   tipo: TipoFinalizador;
   geraContasReceber?: boolean;
   geraContasPagar?: boolean;
+  geraCreditoCliente?: boolean;
   fundoTroco?: boolean;
   permiteLancamentoAvulso?: boolean;
   status: Status;
@@ -1024,6 +1026,63 @@ export interface VendedorOpcao {
   id: number;
   nome: string;
 }
+
+export interface DevolucaoItemDisponivel {
+  idVendaItem: number;
+  produtoCodigo: string;
+  produtoNome: string;
+  controlaChassi: boolean;
+  quantidadeVendida: number;
+  quantidadeDevolvida: number;
+  quantidadeDisponivel: number;
+  totalPyg: number;
+  chassis: { id: number; numero: string }[];
+}
+
+export interface DevolucaoPreview {
+  idVenda: number;
+  idCliente: number;
+  clienteNome: string;
+  totalPyg: number;
+  abertoPyg: number;
+  usdPyg: number;
+  brlPyg: number;
+  itens: DevolucaoItemDisponivel[];
+}
+
+export interface DevolucaoItem {
+  id: number;
+  produtoCodigo: string;
+  produtoNome: string;
+  quantidade: number;
+  valorPyg: number;
+  chassis: string[];
+}
+
+export interface Devolucao {
+  id: number;
+  idVenda: number;
+  clienteNome: string;
+  valorPyg: number;
+  abatidoPyg: number;
+  excessoPyg: number;
+  tratamento: string;
+  criadoEm: number;
+  itens: DevolucaoItem[];
+}
+
+export const listarDevolucoes = (idFilial?: number) => {
+  const q = idFilial != null ? `?idFilial=${idFilial}` : "";
+  return api<Devolucao[]>(`/devolucoes${q}`);
+};
+export const buscarDevolucao = (id: number) => api<Devolucao>(`/devolucoes/${id}`);
+export const previewDevolucao = (idVenda: number) => api<DevolucaoPreview>(`/devolucoes/venda/${idVenda}`);
+export const saldoCreditoCliente = (idFilial: number | undefined, idCliente: number) => {
+  const filial = idFilial != null ? `idFilial=${idFilial}&` : "";
+  return api<{ saldoPyg: number }>(`/devolucoes/credito?${filial}idCliente=${idCliente}`);
+};
+export const criarDevolucao = (body: unknown) =>
+  api<Devolucao>("/devolucoes", { method: "POST", body: JSON.stringify(body) });
 
 export const listarVendas = (idFilial?: number) => {
   const q = idFilial != null ? `?idFilial=${idFilial}` : "";

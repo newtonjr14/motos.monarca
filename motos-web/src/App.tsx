@@ -12,6 +12,7 @@ import FinalizadoresPage from "@/components/FinalizadoresPage";
 import CaixasPage from "@/components/CaixasPage";
 import CaixaOperacaoPage from "@/components/CaixaOperacaoPage";
 import VendasPage from "@/components/VendasPage";
+import DevolucaoPage from "@/components/DevolucaoPage";
 import HistoricoVendasPage from "@/components/HistoricoVendasPage";
 import RelatoriosPage from "@/components/RelatoriosPage";
 import CaixaRelatorioPage from "@/components/CaixaRelatorioPage";
@@ -214,6 +215,7 @@ const Icon = {
   vendas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>,
   orcamentos: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>,
   historico: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  devolucao: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>,
   facturas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></svg>,
   entradaNota: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>,
   contas: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/></svg>,
@@ -230,7 +232,7 @@ const Icon = {
   more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "vendas" | "orcamentos" | "historico" | "relatorioReceber" | "relatorioPagar" | "relatorioVendas" | "relatorioEstoque" | "relatorioCaixa" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "vendas" | "orcamentos" | "historico" | "devolucao" | "relatorioReceber" | "relatorioPagar" | "relatorioVendas" | "relatorioEstoque" | "relatorioCaixa" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 type NavPermissao = string | readonly string[];
 type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: NavPermissao };
@@ -289,6 +291,7 @@ const navGrupos: NavGrupo[] = [
       { id: "vendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
       { id: "orcamentos", label: "Orçamento", icon: "orcamentos", permissao: Permissao.VENDA_REGISTRAR },
       { id: "historico", label: "Histórico", icon: "historico", permissao: Permissao.VENDA_REGISTRAR },
+      { id: "devolucao", label: "Devolução", icon: "devolucao", permissao: Permissao.VENDA_REGISTRAR },
       { id: "facturas", label: "Faturas", icon: "facturas", permissao: Permissao.VENDA_REGISTRAR },
     ],
   },
@@ -2935,6 +2938,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
     vendas: t("nav.vendas"),
     orcamentos: t("nav.orcamentos"),
     historico: t("nav.historico"),
+    devolucao: t("nav.devolucao"),
     relatorioReceber: t("nav.relatorioReceber"),
     relatorioPagar: t("nav.relatorioPagar"),
     relatorioVendas: t("nav.relatorioVendas"),
@@ -3019,6 +3023,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
               onOrcamentosCarregados={() => {}}
             />
           )}
+          {view === "devolucao" && <DevolucaoPage navReset={navReset} />}
           {view === "historico" && (
             <HistoricoVendasPage
               navReset={navReset}

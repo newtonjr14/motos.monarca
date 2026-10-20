@@ -123,7 +123,12 @@ class VendaService(
         }
         val finais = caixaService.listarFinalizadores().associateBy { it.id }
         val credito = negociacao.filter { finais[it.idFinalizador]?.geraContasReceber == true }
-        val vista = negociacao.filter { finais[it.idFinalizador]?.geraContasReceber != true }
+        val creditoCliente = negociacao.filter { finais[it.idFinalizador]?.geraCreditoCliente == true }
+        val vista = negociacao.filter {
+            val fin = finais[it.idFinalizador]
+            fin?.geraContasReceber != true && fin?.geraCreditoCliente != true
+        }
+        val creditoClientePyg = if (efetivar) creditoCliente.sumOf { it.valorPyg } else 0.0
         if (credito.size > 1) {
             throw invalido("VENDA_CREDITO_UNICO", "Use só uma forma a prazo por venda")
         }
@@ -212,6 +217,7 @@ class VendaService(
             idsOrcamentos = if (efetivar) request.idsOrcamentos.distinct() else emptyList(),
             hoje = hoje,
             confirmarVencido = request.confirmarVencido,
+            creditoClientePyg = creditoClientePyg,
         )
         return buscar(id, idUsuario)
         }
@@ -234,6 +240,7 @@ class VendaService(
             confirmarVencido = request.confirmarVencido,
             idFilial = idFilial,
             idCliente = request.idCliente,
+            creditoClientePyg = creditoClientePyg,
         )
         return buscar(idExistente, idUsuario)
     }

@@ -83,6 +83,7 @@ interface VendaRepository {
         idsOrcamentos: List<Long>,
         hoje: String,
         confirmarVencido: Boolean,
+        creditoClientePyg: Double = 0.0,
     ): Long
 
     suspend fun cancelar(id: Long)
@@ -119,5 +120,6 @@ interface VendaRepository {
         confirmarVencido: Boolean,
         idFilial: Long,
         idCliente: Long,
+        creditoClientePyg: Double = 0.0,
     )
 }

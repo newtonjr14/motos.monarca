@@ -33,13 +33,29 @@ import {
   type Produto,
   type TipoDocumentoEntrada,
 } from "@/api";
-import { dePyg, formatMoeda, formatPyg, formatarDataEpoch, formatarDataIso, MOEDAS, paraPyg, quitaSaldoNaMoeda, slicePage, toleranciaFechamentoPyg } from "@/format";
+import { CHASSI_MAXIMO, dePyg, expandirNumerosChassi, formatMoeda, formatPyg, formatarDataEpoch, formatarDataIso, MOEDAS, paraPyg, quitaSaldoNaMoeda, slicePage, toleranciaFechamentoPyg } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 const border1 = () => `1px solid ${v("--border")}`;
 
 function parseValor(valor: string): number {
   return Number(valor.replace(",", ".")) || 0;
+}
+
+function chassisDaLinha(texto: string): { numeros: string[]; erro?: "CHASSI_INTERVALO_INVALIDO" | "CHASSI_INTERVALO_GRANDE" | "CHASSI_DUPLICADO"; duplicado?: string } {
+  const exp = expandirNumerosChassi(texto);
+  if (!exp.ok) return { numeros: [], erro: exp.codigo };
+  const seen = new Set<string>();
+  for (const n of exp.numeros) {
+    if (seen.has(n)) return { numeros: exp.numeros, erro: "CHASSI_DUPLICADO", duplicado: n };
+    seen.add(n);
+  }
+  return { numeros: exp.numeros };
+}
+
+function resumoChassis(numeros: string[]): string {
+  if (numeros.length <= 1) return numeros[0] ?? "";
+  return `${numeros[0]} → ${numeros[numeros.length - 1]}`;
 }
 
 function formatarValorMoeda(pyg: number, moeda: Moeda, cotacao: Cotacao | null): string {
@@ -129,7 +145,16 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
   const [cdc, setCdc] = useState("");
   const [numeroDocumento, setNumeroDocumento] = useState("");
   const [incoterm, setIncoterm] = useState("FOB");
-  const [itens, setItens] = useState<ItemDraft[]>([{ key: "1", idProduto: "", quantidade: "1", valorUnitario: "", chassisTexto: "" }]);
+  const [itens, setItens] = useState<ItemDraft[]>([]);
+  const [itemAberto, setItemAberto] = useState(false);
+  const [itemEditKey, setItemEditKey] = useState<string | null>(null);
+  const [itemProduto, setItemProduto] = useState<number | "">("");
+  const [itemValor, setItemValor] = useState("");
+  const [itemQtd, setItemQtd] = useState("1");
+  const [itemChassis, setItemChassis] = useState("");
+  const [listaProduto, setListaProduto] = useState(false);
+  const [buscaProduto, setBuscaProduto] = useState("");
+  const [itemErro, setItemErro] = useState<string | null>(null);
   const [pagamentos, setPagamentos] = useState<PagDraft[]>([]);
   const [definindo, setDefinindo] = useState(false);
   const [defId, setDefId] = useState<number | "">("");
@@ -164,7 +189,7 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
       setItensLista(ents);
       setFornecedores(pap);
       setProdutos(prods.filter((p) => p.status === "ativo"));
-      setFinalizadores(fins.filter((f) => f.status === "ativo" && !f.geraContasReceber));
+      setFinalizadores(fins.filter((f) => f.status === "ativo" && !f.geraContasReceber && !f.geraCreditoCliente));
       setCaixas(cxs);
     } catch (e) {
       setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
@@ -196,6 +221,18 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [definindo, listaFinalizador]);
 
+  useEffect(() => {
+    if (!itemAberto) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape" || listaProduto) return;
+      e.preventDefault();
+      setItemAberto(false);
+      setItemErro(null);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [itemAberto, listaProduto]);
+
   const filtered = itensLista.filter((e) =>
     `${e.fornecedorNome} ${e.documentoLabel} ${e.tipoDocumento}`.toLowerCase().includes(search.toLowerCase()));
   const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => {
@@ -224,7 +261,8 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
     setCdc("");
     setNumeroDocumento("");
     setIncoterm("FOB");
-    setItens([{ key: String(Date.now()), idProduto: "", quantidade: "1", valorUnitario: "", chassisTexto: "" }]);
+    setItens([]);
+    setItemAberto(false);
     setPagamentos([]);
     setQtdParcelas("1");
     setModoVencimento("intervalo_30");
@@ -250,7 +288,7 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
     const prod = item.idProduto === "" ? null : produtoMap.get(item.idProduto);
     const unit = parseValor(item.valorUnitario);
     const qtd = prod?.controlaChassi
-      ? item.chassisTexto.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean).length
+      ? chassisDaLinha(item.chassisTexto).numeros.length
       : (Number.parseInt(item.quantidade, 10) || 0);
     return unit * qtd;
   }
@@ -261,6 +299,83 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
   const falta = totalPyg - pagoPyg;
   const tolerancia = toleranciaFechamentoPyg(cotacao);
   const quitado = totalPyg > 0 && falta <= tolerancia;
+  const prodItem = itemProduto === "" ? null : produtoMap.get(itemProduto) ?? null;
+  const loteItem = prodItem?.controlaChassi ? chassisDaLinha(itemChassis) : null;
+  const erroLote = loteItem ? mensagemChassis(loteItem) : null;
+
+  function abrirItem(item?: ItemDraft) {
+    setItemEditKey(item?.key ?? null);
+    setItemProduto(item?.idProduto ?? "");
+    setItemValor(item?.valorUnitario ?? "");
+    setItemQtd(item?.quantidade || "1");
+    setItemChassis(item?.chassisTexto ?? "");
+    setBuscaProduto("");
+    setListaProduto(false);
+    setItemErro(null);
+    setItemAberto(true);
+  }
+
+  function mensagemChassis(lote: ReturnType<typeof chassisDaLinha>): string | null {
+    if (lote.erro === "CHASSI_INTERVALO_GRANDE") return tf(t, "api.CHASSI_INTERVALO_GRANDE", { max: String(CHASSI_MAXIMO) });
+    if (lote.erro === "CHASSI_INTERVALO_INVALIDO") return t("produto.error.chassiIntervalo");
+    if (lote.erro === "CHASSI_DUPLICADO") return tf(t, "api.CHASSI_DUPLICADO", { chassi: lote.duplicado ?? "" });
+    return null;
+  }
+
+  function confirmarItem() {
+    if (itemProduto === "") {
+      setItemErro(t("entrada.error.produto"));
+      return;
+    }
+    const prod = produtoMap.get(itemProduto);
+    const unit = parseValor(itemValor);
+    if (unit <= 0) {
+      setItemErro(t("entrada.error.valor"));
+      return;
+    }
+    let chassisTexto = "";
+    let quantidade = "1";
+    if (prod?.controlaChassi) {
+      const lote = chassisDaLinha(itemChassis);
+      const msg = mensagemChassis(lote);
+      if (msg) {
+        setItemErro(msg);
+        return;
+      }
+      if (lote.numeros.length === 0) {
+        setItemErro(t("api.UNIDADE_OBRIGATORIA"));
+        return;
+      }
+      const outros = itens
+        .filter((i) => i.key !== itemEditKey)
+        .flatMap((i) => chassisDaLinha(i.chassisTexto).numeros);
+      const repetido = lote.numeros.find((n) => outros.includes(n));
+      if (repetido) {
+        setItemErro(tf(t, "entrada.chassiRepetido", { chassi: repetido }));
+        return;
+      }
+      chassisTexto = itemChassis.trim().toUpperCase();
+    } else {
+      const qtd = Number.parseInt(itemQtd, 10) || 0;
+      if (qtd <= 0) {
+        setItemErro(t("entrada.error.qtd"));
+        return;
+      }
+      quantidade = String(qtd);
+    }
+    const linha: ItemDraft = {
+      key: itemEditKey ?? String(Date.now()),
+      idProduto: itemProduto,
+      quantidade,
+      valorUnitario: itemValor.trim(),
+      chassisTexto,
+    };
+    setItens((atual) => itemEditKey
+      ? atual.map((i) => i.key === itemEditKey ? linha : i)
+      : [...atual, linha]);
+    setItemAberto(false);
+    setItemErro(null);
+  }
 
   function abrirDefinir() {
     const rest = Math.max(0, falta);
@@ -498,55 +613,55 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
           </Section>
 
           <Section title={t("entrada.itens")}>
-            <div className="space-y-3">
-              {itens.map((item, idx) => {
-                const prod = item.idProduto === "" ? null : produtoMap.get(item.idProduto);
-                return (
-                  <div key={item.key} className="rounded-md p-3 space-y-2" style={{ background: v("--card2"), border: `1px solid ${v("--border")}` }}>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Field label={t("nav.produtos")} required>
-                        <select className="field" value={item.idProduto === "" ? "" : String(item.idProduto)}
-                          onChange={(e) => {
-                            const id = e.target.value ? Number(e.target.value) : "";
-                            setItens((prev) => prev.map((x, i) => i === idx ? { ...x, idProduto: id } : x));
-                          }}>
-                          <option value="">{t("common.select")}</option>
-                          {produtos.map((p) => (
-                            <option key={p.id} value={p.id}>{p.codigo} — {p.nome}</option>
-                          ))}
-                        </select>
-                      </Field>
-                      <Field label={t("entrada.valorUnitario")} required>
-                        <input className="field font-mono" value={item.valorUnitario}
-                          onChange={(e) => setItens((prev) => prev.map((x, i) => i === idx ? { ...x, valorUnitario: e.target.value } : x))} />
-                      </Field>
-                    </div>
-                    {prod?.controlaChassi ? (
-                      <Field label={t("entrada.chassisHint")} required>
-                        <textarea className="field font-mono min-h-[72px]" value={item.chassisTexto}
-                          placeholder="HD5…647~HD5…696"
-                          onChange={(e) => setItens((prev) => prev.map((x, i) => i === idx ? { ...x, chassisTexto: e.target.value } : x))} />
-                      </Field>
-                    ) : (
-                      <Field label={t("venda.qty")} required>
-                        <input className="field" value={item.quantidade}
-                          onChange={(e) => setItens((prev) => prev.map((x, i) => i === idx ? { ...x, quantidade: e.target.value.replace(/\D/g, "") } : x))} />
-                      </Field>
-                    )}
-                    {itens.length > 1 && (
-                      <button type="button" className="text-xs cursor-pointer" style={{ color: v("--danger") }}
-                        onClick={() => setItens((prev) => prev.filter((_, i) => i !== idx))}>
-                        {t("common.delete")}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-              <button type="button" className="btn-ghost px-3 py-1.5 text-sm"
-                onClick={() => setItens((prev) => [...prev, { key: String(Date.now()), idProduto: "", quantidade: "1", valorUnitario: "", chassisTexto: "" }])}>
-                + {t("entrada.addItem")}
-              </button>
-            </div>
+            {itens.length === 0 ? (
+              <p className="text-sm py-4 text-center" style={{ color: v("--text-muted") }}>{t("entrada.itensEmpty")}</p>
+            ) : (
+              <div className="rounded-md overflow-hidden" style={{ border: `1px solid ${v("--border")}` }}>
+                <table className="drive-table w-full">
+                  <thead>
+                    <tr>
+                      <th className="drive-th">{t("nav.produtos")}</th>
+                      <th className="drive-th drive-th-right">{t("venda.qty")}</th>
+                      <th className="drive-th drive-th-right">{t("entrada.valorUnitario")}</th>
+                      <th className="drive-th drive-th-right">{t("entrada.total")}</th>
+                      <th className="drive-th w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {itens.map((item) => {
+                      const prod = item.idProduto === "" ? null : produtoMap.get(item.idProduto);
+                      const lote = prod?.controlaChassi ? chassisDaLinha(item.chassisTexto) : null;
+                      const qtd = lote ? lote.numeros.length : (Number.parseInt(item.quantidade, 10) || 0);
+                      return (
+                        <tr key={item.key} className="drive-row-clickable" onClick={() => abrirItem(item)}>
+                          <td className="drive-td">
+                            <p className="text-sm" style={{ color: v("--text") }}>{prod ? `${prod.codigo} — ${prod.nome}` : ""}</p>
+                            {lote && lote.numeros.length > 0 && (
+                              <p className="text-[11px] font-mono" style={{ color: v("--text-muted") }}>
+                                {resumoChassis(lote.numeros)}
+                                {lote.numeros.length > 1 ? ` · ${tf(t, "produto.chassiCount", { n: String(lote.numeros.length) })}` : ""}
+                              </p>
+                            )}
+                          </td>
+                          <Td mono right>{qtd}</Td>
+                          <Td mono right>{formatMoeda(parseValor(item.valorUnitario), moeda)}</Td>
+                          <Td mono right>{formatMoeda(valorLinha(item), moeda)}</Td>
+                          <td className="drive-td text-right">
+                            <button type="button" className="text-xs cursor-pointer" style={{ color: "var(--danger)" }}
+                              onClick={(e) => { e.stopPropagation(); setItens((prev) => prev.filter((x) => x.key !== item.key)); }}>
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <button type="button" className="btn-gold px-4 py-2 text-sm mt-3" onClick={() => abrirItem()}>
+              {t("entrada.addItem")}
+            </button>
           </Section>
 
           <Section title={t("venda.pay")}>
@@ -625,6 +740,122 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
             <button type="submit" className="btn-gold px-5 py-2 text-sm" disabled={salvando}>{salvando ? t("common.saving") : t("common.save")}</button>
           </div>
         </form>
+        {itemAberto && createPortal(
+          <div
+            className="pdv-def-overlay"
+            onClick={() => { setItemAberto(false); setItemErro(null); }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={itemEditKey ? t("common.edit") : t("entrada.addItem")}
+          >
+            <div className={prodItem?.controlaChassi ? "pdv-def-dialog is-chassi" : "pdv-def-dialog"} onClick={(e) => e.stopPropagation()}>
+              <div className="pdv-def-head">
+                <h2 className="pdv-cart-title">{itemEditKey ? t("common.edit") : t("entrada.addItem")}</h2>
+                <button
+                  type="button"
+                  onClick={() => { setItemAberto(false); setItemErro(null); }}
+                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-lg leading-none"
+                  style={{ color: v("--text-muted"), background: v("--card2"), border: border1() }}
+                  aria-label={t("ficha.close")}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="pdv-def-body">
+                {itemErro && <p className="text-sm" style={{ color: "#ef4444" }}>{itemErro}</p>}
+                <div>
+                  <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("nav.produtos")}</p>
+                  <button
+                    type="button"
+                    className="field flex items-center justify-between gap-2 text-left cursor-pointer"
+                    onClick={() => { setBuscaProduto(""); setListaProduto(true); }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "F2") return;
+                      e.preventDefault();
+                      setBuscaProduto("");
+                      setListaProduto(true);
+                    }}
+                  >
+                    <span className="truncate" style={{ color: itemProduto === "" ? v("--text-muted") : v("--text") }}>
+                      {prodItem ? `${prodItem.codigo} — ${prodItem.nome}` : t("venda.productSearch")}
+                    </span>
+                    <F2InsideHint />
+                  </button>
+                </div>
+                <Field label={t("entrada.valorUnitario")} required>
+                  <input
+                    className="field font-mono"
+                    inputMode="decimal"
+                    value={itemValor}
+                    onChange={(e) => setItemValor(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !prodItem?.controlaChassi) {
+                        e.preventDefault();
+                        confirmarItem();
+                      }
+                    }}
+                  />
+                </Field>
+                {prodItem?.controlaChassi ? (
+                  <Field
+                    label={t("produto.chassiLote")}
+                    required
+                    hint={erroLote ? undefined : t("produto.chassiLoteHint")}
+                    error={erroLote ?? undefined}
+                    aside={!erroLote && loteItem && loteItem.numeros.length > 0 ? tf(t, "produto.chassiCount", { n: String(loteItem.numeros.length) }) : undefined}
+                  >
+                    <textarea
+                      className="field font-mono uppercase"
+                      rows={5}
+                      value={itemChassis}
+                      placeholder={t("produto.chassiLotePlaceholder")}
+                      onChange={(e) => setItemChassis(e.target.value.toUpperCase())}
+                    />
+                    {!erroLote && loteItem && loteItem.numeros.length > 1 && (
+                      <p className="mt-1 text-xs font-mono" style={{ color: v("--text-muted") }}>{resumoChassis(loteItem.numeros)}</p>
+                    )}
+                  </Field>
+                ) : (
+                  <Field label={t("venda.qty")} required>
+                    <input
+                      className="field font-mono"
+                      inputMode="numeric"
+                      value={itemQtd}
+                      onChange={(e) => setItemQtd(e.target.value.replace(/\D/g, "").slice(0, 7))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          confirmarItem();
+                        }
+                      }}
+                    />
+                  </Field>
+                )}
+                <div className="flex items-baseline justify-between">
+                  <p className="text-[11px] font-medium tracking-widest uppercase" style={{ color: v("--text-muted") }}>{t("entrada.total")}</p>
+                  <p className="font-mono text-sm" style={{ color: v("--text") }}>
+                    {formatMoeda(
+                      parseValor(itemValor) * (prodItem?.controlaChassi
+                        ? (loteItem && !loteItem.erro ? loteItem.numeros.length : 0)
+                        : (Number.parseInt(itemQtd, 10) || 0)),
+                      moeda,
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="pdv-def-foot">
+                <button type="button" className="text-xs cursor-pointer px-3 py-2" style={{ color: v("--text-muted") }}
+                  onClick={() => { setItemAberto(false); setItemErro(null); }}>
+                  {t("common.cancel")}
+                </button>
+                <button type="button" className="btn-gold px-4 py-2 text-sm" onClick={confirmarItem}>
+                  {t("venda.confirmPay")}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
         {definindo && createPortal(
           <div
             className="pdv-def-overlay"
@@ -821,6 +1052,35 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
             }))}
           onPick={(id) => { setDefId(Number(id)); setListaFinalizador(false); setBuscaFinalizador(""); }}
           onClose={() => { setListaFinalizador(false); setBuscaFinalizador(""); }}
+        />
+        <SearchPickerModal
+          open={listaProduto}
+          title={t("nav.produtos")}
+          searchPlaceholder={t("produto.searchPlaceholder")}
+          query={buscaProduto}
+          onQueryChange={setBuscaProduto}
+          items={produtos
+            .filter((p) => {
+              const q = buscaProduto.trim().toLowerCase();
+              if (!q) return true;
+              return `${p.codigo} ${p.nome} ${p.marca} ${p.modelo}`.toLowerCase().includes(q);
+            })
+            .map((p) => ({
+              id: String(p.id),
+              label: `${p.codigo} — ${p.nome}`,
+              selected: itemProduto === p.id,
+            }))}
+          onPick={(id) => {
+            const next = Number(id);
+            const prod = produtoMap.get(next);
+            setItemProduto(next);
+            if (prod?.controlaChassi) setItemQtd("1");
+            else setItemChassis("");
+            setListaProduto(false);
+            setBuscaProduto("");
+            setItemErro(null);
+          }}
+          onClose={() => { setListaProduto(false); setBuscaProduto(""); }}
         />
       </div>
     );
