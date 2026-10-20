@@ -23,6 +23,8 @@ import com.monarca.venda.repository.VendaItemUnidadesTable
 import com.monarca.venda.repository.VendaItensTable
 import com.monarca.venda.repository.VendasTable
 import kotlin.math.round
+import kotlinx.coroutines.flow.singleOrNull
+import kotlinx.coroutines.flow.toList
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder

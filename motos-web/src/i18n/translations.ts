@@ -681,7 +681,9 @@ export type TranslationKey =
   | "nav.devolucao"
   | "devolucao.new"
   | "devolucao.searchPlaceholder"
-  | "devolucao.pickSale"
+  | "devolucao.buscaVenda"
+  | "devolucao.vendasEmpty"
+  | "devolucao.col.numero"
   | "devolucao.sold"
   | "devolucao.returned"
   | "devolucao.available"
@@ -1279,7 +1281,9 @@ const pt: Record<TranslationKey, string> = {
   "nav.devolucao": "Devolução",
   "devolucao.new": "Nova devolução",
   "devolucao.searchPlaceholder": "Cliente ou número da venda",
-  "devolucao.pickSale": "Venda",
+  "devolucao.buscaVenda": "Número, cliente ou vendedor",
+  "devolucao.vendasEmpty": "Nenhuma venda finalizada neste período",
+  "devolucao.col.numero": "Número",
   "devolucao.sold": "Vendido",
   "devolucao.returned": "Já devolvido",
   "devolucao.available": "Disponível",
@@ -2418,7 +2422,9 @@ const es: Record<TranslationKey, string> = {
   "nav.devolucao": "Devolución",
   "devolucao.new": "Nueva devolución",
   "devolucao.searchPlaceholder": "Cliente o número de la venta",
-  "devolucao.pickSale": "Venta",
+  "devolucao.buscaVenda": "Número, cliente o vendedor",
+  "devolucao.vendasEmpty": "Ninguna venta finalizada en este período",
+  "devolucao.col.numero": "Número",
   "devolucao.sold": "Vendido",
   "devolucao.returned": "Ya devuelto",
   "devolucao.available": "Disponible",

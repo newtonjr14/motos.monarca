@@ -281,7 +281,9 @@ function VendaForm({
   const [modalCliente, setModalCliente] = useState(false);
   const [definindo, setDefinindo] = useState(false);
   const [descontoVenda, setDescontoVenda] = useState(0);
+  const [descontoPctTxt, setDescontoPctTxt] = useState<string | null>(null);
   const [descontoValorTxt, setDescontoValorTxt] = useState("");
+  const [descLinhaTxt, setDescLinhaTxt] = useState<Record<string, string>>({});
   const descontoValorFoco = useRef(false);
   const [listaFinalizador, setListaFinalizador] = useState(false);
   const [buscaFinalizador, setBuscaFinalizador] = useState("");
@@ -311,7 +313,9 @@ function VendaForm({
     setPagamentos([]);
     setDefinindo(false);
     setDescontoVenda(0);
+    setDescontoPctTxt(null);
     setDescontoValorTxt("");
+    setDescLinhaTxt({});
     setDefId("");
     setDefValor("");
     setQtdParcelas("3");
@@ -532,22 +536,34 @@ function VendaForm({
 
   function tentarChassi() {
     const q = normalizarChassi(buscaChassi);
+    if (!q) return;
     const disponiveis = unidadesDisp.filter((u) => !idsUsados.has(u.id));
-    if (q) {
-      const usado = unidadesDisp.find((u) => u.numero === q && idsUsados.has(u.id));
-      if (usado) {
-        setErro(t("api.UNIDADE_REPETIDA"));
-        return;
-      }
-      const exato = disponiveis.find((u) => u.numero === q);
-      if (exato) {
-        adicionarUnidade(exato);
-        return;
-      }
+    const usado = unidadesDisp.find((u) => normalizarChassi(u.numero) === q && idsUsados.has(u.id));
+    if (usado) {
+      setErro(t("api.UNIDADE_REPETIDA"));
+      return;
     }
-    const first = chassisFiltrados[0];
-    if (first) adicionarUnidade(first);
-    else setErro(t("venda.noChassis"));
+    const exato = disponiveis.find((u) => normalizarChassi(u.numero) === q);
+    if (exato) {
+      adicionarUnidade(exato);
+      return;
+    }
+    if (chassisFiltrados.length === 1) adicionarUnidade(chassisFiltrados[0]!);
+  }
+
+  function produtoDaBusca(q: string): Produto | undefined {
+    const codigo = q.trim().toLowerCase();
+    if (!codigo) return undefined;
+    const exato = produtos.find((p) => p.codigo.toLowerCase() === codigo);
+    if (exato) return exato;
+    const alvo = normalizarChassi(q);
+    if (!alvo) return undefined;
+    const porChassi = produtos.filter((p) =>
+      (chassisPorProduto[p.id] ?? "")
+        .split(/\s+/)
+        .some((token) => normalizarChassi(token) === alvo),
+    );
+    return porChassi.length === 1 ? porChassi[0] : undefined;
   }
 
   function lancarProduto(id: number) {
@@ -833,7 +849,9 @@ function VendaForm({
         })));
         setObservacao(venda.observacao ?? "");
         setDescontoVenda(venda.descontoPct ?? 0);
+        setDescontoPctTxt(null);
         setDescontoValorTxt("");
+        setDescLinhaTxt({});
         setPagamentos([]);
         setValidade(venda.validade ?? dataAsuncion(15));
         setPasso("itens");
@@ -934,7 +952,9 @@ function VendaForm({
         setLinhas([...linhasMescladas.values()]);
         setObservacao(notas.join(" · ").slice(0, 500));
         setDescontoVenda(0);
+        setDescontoPctTxt(null);
         setDescontoValorTxt("");
+        setDescLinhaTxt({});
         setPagamentos([]);
         setPasso("itens");
         setErro(null);
@@ -1277,13 +1297,16 @@ function VendaForm({
                       <input
                         inputMode="decimal"
                         aria-label={t("venda.saleDiscount")}
-                        value={descontoVenda === 0 ? "" : String(descontoVenda)}
+                        value={descontoPctTxt ?? (descontoVenda === 0 ? "" : String(descontoVenda))}
                         placeholder="0"
+                        onFocus={() => setDescontoPctTxt(descontoVenda === 0 ? "" : String(descontoVenda))}
+                        onBlur={() => setDescontoPctTxt(null)}
                         onChange={(e) => {
                           const raw = e.target.value.replace(",", ".").replace(/[^\d.]/g, "");
+                          setDescontoPctTxt(raw);
                           const n = Number.parseFloat(raw);
-                          const pct = !Number.isFinite(n) || raw === "" ? 0 : Math.min(100, Math.max(0, Math.round(n * 100) / 100));
-                          mudarDescontoPct(pct);
+                          const pct = raw === "" || raw === "." || !Number.isFinite(n) ? 0 : Math.min(100, Math.max(0, Math.round(n * 100) / 100));
+                          if (pct !== descontoVenda) mudarDescontoPct(pct);
                         }}
                       />
                       <span>%</span>
@@ -1415,15 +1438,13 @@ function VendaForm({
               className="field pdv-search font-mono"
               value={buscaProduto}
               placeholder={t("venda.productSearchPlaceholder")}
+              autoComplete="off"
               onChange={(e) => setBuscaProduto(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  const q = buscaProduto.trim().toLowerCase();
-                  const exato = produtos.find((p) => p.codigo.toLowerCase() === q);
-                  if (exato) lancarProduto(exato.id);
-                  else if (produtosVitrine.itens[0]) lancarProduto(produtosVitrine.itens[0].id);
-                }
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                const escolhido = produtoDaBusca(buscaProduto);
+                if (escolhido) lancarProduto(escolhido.id);
               }}
             />
           </div>
@@ -1560,13 +1581,24 @@ function VendaForm({
                               <input
                                 inputMode="decimal"
                                 aria-label={t("venda.discount")}
-                                value={descPct === 0 ? "" : String(descPct)}
+                                value={descLinhaTxt[l.linhaId] ?? (descPct === 0 ? "" : String(descPct))}
                                 placeholder="0"
+                                onBlur={() => setDescLinhaTxt((atual) => {
+                                  if (!(l.linhaId in atual)) return atual;
+                                  const next = { ...atual };
+                                  delete next[l.linhaId];
+                                  return next;
+                                })}
                                 onChange={(e) => {
                                   const raw = e.target.value.replace(",", ".").replace(/[^\d.]/g, "");
+                                  setDescLinhaTxt((atual) => ({ ...atual, [l.linhaId]: raw }));
                                   const n = Number.parseFloat(raw);
-                                  const pct = !Number.isFinite(n) || raw === "" ? 0 : Math.min(100, Math.max(0, Math.round(n * 100) / 100));
-                                  setLinhas((atual) => atual.map((x) => x.linhaId === l.linhaId ? { ...x, descontoPct: pct } : x));
+                                  const pct = raw === "" || raw === "." || !Number.isFinite(n) ? 0 : Math.min(100, Math.max(0, Math.round(n * 100) / 100));
+                                  setLinhas((atual) => {
+                                    const linha = atual.find((x) => x.linhaId === l.linhaId);
+                                    if (!linha || (linha.descontoPct || 0) === pct) return atual;
+                                    return atual.map((x) => x.linhaId === l.linhaId ? { ...x, descontoPct: pct } : x);
+                                  });
                                 }}
                               />
                               <span>%</span>

@@ -21,7 +21,7 @@ import {
   type Moeda,
   type Venda,
 } from "@/api";
-import { formatarDataHoraEpoch, formatMoeda, formatPyg, MOEDAS, slicePage } from "@/format";
+import { dataAsuncion, formatarDataEpoch, formatarDataHoraEpoch, formatMoeda, formatPyg, MOEDAS, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 const border1 = () => `1px solid ${v("--border")}`;
@@ -41,6 +41,15 @@ function dePygVenda(pyg: number, moeda: Moeda, usd: number, brl: number): number
   const taxa = moeda === "usd" ? usd : brl;
   if (taxa <= 0) return 0;
   return Math.round((pyg / taxa) * 100) / 100;
+}
+
+function diaAsuncion(ms: number): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Asuncion",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(ms));
 }
 
 function rotuloTratamento(tratamento: string): TranslationKey {
@@ -64,6 +73,8 @@ export default function DevolucaoPage({ navReset }: { navReset: number }) {
   const [ficha, setFicha] = useState<Devolucao | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [buscaVenda, setBuscaVenda] = useState("");
+  const [de, setDe] = useState(() => dataAsuncion(-29));
+  const [ate, setAte] = useState(() => dataAsuncion());
   const [idVenda, setIdVenda] = useState<number | "">("");
   const [preview, setPreview] = useState<DevolucaoPreview | null>(null);
   const [qtd, setQtd] = useState<Record<number, string>>({});
@@ -95,7 +106,7 @@ export default function DevolucaoPage({ navReset }: { navReset: number }) {
       setFinalizadores(fins.filter((f) => f.status === "ativo" && !f.geraContasReceber && !f.geraContasPagar && !f.geraCreditoCliente));
       setCaixas(cxs.filter((c) => c.sessaoAbertaId));
     } catch (e) {
-      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }, [idFilial, t]);
 
@@ -114,13 +125,23 @@ export default function DevolucaoPage({ navReset }: { navReset: number }) {
 
   const vendasFiltradas = useMemo(() => {
     const q = buscaVenda.trim().toLowerCase();
-    return vendas.filter((venda) => !q || `${venda.id} ${venda.clienteNome}`.toLowerCase().includes(q)).slice(0, 80);
-  }, [vendas, buscaVenda]);
+    return vendas
+      .filter((venda) => {
+        const dia = diaAsuncion(venda.finalizadaEm || venda.criadoEm);
+        if (de && dia < de) return false;
+        if (ate && dia > ate) return false;
+        if (!q) return true;
+        return `${venda.id} ${venda.clienteNome} ${venda.vendedorNome}`.toLowerCase().includes(q);
+      })
+      .sort((a, b) => (b.finalizadaEm || b.criadoEm) - (a.finalizadaEm || a.criadoEm));
+  }, [vendas, buscaVenda, de, ate]);
 
   function abrirNova() {
     setFicha(null);
     setErro(null);
     setBuscaVenda("");
+    setDe(dataAsuncion(-29));
+    setAte(dataAsuncion());
     setIdVenda("");
     setPreview(null);
     setQtd({});
@@ -144,7 +165,7 @@ export default function DevolucaoPage({ navReset }: { navReset: number }) {
       setQtd({});
       setChassis({});
     } catch (e) {
-      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+      setErro(mensagemErroApi(e, t, "common.error.loadFailed"));
     }
   }
 
@@ -245,20 +266,50 @@ export default function DevolucaoPage({ navReset }: { navReset: number }) {
         </button>
         <h1 className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>{t("devolucao.new")}</h1>
         <form className="rounded-lg p-6 space-y-4" style={{ background: v("--card"), border: border1() }}
-          onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
+          onSubmit={(e) => e.preventDefault()}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
-          <Field label={t("devolucao.searchPlaceholder")}>
-            <input className="field" value={buscaVenda} onChange={(e) => setBuscaVenda(e.target.value)} />
-          </Field>
-          <Field label={t("devolucao.pickSale")} required>
-            <select className="field" value={idVenda === "" ? "" : String(idVenda)}
-              onChange={(e) => { if (e.target.value) void escolherVenda(Number(e.target.value)); }}>
-              <option value="">{t("common.select")}</option>
-              {vendasFiltradas.map((venda) => (
-                <option key={venda.id} value={venda.id}>#{venda.id} · {venda.clienteNome} · Gs. {formatPyg(venda.totalPyg)}</option>
-              ))}
-            </select>
-          </Field>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label={t("relatorio.de")}>
+              <input type="date" className="field" value={de} onChange={(e) => setDe(e.target.value)} />
+            </Field>
+            <Field label={t("relatorio.ate")}>
+              <input type="date" className="field" value={ate} onChange={(e) => setAte(e.target.value)} />
+            </Field>
+            <Field label={t("devolucao.buscaVenda")} className="min-w-64 flex-1">
+              <input className="field" value={buscaVenda} placeholder={t("devolucao.buscaVenda")}
+                onChange={(e) => setBuscaVenda(e.target.value)} />
+            </Field>
+          </div>
+          <div className="rounded-lg overflow-auto max-h-72" style={{ border: border1() }}>
+            <table className="drive-table w-full">
+              <thead>
+                <tr>
+                  <th className="drive-th">{t("devolucao.col.numero")}</th>
+                  <th className="drive-th">{t("col.date")}</th>
+                  <th className="drive-th">{t("devolucao.col.cliente")}</th>
+                  <th className="drive-th">{t("venda.seller")}</th>
+                  <th className="drive-th">{t("venda.total")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vendasFiltradas.length === 0 && (
+                  <tr><td className="drive-td text-sm" colSpan={5} style={{ color: v("--text-muted") }}>{t("devolucao.vendasEmpty")}</td></tr>
+                )}
+                {vendasFiltradas.map((venda) => (
+                  <tr key={venda.id}
+                    className={`drive-row-clickable${idVenda === venda.id ? " drive-row-selected" : ""}`}
+                    style={{ borderBottom: border1() }}
+                    onClick={() => { if (idVenda !== venda.id) void escolherVenda(venda.id); }}>
+                    <Td mono gold>{venda.id}</Td>
+                    <Td mono>{formatarDataEpoch(venda.finalizadaEm || venda.criadoEm)}</Td>
+                    <Td>{venda.clienteNome}</Td>
+                    <Td>{venda.vendedorNome}</Td>
+                    <Td mono>Gs. {formatPyg(venda.totalPyg)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {preview && (
             <>
@@ -381,7 +432,7 @@ export default function DevolucaoPage({ navReset }: { navReset: number }) {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" className="btn-ghost px-4 py-2 text-sm" onClick={() => setFormAberto(false)}>{t("common.cancel")}</button>
-            <button type="submit" disabled={salvando || !preview} className="btn-gold px-5 py-2 text-sm">{salvando ? t("common.saving") : t("common.save")}</button>
+            <button type="button" disabled={salvando || !preview} className="btn-gold px-5 py-2 text-sm" onClick={() => void salvar()}>{salvando ? t("common.saving") : t("common.save")}</button>
           </div>
         </form>
       </div>
