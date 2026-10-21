@@ -14,6 +14,7 @@ data class EntradaItemRequest(
     val quantidade: Int = 0,
     val valorUnitario: Double,
     val numerosChassis: List<String> = emptyList(),
+    val codigoProdutoFornecedor: String? = null,
 )
 
 @Serializable
@@ -61,6 +62,7 @@ data class EntradaItemResponse(
     val valor: Double,
     val valorPyg: Double,
     val chassis: List<String> = emptyList(),
+    val codigoProdutoFornecedor: String? = null,
 )
 
 @Serializable
@@ -132,4 +134,22 @@ data class EntradaResponse(
     val status: StatusEntrada,
     val itens: List<EntradaItemResponse>,
     val negociacao: List<EntradaNegociacaoResponse>,
+)
+
+@Serializable
+data class VinculoFornecedorRequest(
+    val idFilial: Long? = null,
+    val idFornecedor: Long,
+    val codigoProdutoFornecedor: String,
+    val idProduto: Long,
+    val substituir: Boolean = false,
+)
+
+@Serializable
+data class VinculoFornecedorResponse(
+    val idFornecedor: Long,
+    val codigoProdutoFornecedor: String,
+    val idProduto: Long,
+    val produtoCodigo: String,
+    val produtoNome: String,
 )

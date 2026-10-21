@@ -46,6 +46,13 @@ object EntradaItensTable : LongIdTable("entrada_item") {
     val valorUnitario = double("valor_unitario")
     val valor = double("valor")
     val valorPyg = double("valor_pyg")
+    val codigoProdutoFornecedor = varchar("codigo_produto_fornecedor", 80).nullable()
+}
+
+object FornecedorProdutosTable : LongIdTable("fornecedor_produto") {
+    val idFornecedor = reference("id_fornecedor", FornecedoresTable)
+    val codigoProdutoFornecedor = varchar("codigo_produto_fornecedor", 80)
+    val idProduto = reference("id_produto", ProdutosTable)
 }
 
 object EntradaItemUnidadesTable : LongIdTable("entrada_item_unidade") {

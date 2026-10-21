@@ -122,6 +122,7 @@ class ExposedEntradaRepository(
                 it[valorUnitario] = item.valorUnitario
                 it[valor] = item.valor
                 it[valorPyg] = item.valorPyg
+                it[EntradaItensTable.codigoProdutoFornecedor] = item.codigoProdutoFornecedor
             }
             val idItem = insertedItem[EntradaItensTable.id].value
 
@@ -364,11 +365,64 @@ class ExposedEntradaRepository(
                     valor = itemRow[EntradaItensTable.valor],
                     valorPyg = itemRow[EntradaItensTable.valorPyg],
                     chassis = chassisPorItem[idItem].orEmpty(),
+                    codigoProdutoFornecedor = itemRow[EntradaItensTable.codigoProdutoFornecedor],
                 )
             },
             negociacao = negociacao,
             idTituloPagar = idTitulo,
         )
+    }
+
+    override suspend fun buscarVinculo(idFornecedor: Long, codigo: String): VinculoFornecedor? =
+        suspendTransaction(database) { lerVinculo(idFornecedor, codigo) }
+
+    override suspend fun inserirVinculo(idFornecedor: Long, codigo: String, idProduto: Long): VinculoFornecedor =
+        suspendTransaction(database) {
+            FornecedorProdutosTable.insert { linha ->
+                linha[FornecedorProdutosTable.idFornecedor] = idFornecedor
+                linha[codigoProdutoFornecedor] = codigo.trim()
+                linha[FornecedorProdutosTable.idProduto] = idProduto
+            }
+            lerVinculo(idFornecedor, codigo)
+                ?: error("Vínculo do fornecedor não encontrado após gravar")
+        }
+
+    override suspend fun atualizarVinculo(idFornecedor: Long, codigo: String, idProduto: Long): VinculoFornecedor =
+        suspendTransaction(database) {
+            val atual = lerVinculo(idFornecedor, codigo)
+                ?: error("Vínculo do fornecedor não encontrado")
+            val chave = codigo.trim().lowercase()
+            val alvo = FornecedorProdutosTable
+                .selectAll()
+                .where { FornecedorProdutosTable.idFornecedor eq idFornecedor }
+                .toList()
+                .find { it[FornecedorProdutosTable.codigoProdutoFornecedor].trim().lowercase() == chave }
+                ?: error("Vínculo do fornecedor não encontrado")
+            FornecedorProdutosTable.update({ FornecedorProdutosTable.id eq alvo[FornecedorProdutosTable.id].value }) {
+                it[FornecedorProdutosTable.idProduto] = idProduto
+            }
+            lerVinculo(idFornecedor, atual.codigoProdutoFornecedor)
+                ?: error("Vínculo do fornecedor não encontrado após gravar")
+        }
+
+    private suspend fun lerVinculo(idFornecedor: Long, codigo: String): VinculoFornecedor? {
+        val chave = codigo.trim().lowercase()
+        if (chave.isEmpty()) return null
+        return FornecedorProdutosTable
+            .join(ProdutosTable, JoinType.INNER, FornecedorProdutosTable.idProduto, ProdutosTable.id)
+            .selectAll()
+            .where { FornecedorProdutosTable.idFornecedor eq idFornecedor }
+            .toList()
+            .map { row ->
+                VinculoFornecedor(
+                    idFornecedor = row[FornecedorProdutosTable.idFornecedor].value,
+                    codigoProdutoFornecedor = row[FornecedorProdutosTable.codigoProdutoFornecedor],
+                    idProduto = row[FornecedorProdutosTable.idProduto].value,
+                    produtoCodigo = row[ProdutosTable.codigo],
+                    produtoNome = row[ProdutosTable.nome],
+                )
+            }
+            .find { it.codigoProdutoFornecedor.trim().lowercase() == chave }
     }
 
     private fun ResultRow.toCompleta(

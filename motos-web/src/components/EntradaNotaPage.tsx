@@ -14,6 +14,7 @@ import { tf } from "@/i18n/format";
 import { useFilialId } from "@/auth/FilialContext";
 import {
   buscarEntrada,
+  buscarVinculoFornecedor,
   criarEntrada,
   listarAdiantamentos,
   listarCaixas,
@@ -21,6 +22,7 @@ import {
   listarFinalizadores,
   listarPapeis,
   listarProdutos,
+  vincularProdutoFornecedor,
   type AdiantamentoFornecedor,
   type Caixa,
   type Cotacao,
@@ -106,6 +108,7 @@ type ItemDraft = {
   quantidade: string;
   valorUnitario: string;
   chassisTexto: string;
+  codigoFornecedor: string;
 };
 
 type PagDraft = { idFinalizador: number; valor: string; moeda: Moeda; idCaixaMovimentacao?: number };
@@ -149,6 +152,8 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
   const [itemAberto, setItemAberto] = useState(false);
   const [itemEditKey, setItemEditKey] = useState<string | null>(null);
   const [itemProduto, setItemProduto] = useState<number | "">("");
+  const [itemCodigo, setItemCodigo] = useState("");
+  const [itemConfirmando, setItemConfirmando] = useState(false);
   const [itemValor, setItemValor] = useState("");
   const [itemQtd, setItemQtd] = useState("1");
   const [itemChassis, setItemChassis] = useState("");
@@ -306,6 +311,8 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
   function abrirItem(item?: ItemDraft) {
     setItemEditKey(item?.key ?? null);
     setItemProduto(item?.idProduto ?? "");
+    setItemCodigo(item?.codigoFornecedor ?? "");
+    setItemConfirmando(false);
     setItemValor(item?.valorUnitario ?? "");
     setItemQtd(item?.quantidade || "1");
     setItemChassis(item?.chassisTexto ?? "");
@@ -322,7 +329,25 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
     return null;
   }
 
-  function confirmarItem() {
+  async function aplicarCodigoFornecedor(codigoBruto: string) {
+    const codigo = codigoBruto.trim();
+    if (!codigo || idFornecedor === "") return;
+    try {
+      const vinculo = await buscarVinculoFornecedor(idFilial, idFornecedor, codigo);
+      if (!vinculo) return;
+      if (!produtoMap.has(vinculo.idProduto)) {
+        setItemErro(tf(t, "entrada.produtoIndisponivel", { produto: `${vinculo.produtoCodigo} — ${vinculo.produtoNome}` }));
+        return;
+      }
+      setItemProduto(vinculo.idProduto);
+      setItemErro(null);
+    } catch (e) {
+      setItemErro(mensagemErroApi(e, t, "common.error.loadFailed"));
+    }
+  }
+
+  async function confirmarItem() {
+    if (itemConfirmando) return;
     if (itemProduto === "") {
       setItemErro(t("entrada.error.produto"));
       return;
@@ -363,12 +388,54 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
       }
       quantidade = String(qtd);
     }
+    const codigo = itemCodigo.trim();
+    if (codigo.length > 80) {
+      setItemErro(t("api.CODIGO_FORNECEDOR_TAMANHO"));
+      return;
+    }
+    if (codigo) {
+      if (idFornecedor === "") {
+        setItemErro(t("titulo.error.fornecedor"));
+        return;
+      }
+      setItemConfirmando(true);
+      try {
+        const vinculo = await buscarVinculoFornecedor(idFilial, idFornecedor, codigo);
+        if (vinculo && vinculo.idProduto !== itemProduto) {
+          const atual = `${vinculo.produtoCodigo} — ${vinculo.produtoNome}`;
+          const produto = prod ? `${prod.codigo} — ${prod.nome}` : "";
+          if (!window.confirm(tf(t, "entrada.trocarVinculo", { codigo, atual, produto }))) return;
+          await vincularProdutoFornecedor({
+            idFilial,
+            idFornecedor,
+            codigoProdutoFornecedor: codigo,
+            idProduto: itemProduto,
+            substituir: true,
+          });
+        } else if (!vinculo) {
+          const produto = prod ? `${prod.codigo} — ${prod.nome}` : "";
+          if (!window.confirm(tf(t, "entrada.confirmarVinculo", { codigo, produto }))) return;
+          await vincularProdutoFornecedor({
+            idFilial,
+            idFornecedor,
+            codigoProdutoFornecedor: codigo,
+            idProduto: itemProduto,
+          });
+        }
+      } catch (e) {
+        setItemErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+        return;
+      } finally {
+        setItemConfirmando(false);
+      }
+    }
     const linha: ItemDraft = {
       key: itemEditKey ?? String(Date.now()),
       idProduto: itemProduto,
       quantidade,
       valorUnitario: itemValor.trim(),
       chassisTexto,
+      codigoFornecedor: codigo,
     };
     setItens((atual) => itemEditKey
       ? atual.map((i) => i.key === itemEditKey ? linha : i)
@@ -483,6 +550,7 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
         quantidade: prod?.controlaChassi ? 0 : (Number.parseInt(i.quantidade, 10) || 0),
         valorUnitario: Number(i.valorUnitario.replace(",", ".")) || 0,
         numerosChassis: prod?.controlaChassi ? chassis : [],
+        codigoProdutoFornecedor: i.codigoFornecedor.trim() || null,
       };
     }).filter((i) => i.idProduto > 0);
     if (itensBody.length === 0) {
@@ -636,6 +704,11 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
                         <tr key={item.key} className="drive-row-clickable" onClick={() => abrirItem(item)}>
                           <td className="drive-td">
                             <p className="text-sm" style={{ color: v("--text") }}>{prod ? `${prod.codigo} — ${prod.nome}` : ""}</p>
+                            {item.codigoFornecedor.trim() && (
+                              <p className="text-[11px] font-mono" style={{ color: v("--text-muted") }}>
+                                {t("entrada.codigoFornecedor")}: {item.codigoFornecedor.trim()}
+                              </p>
+                            )}
                             {lote && lote.numeros.length > 0 && (
                               <p className="text-[11px] font-mono" style={{ color: v("--text-muted") }}>
                                 {resumoChassis(lote.numeros)}
@@ -763,6 +836,20 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
               </div>
               <div className="pdv-def-body">
                 {itemErro && <p className="text-sm" style={{ color: "#ef4444" }}>{itemErro}</p>}
+                <Field label={t("entrada.codigoFornecedor")} hint={t("entrada.codigoFornecedorHint")}>
+                  <input
+                    className="field font-mono"
+                    value={itemCodigo}
+                    maxLength={80}
+                    onChange={(e) => setItemCodigo(e.target.value)}
+                    onBlur={() => { void aplicarCodigoFornecedor(itemCodigo); }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      void aplicarCodigoFornecedor(itemCodigo);
+                    }}
+                  />
+                </Field>
                 <div>
                   <p className="text-xs mb-1" style={{ color: v("--text-muted") }}>{t("nav.produtos")}</p>
                   <button
@@ -848,7 +935,7 @@ export default function EntradaNotaPage({ navReset }: { navReset: number }) {
                   onClick={() => { setItemAberto(false); setItemErro(null); }}>
                   {t("common.cancel")}
                 </button>
-                <button type="button" className="btn-gold px-4 py-2 text-sm" onClick={confirmarItem}>
+                <button type="button" className="btn-gold px-4 py-2 text-sm" disabled={itemConfirmando} onClick={() => { void confirmarItem(); }}>
                   {t("venda.confirmPay")}
                 </button>
               </div>

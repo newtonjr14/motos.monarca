@@ -11,6 +11,10 @@ class Entradas {
     class Adiantamentos(val parent: Entradas = Entradas())
 
     @Serializable
+    @Resource("vinculo")
+    class Vinculo(val parent: Entradas = Entradas())
+
+    @Serializable
     @Resource("{id}")
     class Id(val parent: Entradas = Entradas(), val id: Long)
 }

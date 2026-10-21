@@ -145,6 +145,11 @@ export default function EntradaFicha({
                       <Td mono>{i.produtoCodigo}</Td>
                       <td className="drive-td">
                         <p className="text-xs font-medium" style={{ color: v("--text") }}>{i.produtoNome}</p>
+                        {i.codigoProdutoFornecedor && (
+                          <p className="text-[11px] font-mono" style={{ color: v("--text-muted") }}>
+                            {t("entrada.codigoFornecedor")}: {i.codigoProdutoFornecedor}
+                          </p>
+                        )}
                         {i.chassis.length > 0 && (
                           <p className="text-[11px] font-mono break-all" style={{ color: v("--text-muted") }}>{i.chassis.join(" · ")}</p>
                         )}

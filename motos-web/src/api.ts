@@ -1367,6 +1367,15 @@ export interface EntradaItem {
   valor: number;
   valorPyg: number;
   chassis: string[];
+  codigoProdutoFornecedor?: string | null;
+}
+
+export interface VinculoFornecedorProduto {
+  idFornecedor: number;
+  codigoProdutoFornecedor: string;
+  idProduto: number;
+  produtoCodigo: string;
+  produtoNome: string;
 }
 
 export interface EntradaNegociacao {
@@ -1421,6 +1430,30 @@ export const listarAdiantamentos = (idFilial: number | undefined, idFornecedor: 
   const filial = idFilial != null ? `&idFilial=${idFilial}` : "";
   return api<AdiantamentoFornecedor[]>(`/entradas/adiantamentos?idFornecedor=${idFornecedor}${filial}`);
 };
+
+export async function buscarVinculoFornecedor(
+  idFilial: number | undefined,
+  idFornecedor: number,
+  codigo: string,
+): Promise<VinculoFornecedorProduto | null> {
+  const filial = idFilial != null ? `&idFilial=${idFilial}` : "";
+  try {
+    return await api<VinculoFornecedorProduto>(
+      `/entradas/vinculo?idFornecedor=${idFornecedor}&codigo=${encodeURIComponent(codigo)}${filial}`,
+    );
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
+export const vincularProdutoFornecedor = (body: {
+  idFilial?: number;
+  idFornecedor: number;
+  codigoProdutoFornecedor: string;
+  idProduto: number;
+  substituir?: boolean;
+}) => api<VinculoFornecedorProduto>("/entradas/vinculo", { method: "POST", body: JSON.stringify(body) });
 
 export interface SeedDemoStatus {
   habilitado?: boolean;

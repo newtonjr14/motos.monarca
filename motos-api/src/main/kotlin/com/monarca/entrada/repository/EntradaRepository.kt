@@ -19,6 +19,7 @@ data class EntradaItemPersistencia(
     val valor: Double,
     val valorPyg: Double,
     val numerosChassis: List<String>,
+    val codigoProdutoFornecedor: String? = null,
 )
 
 data class EntradaNegociacaoPersistencia(
@@ -71,6 +72,15 @@ data class EntradaItemCompleto(
     val valor: Double,
     val valorPyg: Double,
     val chassis: List<String>,
+    val codigoProdutoFornecedor: String? = null,
+)
+
+data class VinculoFornecedor(
+    val idFornecedor: Long,
+    val codigoProdutoFornecedor: String,
+    val idProduto: Long,
+    val produtoCodigo: String,
+    val produtoNome: String,
 )
 
 data class EntradaNegociacaoCompleta(
@@ -126,4 +136,7 @@ interface EntradaRepository {
         numero: String,
     ): Boolean
     suspend fun inserir(entrada: EntradaNova): Long
+    suspend fun buscarVinculo(idFornecedor: Long, codigo: String): VinculoFornecedor?
+    suspend fun inserirVinculo(idFornecedor: Long, codigo: String, idProduto: Long): VinculoFornecedor
+    suspend fun atualizarVinculo(idFornecedor: Long, codigo: String, idProduto: Long): VinculoFornecedor
 }

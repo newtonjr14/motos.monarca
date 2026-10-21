@@ -13,11 +13,14 @@ import com.monarca.entrada.dto.EntradaNegociacaoResponse
 import com.monarca.entrada.dto.EntradaRequest
 import com.monarca.entrada.dto.EntradaResponse
 import com.monarca.entrada.dto.EntradaResumoResponse
+import com.monarca.entrada.dto.VinculoFornecedorRequest
+import com.monarca.entrada.dto.VinculoFornecedorResponse
 import com.monarca.entrada.repository.EntradaCompleta
 import com.monarca.entrada.repository.EntradaItemPersistencia
 import com.monarca.entrada.repository.EntradaNegociacaoPersistencia
 import com.monarca.entrada.repository.EntradaNova
 import com.monarca.entrada.repository.EntradaRepository
+import com.monarca.entrada.repository.VinculoFornecedor
 import com.monarca.localidade.service.RecursoNaoEncontrado
 import com.monarca.localidade.service.acesso
 import com.monarca.localidade.service.invalido
@@ -57,6 +60,32 @@ class EntradaService(
         val entrada = repository.buscar(id) ?: throw RecursoNaoEncontrado("Entrada $id não encontrada")
         exigirAcessoFilial(idUsuario, entrada.idFilial)
         return entrada.toResponse()
+    }
+
+    suspend fun buscarVinculo(
+        idFilial: Long?,
+        idFornecedor: Long,
+        codigo: String,
+        idUsuario: Long,
+    ): VinculoFornecedorResponse {
+        val filial = resolverFilial(idUsuario, idFilial)
+        validarFornecedor(idFornecedor, filial)
+        val normalizado = exigirCodigo(codigo)
+        val vinculo = repository.buscarVinculo(idFornecedor, normalizado)
+            ?: throw RecursoNaoEncontrado("Vínculo não encontrado")
+        return vinculo.toResponse()
+    }
+
+    suspend fun vincular(request: VinculoFornecedorRequest, idUsuario: Long): VinculoFornecedorResponse {
+        val filial = resolverFilial(idUsuario, request.idFilial)
+        validarFornecedor(request.idFornecedor, filial)
+        val codigo = exigirCodigo(request.codigoProdutoFornecedor)
+        val completo = produtoRepository.buscar(request.idProduto)
+            ?: throw RecursoNaoEncontrado("Produto ${request.idProduto} não encontrado")
+        if (completo.produto.status != Status.ATIVO) {
+            throw invalido("PRODUTO_INATIVO", "O produto ${completo.produto.codigo} não está ativo")
+        }
+        return garantirVinculo(request.idFornecedor, codigo, request.idProduto, request.substituir).toResponse()
     }
 
     suspend fun listarAdiantamentos(idFilial: Long?, idFornecedor: Long, idUsuario: Long): List<AdiantamentoResponse> {
@@ -213,6 +242,7 @@ class EntradaService(
     ): List<EntradaItemPersistencia> {
         val out = mutableListOf<EntradaItemPersistencia>()
         val chassisUsados = mutableSetOf<String>()
+        val codigosDaNota = mutableMapOf<String, Long>()
         for (item in request.itens) {
             if (item.valorUnitario <= 0) {
                 throw invalido("ENTRADA_VALOR_UNITARIO", "O valor unitário deve ser maior que zero")
@@ -262,6 +292,24 @@ class EntradaService(
                 quantidade = item.quantidade
                 numeros = emptyList()
             }
+            val codigoFornecedor = codigoDaLinha(item.codigoProdutoFornecedor)
+            if (codigoFornecedor != null) {
+                val chave = codigoFornecedor.lowercase()
+                val anteriorId = codigosDaNota[chave]
+                if (anteriorId != null && anteriorId != produto.id) {
+                    val anterior = out.first { it.idProduto == anteriorId }
+                    throw invalido(
+                        "CODIGO_FORNECEDOR_VINCULADO",
+                        "O código $codigoFornecedor deste fornecedor já está no produto ${anterior.produtoCodigo}",
+                        "codigo" to codigoFornecedor,
+                        "produto" to "${anterior.produtoCodigo} — ${anterior.produtoNome}",
+                    )
+                }
+                if (anteriorId == null) {
+                    garantirVinculo(request.idFornecedor, codigoFornecedor, produto.id)
+                    codigosDaNota[chave] = produto.id
+                }
+            }
             val valor = arredondar(item.valorUnitario * quantidade, request.moeda)
             out += EntradaItemPersistencia(
                 idProduto = produto.id,
@@ -276,6 +324,7 @@ class EntradaService(
                 valor = valor,
                 valorPyg = paraPyg(valor, request.moeda, cotacao),
                 numerosChassis = numeros,
+                codigoProdutoFornecedor = codigoFornecedor,
             )
         }
         return out
@@ -344,6 +393,60 @@ class EntradaService(
             ja[idMov] = (ja[idMov] ?: 0.0) + linha.valor
         }
     }
+
+    private suspend fun garantirVinculo(
+        idFornecedor: Long,
+        codigo: String,
+        idProduto: Long,
+        substituir: Boolean = false,
+    ): VinculoFornecedor {
+        val atual = repository.buscarVinculo(idFornecedor, codigo)
+        if (atual != null) {
+            if (atual.idProduto == idProduto) return atual
+            if (!substituir) throw conflitoVinculo(atual)
+            return repository.atualizarVinculo(idFornecedor, codigo, idProduto)
+        }
+        return try {
+            repository.inserirVinculo(idFornecedor, codigo, idProduto)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            val deNovo = repository.buscarVinculo(idFornecedor, codigo)
+            if (deNovo == null) throw e
+            if (deNovo.idProduto == idProduto) return deNovo
+            if (!substituir) throw conflitoVinculo(deNovo)
+            repository.atualizarVinculo(idFornecedor, codigo, idProduto)
+        }
+    }
+
+    private fun conflitoVinculo(vinculo: VinculoFornecedor) = invalido(
+        "CODIGO_FORNECEDOR_VINCULADO",
+        "O código ${vinculo.codigoProdutoFornecedor} deste fornecedor já está no produto ${vinculo.produtoCodigo}",
+        "codigo" to vinculo.codigoProdutoFornecedor,
+        "produto" to "${vinculo.produtoCodigo} — ${vinculo.produtoNome}",
+    )
+
+    private fun exigirCodigo(bruto: String): String {
+        val codigo = codigoDaLinha(bruto)
+            ?: throw invalido("CODIGO_FORNECEDOR_OBRIGATORIO", "Informe o código do fornecedor")
+        return codigo
+    }
+
+    private fun codigoDaLinha(bruto: String?): String? {
+        val codigo = bruto?.trim().orEmpty()
+        if (codigo.isEmpty()) return null
+        if (codigo.length > 80) {
+            throw invalido("CODIGO_FORNECEDOR_TAMANHO", "O código do fornecedor deve ter no máximo 80 caracteres")
+        }
+        return codigo
+    }
+
+    private fun VinculoFornecedor.toResponse() = VinculoFornecedorResponse(
+        idFornecedor = idFornecedor,
+        codigoProdutoFornecedor = codigoProdutoFornecedor,
+        idProduto = idProduto,
+        produtoCodigo = produtoCodigo,
+        produtoNome = produtoNome,
+    )
 
     private suspend fun validarFornecedor(idFornecedor: Long, idFilial: Long) {
         val forn = papelService.buscarFornecedor(idFornecedor)
@@ -436,6 +539,7 @@ class EntradaService(
                 valor = it.valor,
                 valorPyg = it.valorPyg,
                 chassis = it.chassis,
+                codigoProdutoFornecedor = it.codigoProdutoFornecedor,
             )
         },
         negociacao = negociacao.map {

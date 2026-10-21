@@ -8,6 +8,7 @@ import com.monarca.common.http.respondBadRequest
 import com.monarca.common.http.respondForbidden
 import com.monarca.common.http.respondNotFound
 import com.monarca.entrada.dto.EntradaRequest
+import com.monarca.entrada.dto.VinculoFornecedorRequest
 import com.monarca.entrada.service.EntradaService
 import com.monarca.localidade.service.AcessoNegado
 import com.monarca.localidade.service.RecursoNaoEncontrado
@@ -41,6 +42,24 @@ fun Application.configureEntrada() {
                     val idFornecedor = call.request.queryParameters["idFornecedor"]?.toLongOrNull()
                         ?: throw RequisicaoInvalida("FORNECEDOR_OBRIGATORIO", "Informe o fornecedor")
                     call.respond(service.listarAdiantamentos(idFilial, idFornecedor, call.usuarioAutenticado().id))
+                }
+            }
+            get<Entradas.Vinculo> {
+                call.handleEntrada {
+                    call.podeOperarFinanceiro()
+                    val idFilial = call.request.queryParameters["idFilial"]?.toLongOrNull()
+                    val idFornecedor = call.request.queryParameters["idFornecedor"]?.toLongOrNull()
+                        ?: throw RequisicaoInvalida("FORNECEDOR_OBRIGATORIO", "Informe o fornecedor")
+                    val codigo = call.request.queryParameters["codigo"]
+                        ?: throw RequisicaoInvalida("CODIGO_FORNECEDOR_OBRIGATORIO", "Informe o código do fornecedor")
+                    call.respond(service.buscarVinculo(idFilial, idFornecedor, codigo, call.usuarioAutenticado().id))
+                }
+            }
+            post<Entradas.Vinculo> {
+                call.handleEntrada {
+                    call.podeOperarFinanceiro()
+                    val request = call.receive<VinculoFornecedorRequest>()
+                    call.respond(service.vincular(request, call.usuarioAutenticado().id))
                 }
             }
             get<Entradas.Id> { resource ->

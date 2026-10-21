@@ -971,6 +971,11 @@ export type TranslationKey =
   | "entrada.error.pagamento"
   | "entrada.itensEmpty"
   | "entrada.error.produto"
+  | "entrada.codigoFornecedor"
+  | "entrada.codigoFornecedorHint"
+  | "entrada.confirmarVinculo"
+  | "entrada.trocarVinculo"
+  | "entrada.produtoIndisponivel"
   | "entrada.error.valor"
   | "entrada.error.qtd"
   | "entrada.chassiRepetido"
@@ -981,6 +986,9 @@ export type TranslationKey =
   | "api.ADIANTAMENTO_EXCEDIDO"
   | "api.CAIXA_ADIANTAMENTO_SUPRIMENTO"
   | "api.FORNECEDOR_OBRIGATORIO"
+  | "api.CODIGO_FORNECEDOR_VINCULADO"
+  | "api.CODIGO_FORNECEDOR_TAMANHO"
+  | "api.CODIGO_FORNECEDOR_OBRIGATORIO"
   | "api.PARCELAS_QTD"
   | "api.DIA_VENCIMENTO_INVALIDO"
   | "api.PARCELAS_OBRIGATORIAS"
@@ -2175,6 +2183,11 @@ const pt: Record<TranslationKey, string> = {
   "entrada.error.pagamento": "Informe ao menos uma forma de pagamento",
   "entrada.itensEmpty": "Nenhum item",
   "entrada.error.produto": "Selecione o produto",
+  "entrada.codigoFornecedor": "Código no fornecedor",
+  "entrada.codigoFornecedorHint": "Se já estiver vinculado, o produto do sistema entra sozinho.",
+  "entrada.confirmarVinculo": "Vincular o código {codigo} ao produto {produto}?",
+  "entrada.trocarVinculo": "O código {codigo} está no produto {atual}. Trocar para {produto}?",
+  "entrada.produtoIndisponivel": "O produto {produto} não está disponível nesta filial",
   "entrada.error.valor": "Informe o valor unitário",
   "entrada.error.qtd": "Informe a quantidade",
   "entrada.chassiRepetido": "O chassi {chassi} já está em outro item",
@@ -2185,6 +2198,9 @@ const pt: Record<TranslationKey, string> = {
   "api.ADIANTAMENTO_EXCEDIDO": "O valor passa do que ainda resta nessa sangria",
   "api.CAIXA_ADIANTAMENTO_SUPRIMENTO": "Fornecedor só se informa na sangria",
   "api.FORNECEDOR_OBRIGATORIO": "Informe o fornecedor",
+  "api.CODIGO_FORNECEDOR_VINCULADO": "O código {codigo} deste fornecedor já está no produto {produto}",
+  "api.CODIGO_FORNECEDOR_TAMANHO": "O código do fornecedor deve ter no máximo 80 caracteres",
+  "api.CODIGO_FORNECEDOR_OBRIGATORIO": "Informe o código do fornecedor",
   "api.PARCELAS_QTD": "Informe entre 1 e 120 parcelas",
   "api.DIA_VENCIMENTO_INVALIDO": "O dia de vencimento deve ser entre 1 e 28",
   "api.PARCELAS_OBRIGATORIAS": "Informe as parcelas do crediário",
@@ -3326,6 +3342,11 @@ const es: Record<TranslationKey, string> = {
   "entrada.error.pagamento": "Indique al menos una forma de pago",
   "entrada.itensEmpty": "Ningún ítem",
   "entrada.error.produto": "Seleccione el producto",
+  "entrada.codigoFornecedor": "Código en el proveedor",
+  "entrada.codigoFornecedorHint": "Si ya está vinculado, entra el producto del sistema.",
+  "entrada.confirmarVinculo": "¿Vincular el código {codigo} al producto {produto}?",
+  "entrada.trocarVinculo": "El código {codigo} está en el producto {atual}. ¿Cambiar a {produto}?",
+  "entrada.produtoIndisponivel": "El producto {produto} no está disponible en esta sucursal",
   "entrada.error.valor": "Indique el valor unitario",
   "entrada.error.qtd": "Indique la cantidad",
   "entrada.chassiRepetido": "El chasis {chassi} ya está en otro ítem",
@@ -3336,6 +3357,9 @@ const es: Record<TranslationKey, string> = {
   "api.ADIANTAMENTO_EXCEDIDO": "El valor supera lo que aún queda en esa sangría",
   "api.CAIXA_ADIANTAMENTO_SUPRIMENTO": "El proveedor solo se informa en la sangría",
   "api.FORNECEDOR_OBRIGATORIO": "Indique el proveedor",
+  "api.CODIGO_FORNECEDOR_VINCULADO": "El código {codigo} de este proveedor ya está en el producto {produto}",
+  "api.CODIGO_FORNECEDOR_TAMANHO": "El código del proveedor debe tener como máximo 80 caracteres",
+  "api.CODIGO_FORNECEDOR_OBRIGATORIO": "Indique el código del proveedor",
   "api.PARCELAS_QTD": "Indique entre 1 y 120 cuotas",
   "api.DIA_VENCIMENTO_INVALIDO": "El día de vencimiento debe estar entre 1 y 28",
   "api.PARCELAS_OBRIGATORIAS": "Indique las cuotas del crédito",
