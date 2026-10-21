@@ -327,7 +327,7 @@ const navGrupos: NavGrupo[] = [
   {
     id: "pessoas",
     items: [
-      { id: "clientes", label: "Clientes", icon: "clientes", permissao: Permissao.PESSOA_GERENCIAR },
+      { id: "clientes", label: "Clientes", icon: "clientes", permissao: [Permissao.PESSOA_GERENCIAR, Permissao.CLIENTE_CADASTRAR] },
       { id: "fornecedores", label: "Fornecedores", icon: "fornecedores", permissao: Permissao.PESSOA_GERENCIAR },
     ],
   },
@@ -613,7 +613,7 @@ const MENU_WIDTH = 176;
 const MENU_EST_HEIGHT = 196;
 
 function PapelRowMenu({
-  item, recurso, open, onToggle, onClose, onView, onEdit, onChanged, onToggleStatus, statusBusy,
+  item, recurso, open, onToggle, onClose, onView, onEdit, onChanged, onToggleStatus, statusBusy, podeExcluir,
 }: {
   item: Papel;
   recurso: Recurso;
@@ -625,6 +625,7 @@ function PapelRowMenu({
   onChanged: () => Promise<void>;
   onToggleStatus: () => Promise<void>;
   statusBusy: boolean;
+  podeExcluir: boolean;
 }) {
   const { t } = useI18n();
   const idFilial = useFilialId();
@@ -701,13 +702,17 @@ function PapelRowMenu({
           >
             <button type="button" role="menuitem" className="menu-item" onClick={() => { onView(); onClose(); }}>{t("papel.viewSheet")}</button>
             <button type="button" role="menuitem" className="menu-item" onClick={() => { onEdit(); onClose(); }}>{t("common.edit")}</button>
-            <div className="menu-divider" />
-            <button type="button" role="menuitem" className="menu-item" onClick={() => void alternarStatus()}>
-              {item.status === "ativo" ? t("ficha.inactivate") : t("ficha.activate")}
-            </button>
-            <button type="button" role="menuitem" className="menu-item menu-item-danger" onClick={() => void excluir()}>
-              {t("common.delete")}
-            </button>
+            {podeExcluir && (
+              <>
+                <div className="menu-divider" />
+                <button type="button" role="menuitem" className="menu-item" onClick={() => void alternarStatus()}>
+                  {item.status === "ativo" ? t("ficha.inactivate") : t("ficha.activate")}
+                </button>
+                <button type="button" role="menuitem" className="menu-item menu-item-danger" onClick={() => void excluir()}>
+                  {t("common.delete")}
+                </button>
+              </>
+            )}
           </div>
         </>,
         document.body,
@@ -731,7 +736,9 @@ function PapelPage({ recurso, titulo, singular, cidades, paises, navReset, onNav
   navReset: number; onNavigate: (v: View) => void;
 }) {
   const { t } = useI18n();
+  const { hasPermission } = useAuth();
   const idFilial = useFilialId();
+  const podeExcluir = hasPermission(Permissao.PESSOA_GERENCIAR);
   const [itens, setItens] = useState<Papel[]>([]);
   const [search, setSearch] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
@@ -908,7 +915,7 @@ function PapelPage({ recurso, titulo, singular, cidades, paises, navReset, onNav
                       <StatusBadge
                         status={p.status === "inativo" ? "inativo" : "ativo"}
                         disabled={statusBusyId === p.id}
-                        onToggle={() => void alternarStatusPapel(p)}
+                        onToggle={podeExcluir ? () => void alternarStatusPapel(p) : undefined}
                       />
                     </td>
                     <PapelRowMenu
@@ -921,6 +928,7 @@ function PapelPage({ recurso, titulo, singular, cidades, paises, navReset, onNav
                       onEdit={() => { setEditando(p); setFormAberto(true); }}
                       onChanged={carregar}
                       statusBusy={statusBusyId === p.id}
+                      podeExcluir={podeExcluir}
                       onToggleStatus={() => alternarStatusPapel(p)}
                     />
                   </tr>
@@ -946,6 +954,7 @@ function PapelPage({ recurso, titulo, singular, cidades, paises, navReset, onNav
           } : undefined}
           onClose={() => setSelected(null)}
           onEdit={() => { setEditando(selecionado); setSelected(null); setFormAberto(true); }}
+          podeExcluir={podeExcluir}
           onChanged={carregar}
         />
       )}

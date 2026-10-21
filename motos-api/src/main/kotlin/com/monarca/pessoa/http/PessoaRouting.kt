@@ -1,6 +1,7 @@
 package com.monarca.pessoa.http
 
 import com.monarca.auth.JWT_AUTH
+import com.monarca.auth.podeCadastrarCliente
 import com.monarca.auth.podeConsultarPessoa
 import com.monarca.auth.podeGerenciarDocumento
 import com.monarca.auth.podeGerenciarPessoa
@@ -146,7 +147,7 @@ suspend fun Application.configurePessoa() {
             }
             post<Clientes> {
                 call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
-                    call.podeGerenciarPessoa()
+                    call.podeCadastrarCliente()
                     val request = call.receive<PapelRequest>()
                     call.withAudit {
                         call.respond(HttpStatusCode.Created, papel.criarCliente(request, call.usuarioAutenticado().id))
@@ -155,7 +156,7 @@ suspend fun Application.configurePessoa() {
             }
             put<Clientes.Id> { resource ->
                 call.handlePessoa(service, papel, TipoPapel.CLIENTE) {
-                    call.podeGerenciarPessoa()
+                    call.podeCadastrarCliente()
                     val request = call.receive<PapelRequest>()
                     call.withAudit {
                         call.respond(papel.atualizarCliente(resource.id, request))

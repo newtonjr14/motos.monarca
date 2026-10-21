@@ -10,6 +10,7 @@ enum class Permissao(val codigo: String) {
     DOCUMENTO_GERENCIAR("documento:gerenciar"),
     PESSOA_GERENCIAR("pessoa:gerenciar"),
     PESSOA_CONSULTAR("pessoa:consultar"),
+    CLIENTE_CADASTRAR("cliente:cadastrar"),
     FINANCEIRO_OPERAR("financeiro:operar"),
     FINANCEIRO_ESTORNO("financeiro:estorno"),
     VENDA_REGISTRAR("venda:registrar"),
@@ -49,13 +50,12 @@ object Rbac {
         com.monarca.usuario.domain.PerfilUsuario.VENDEDOR to setOf(
             Permissao.LOCALIDADE_CONSULTAR,
             Permissao.PESSOA_CONSULTAR,
+            Permissao.CLIENTE_CADASTRAR,
             Permissao.VENDA_REGISTRAR,
+            Permissao.VENDA_DESCONTO,
             Permissao.PRODUTO_CONSULTAR,
             Permissao.ESTOQUE_CONSULTAR,
             Permissao.COTACAO_CONSULTAR,
-            Permissao.CAIXA_OPERAR,
-            Permissao.FINANCEIRO_OPERAR,
-            Permissao.RELATORIO_FINANCEIRO,
         ),
     )
 

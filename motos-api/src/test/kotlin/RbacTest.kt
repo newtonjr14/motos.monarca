@@ -54,13 +54,16 @@ class RbacTest {
         assertFalse(Rbac.possui(PerfilUsuario.OPERADOR, Permissao.CAIXA_GERENCIAR))
 
         assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.PESSOA_GERENCIAR))
+        assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.CLIENTE_CADASTRAR))
         assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.DASHBOARD_CONSULTAR))
         assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.COTACAO_GERENCIAR))
         assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.VENDA_REGISTRAR))
+        assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.VENDA_DESCONTO))
         assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.PESSOA_CONSULTAR))
         assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.COTACAO_CONSULTAR))
-        assertTrue(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.CAIXA_OPERAR))
+        assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.CAIXA_OPERAR))
         assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.CAIXA_GERENCIAR))
+        assertFalse(Rbac.possui(PerfilUsuario.VENDEDOR, Permissao.FINANCEIRO_OPERAR))
     }
 
     @Test
@@ -125,15 +128,31 @@ class RbacTest {
             assertEquals(HttpStatusCode.OK, client.get("/clientes") { auth(vendedor) }.status)
             assertEquals(HttpStatusCode.OK, client.get("/vendas/vendedores") { auth(vendedor) }.status)
             assertEquals(HttpStatusCode.OK, client.get("/finalizadores") { auth(vendedor) }.status)
+            assertEquals(HttpStatusCode.OK, client.get("/caixas") { auth(vendedor) }.status)
             assertEquals(HttpStatusCode.Forbidden, client.post("/finalizadores") {
                 auth(vendedor)
                 contentType(ContentType.Application.Json)
                 setBody("""{"nome":"Pix Vend","tipo":"deposito"}""")
             }.status)
             assertEquals(HttpStatusCode.Forbidden, client.get("/usuarios") { auth(vendedor) }.status)
+            assertEquals(HttpStatusCode.Forbidden, client.get("/meus-caixas") { auth(vendedor) }.status)
+            assertEquals(HttpStatusCode.Forbidden, client.post("/caixa-sessoes") {
+                auth(vendedor)
+                contentType(ContentType.Application.Json)
+                setBody("""{"idCaixa":1}""")
+            }.status)
+            assertEquals(HttpStatusCode.Forbidden, client.get("/entradas") { auth(vendedor) }.status)
+            assertEquals(
+                HttpStatusCode.BadRequest,
+                client.post("/clientes") {
+                    auth(vendedor)
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"status":"ativo"}""")
+                }.status,
+            )
             assertEquals(
                 HttpStatusCode.Forbidden,
-                client.post("/clientes") {
+                client.post("/fornecedores") {
                     auth(vendedor)
                     contentType(ContentType.Application.Json)
                     setBody("""{"status":"ativo"}""")

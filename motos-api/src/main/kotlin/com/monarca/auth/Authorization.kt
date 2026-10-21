@@ -39,6 +39,10 @@ fun ApplicationCall.podeGerenciarPessoa() {
     requirePermissao(Permissao.PESSOA_GERENCIAR)
 }
 
+fun ApplicationCall.podeCadastrarCliente() {
+    requireQualquerPermissao(Permissao.PESSOA_GERENCIAR, Permissao.CLIENTE_CADASTRAR)
+}
+
 fun ApplicationCall.podeGerenciarDocumento() {
     requirePermissao(Permissao.DOCUMENTO_GERENCIAR)
 }
@@ -80,6 +84,11 @@ fun ApplicationCall.podeGerenciarCotacao() {
 
 fun ApplicationCall.podeConsultarCaixa() {
     requireQualquerPermissao(Permissao.CAIXA_GERENCIAR, Permissao.CAIXA_OPERAR)
+}
+
+/** Lista caixa e finalizador para receber a venda, sem abrir, fechar ou sangrar. */
+fun ApplicationCall.podeLerCaixaDaVenda() {
+    requireQualquerPermissao(Permissao.CAIXA_GERENCIAR, Permissao.CAIXA_OPERAR, Permissao.VENDA_REGISTRAR)
 }
 
 fun ApplicationCall.podeGerenciarCaixa() {

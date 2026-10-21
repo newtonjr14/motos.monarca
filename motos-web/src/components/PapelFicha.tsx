@@ -37,6 +37,7 @@ export default function PapelFicha({
   nav,
   onClose,
   onEdit,
+  podeExcluir = true,
   onChanged,
 }: {
   item: Papel;
@@ -46,6 +47,7 @@ export default function PapelFicha({
   nav?: { index: number; total: number; onPrev: () => void; onNext: () => void };
   onClose: () => void;
   onEdit: () => void;
+  podeExcluir?: boolean;
   onChanged: () => Promise<void>;
 }) {
   const { t } = useI18n();
@@ -251,22 +253,26 @@ export default function PapelFicha({
             <button type="button" className="btn-action-edit flex-1 py-2 text-sm order-1" onClick={onEdit}>
               {t("common.edit")}
             </button>
-            <button
-              type="button"
-              className="btn-action-secondary flex-1 py-2 text-sm order-2"
-              disabled={loading != null}
-              onClick={() => void alternarStatus()}
-            >
-              {loading === "status" ? t("common.saving") : item.status === "ativo" ? t("ficha.inactivate") : t("ficha.activate")}
-            </button>
-            <button
-              type="button"
-              className="btn-action-danger flex-1 py-2 text-sm order-3"
-              disabled={loading != null}
-              onClick={() => void excluir()}
-            >
-              {loading === "delete" ? t("common.saving") : t("common.delete")}
-            </button>
+            {podeExcluir && (
+              <>
+                <button
+                  type="button"
+                  className="btn-action-secondary flex-1 py-2 text-sm order-2"
+                  disabled={loading != null}
+                  onClick={() => void alternarStatus()}
+                >
+                  {loading === "status" ? t("common.saving") : item.status === "ativo" ? t("ficha.inactivate") : t("ficha.activate")}
+                </button>
+                <button
+                  type="button"
+                  className="btn-action-danger flex-1 py-2 text-sm order-3"
+                  disabled={loading != null}
+                  onClick={() => void excluir()}
+                >
+                  {loading === "delete" ? t("common.saving") : t("common.delete")}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

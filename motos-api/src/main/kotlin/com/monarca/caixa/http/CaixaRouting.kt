@@ -3,6 +3,7 @@ package com.monarca.caixa.http
 import com.monarca.auth.JWT_AUTH
 import com.monarca.auth.podeConsultarCaixa
 import com.monarca.auth.podeGerenciarCaixa
+import com.monarca.auth.podeLerCaixaDaVenda
 import com.monarca.auth.podeOperarCaixa
 import com.monarca.auth.usuarioAutenticado
 import com.monarca.auth.withAudit
@@ -39,7 +40,7 @@ fun Application.configureCaixa() {
         authenticate(JWT_AUTH) {
             get<Finalizadores> {
                 call.handleCaixa {
-                    call.podeConsultarCaixa()
+                    call.podeLerCaixaDaVenda()
                     call.respond(service.listarFinalizadores())
                 }
             }
@@ -79,7 +80,7 @@ fun Application.configureCaixa() {
 
             get<Caixas> { resource ->
                 call.handleCaixa {
-                    call.podeConsultarCaixa()
+                    call.podeLerCaixaDaVenda()
                     val usuario = call.usuarioAutenticado()
                     call.respond(service.listarCaixas(resource.idFilial, usuario.id, resource.somenteComAcesso))
                 }

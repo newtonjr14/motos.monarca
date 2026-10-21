@@ -18,6 +18,7 @@ export const Permissao = {
   LOCALIDADE_GERENCIAR: "localidade:gerenciar",
   DOCUMENTO_GERENCIAR: "documento:gerenciar",
   PESSOA_GERENCIAR: "pessoa:gerenciar",
+  CLIENTE_CADASTRAR: "cliente:cadastrar",
   VENDA_REGISTRAR: "venda:registrar",
   VENDA_DESCONTO: "venda:desconto",
   DASHBOARD_CONSULTAR: "dashboard:consultar",
