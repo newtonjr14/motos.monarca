@@ -46,8 +46,8 @@ system:
 
 cors:
   hosts:
-    - "http://sistema.grupomonarca.com.br"
-    - "https://sistema.grupomonarca.com.br"
+    - "http://mobilidadeeletrica.grupomonarca.com.br"
+    - "https://mobilidadeeletrica.grupomonarca.com.br"
 
 auth:
   loginMaxAttempts: 20
