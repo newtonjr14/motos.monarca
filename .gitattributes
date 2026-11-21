@@ -1,0 +1,4 @@
+deploy/*.sh text eol=lf
+motos-api/Dockerfile text eol=lf
+motos-web/Dockerfile text eol=lf
+motos-api/gradlew text eol=lf

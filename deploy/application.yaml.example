@@ -1,0 +1,68 @@
+ktor:
+  deployment:
+    port: 8080
+  application:
+    startupTimeoutMillis: 180000
+    modules:
+      - com.monarca.HttpKt.configureHttp
+      - com.monarca.SerializationKt.configureSerialization
+      - com.monarca.StatusPagesKt.configureStatusPages
+      - com.monarca.KoinKt.configureKoin
+      - com.monarca.ResourcesKt.configureResources
+      - com.monarca.HealthKt.configureHealth
+      - com.monarca.auth.AuthKt.configureAuthentication
+      - com.monarca.auth.http.AuthRoutingKt.configureAuthRoutes
+      - com.monarca.localidade.http.LocalidadeRoutingKt.configureLocalidade
+      - com.monarca.empresa.http.EmpresaRoutingKt.configureEmpresa
+      - com.monarca.pessoa.http.PessoaRoutingKt.configurePessoa
+      - com.monarca.usuario.http.UsuarioRoutingKt.configureUsuario
+      - com.monarca.produto.http.ProdutoRoutingKt.configureProduto
+      - com.monarca.produto.http.MarcaRoutingKt.configureMarca
+      - com.monarca.estoque.http.EstoqueRoutingKt.configureEstoque
+      - com.monarca.cotacao.http.CotacaoRoutingKt.configureCotacao
+      - com.monarca.caixa.http.CaixaRoutingKt.configureCaixa
+      - com.monarca.venda.http.VendaRoutingKt.configureVenda
+      - com.monarca.titulo.http.TituloRoutingKt.configureTitulo
+      - com.monarca.entrada.http.EntradaRoutingKt.configureEntrada
+      - com.monarca.devolucao.http.DevolucaoRoutingKt.configureDevolucao
+      - com.monarca.factura.http.FacturaRoutingKt.configureFactura
+      - com.monarca.seed.http.SeedDemoRoutingKt.configureSeed
+
+database:
+  url: "r2dbc:postgresql://db:5432/monarca_motos_db"
+  user: monarca
+  password: "TROQUE_ESTA_SENHA"
+
+jwt:
+  secret: "TROQUE-ESTE-SEGREDO-COM-32-CARACTERES-OU-MAIS"
+  issuer: "monarca-motos"
+  audience: "monarca-motos-api"
+  realm: "Monarca Motos"
+  accessExpirationMinutes: 60
+  refreshExpirationDays: 7
+
+system:
+  initialPassword: "TROQUE_A_SENHA_DO_SYSTEM"
+
+cors:
+  hosts:
+    - "http://sistema.grupomonarca.com.br"
+    - "https://sistema.grupomonarca.com.br"
+
+auth:
+  loginMaxAttempts: 20
+  loginWindowSeconds: 60
+
+cotacao:
+  exigirDoDia: true
+
+sudtax:
+  enabled: false
+  baseUrl: "http://localhost:8090"
+  apiKey: "desligado"
+
+seed:
+  # true só no teste, para o botão de dados de demonstração.
+  # Antes de zerar o banco de verdade, mude para false.
+  demo: true
+  cidades: true

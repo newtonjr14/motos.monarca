@@ -11,3 +11,5 @@ dist/
 .env*
 motos.api/src/main/resources/application.yaml
 motos-api/src/main/resources/application.yaml
+deploy/application.yaml
+deploy/.env
