@@ -1,5 +1,5 @@
 import EquivalentesMoeda from "@/components/EquivalentesMoeda";
-import ProdutoMiniatura from "@/components/ProdutoMiniatura";
+import ProdutoMiniatura, { useFotoProduto } from "@/components/ProdutoMiniatura";
 import { atualizarProdutoStatus, buscarProduto, excluirProduto, listarMovimentosEstoque, listarUnidades, type EstoqueMovimento, type Produto, type ProdutoUnidade } from "@/api";
 import { useFilial, useFilialId } from "@/auth/FilialContext";
 import { useCotacaoHoje } from "@/components/CotacaoBanner";
@@ -70,11 +70,14 @@ export default function ProdutoFicha({
   const [carregando, setCarregando] = useState(() => fallback.moto == null && fallback.bicicleta == null);
   const [loading, setLoading] = useState<"status" | "delete" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [fotoAberta, setFotoAberta] = useState(false);
+  const fotoSrc = useFotoProduto(item.id, item.temFoto);
   const completo = item.moto != null || item.bicicleta != null;
 
   useEffect(() => {
     let ativo = true;
     setItem(fallback);
+    setFotoAberta(false);
     setErro(null);
     const precisaDetalhe = fallback.moto == null && fallback.bicicleta == null;
     if (precisaDetalhe) setCarregando(true);
@@ -111,7 +114,13 @@ export default function ProdutoFicha({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if (fotoAberta) {
+          setFotoAberta(false);
+          return;
+        }
+        onClose();
+      }
       if (nav && !loading) {
         if (e.key === "ArrowUp" && nav.index > 0) {
           e.preventDefault();
@@ -130,7 +139,7 @@ export default function ProdutoFicha({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose, nav, loading]);
+  }, [onClose, nav, loading, fotoAberta]);
 
   async function alternarStatus() {
     if (!completo) return;
@@ -177,13 +186,34 @@ export default function ProdutoFicha({
         style={{ background: v("--card"), border: border1() }}
         onClick={(e) => e.stopPropagation()}
       >
+        {fotoAberta && fotoSrc && (
+          <div
+            className="fixed inset-0 z-[260] flex items-center justify-center p-6 cursor-pointer"
+            style={{ background: "rgba(0,0,0,0.72)" }}
+            onClick={() => setFotoAberta(false)}
+          >
+            <img src={fotoSrc} alt={item.nome} className="max-w-full max-h-full object-contain rounded-md" />
+          </div>
+        )}
         <div className="ficha-modal-header px-6 py-4 flex items-start justify-between gap-4 shrink-0" style={{ borderBottom: border1() }}>
           <div className="flex items-start gap-3 min-w-0">
-            {item.temFoto && (
-              <div className="w-16 h-12 rounded-md overflow-hidden shrink-0 flex items-center justify-center" style={{ background: v("--card2") }}>
+            <div
+              className="w-44 h-32 rounded-md overflow-hidden shrink-0 flex items-center justify-center"
+              style={{ background: item.tipo === "moto" ? "var(--gold-bg)" : v("--card2"), border: border1() }}
+            >
+              {fotoSrc ? (
+                <button
+                  type="button"
+                  className="w-full h-full cursor-pointer"
+                  aria-label={t("produto.foto")}
+                  onClick={() => setFotoAberta(true)}
+                >
+                  <img src={fotoSrc} alt="" className="w-full h-full object-cover" />
+                </button>
+              ) : (
                 <ProdutoMiniatura produto={item} />
-              </div>
-            )}
+              )}
+            </div>
             <div className="min-w-0 space-y-2">
             <p id="produto-ficha-title" className="text-lg font-semibold leading-snug truncate" style={{ fontFamily: "var(--font-display)", color: v("--text") }}>
               {item.nome}

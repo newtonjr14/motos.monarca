@@ -1249,7 +1249,7 @@ select.field::-ms-expand {
   background: var(--card2);
 }
 .pdv-card-thumb {
-  height: 4.5rem;
+  height: 7rem;
   border-radius: 8px;
   display: flex;
   align-items: center;
