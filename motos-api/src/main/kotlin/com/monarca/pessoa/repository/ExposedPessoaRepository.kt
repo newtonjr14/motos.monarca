@@ -238,11 +238,11 @@ class ExposedPessoaRepository(
     override suspend fun buscarClientePorPessoa(idPessoa: Long): PapelCompleto? =
         buscarPapelPorPessoa(clientesPapel, idPessoa)
 
-    override suspend fun inserirCliente(idPessoa: Long, status: Status, idFilialCadastro: Long): Long =
-        inserirPapel(clientesPapel, idPessoa, status, idFilialCadastro)
+    override suspend fun inserirCliente(idPessoa: Long, status: Status, idFilialCadastro: Long, observacao: String?): Long =
+        inserirPapel(clientesPapel, idPessoa, status, idFilialCadastro, observacao)
 
-    override suspend fun atualizarCliente(id: Long, status: Status): Boolean =
-        atualizarPapel(clientesPapel, id, status)
+    override suspend fun atualizarCliente(id: Long, status: Status, observacao: String?): Boolean =
+        atualizarPapel(clientesPapel, id, status, observacao)
 
     override suspend fun excluirCliente(id: Long, idFilial: Long?): Boolean =
         excluirPapel(clientesPapel, id, idFilial)
@@ -266,11 +266,11 @@ class ExposedPessoaRepository(
     override suspend fun buscarFornecedorPorPessoa(idPessoa: Long): PapelCompleto? =
         buscarPapelPorPessoa(fornecedoresPapel, idPessoa)
 
-    override suspend fun inserirFornecedor(idPessoa: Long, status: Status, idFilialCadastro: Long): Long =
-        inserirPapel(fornecedoresPapel, idPessoa, status, idFilialCadastro)
+    override suspend fun inserirFornecedor(idPessoa: Long, status: Status, idFilialCadastro: Long, observacao: String?): Long =
+        inserirPapel(fornecedoresPapel, idPessoa, status, idFilialCadastro, observacao)
 
-    override suspend fun atualizarFornecedor(id: Long, status: Status): Boolean =
-        atualizarPapel(fornecedoresPapel, id, status)
+    override suspend fun atualizarFornecedor(id: Long, status: Status, observacao: String?): Boolean =
+        atualizarPapel(fornecedoresPapel, id, status, observacao)
 
     override suspend fun excluirFornecedor(id: Long, idFilial: Long?): Boolean =
         excluirPapel(fornecedoresPapel, id, idFilial)
@@ -290,6 +290,7 @@ class ExposedPessoaRepository(
         val table: org.jetbrains.exposed.v1.core.dao.id.LongIdTable,
         val idPessoa: org.jetbrains.exposed.v1.core.Column<org.jetbrains.exposed.v1.core.dao.id.EntityID<Long>>,
         val idFilialCadastro: org.jetbrains.exposed.v1.core.Column<org.jetbrains.exposed.v1.core.dao.id.EntityID<Long>?>,
+        val observacao: org.jetbrains.exposed.v1.core.Column<String?>,
         val status: org.jetbrains.exposed.v1.core.Column<String>,
         val vinculoTable: org.jetbrains.exposed.v1.core.dao.id.LongIdTable,
         val vinculoIdPapel: org.jetbrains.exposed.v1.core.Column<org.jetbrains.exposed.v1.core.dao.id.EntityID<Long>>,
@@ -301,6 +302,7 @@ class ExposedPessoaRepository(
         ClientesTable,
         ClientesTable.idPessoa,
         ClientesTable.idFilialCadastro,
+        ClientesTable.observacao,
         ClientesTable.status,
         ClienteFilialTable,
         ClienteFilialTable.idCliente,
@@ -311,6 +313,7 @@ class ExposedPessoaRepository(
         FornecedoresTable,
         FornecedoresTable.idPessoa,
         FornecedoresTable.idFilialCadastro,
+        FornecedoresTable.observacao,
         FornecedoresTable.status,
         FornecedorFilialTable,
         FornecedorFilialTable.idFornecedor,
@@ -444,10 +447,12 @@ class ExposedPessoaRepository(
         idPessoa: Long,
         status: Status,
         idFilialCadastro: Long,
+        observacao: String?,
     ): Long = suspendTransaction(database) {
         val id = schema.table.insert {
             it[schema.idPessoa] = idPessoa
             it[schema.idFilialCadastro] = idFilialCadastro
+            it[schema.observacao] = observacao
             it[schema.status] = status.name.lowercase()
         }[schema.table.id].value
         vincularFilialInterno(schema, id, idFilialCadastro)
@@ -458,11 +463,11 @@ class ExposedPessoaRepository(
         schema: PapelSchema,
         id: Long,
         status: Status,
+        observacao: String?,
     ): Boolean = suspendTransaction(database) {
-        schema.table.update({
-            (schema.table.id eq id) and (schema.status neq Status.DELETADO.name.lowercase())
-        }) {
+        schema.table.update({ schema.table.id eq id }) {
             it[schema.status] = status.name.lowercase()
+            it[schema.observacao] = observacao
         } > 0
     }
 
@@ -703,6 +708,7 @@ class ExposedPessoaRepository(
         filialNome = getOrNull(FiliaisTable.nome),
         filiaisVinculadas = filiaisVinculadas,
         status = Status.valueOf(this[schema.status].uppercase()),
+        observacao = this[schema.observacao],
         pessoa = pessoa,
     )
 

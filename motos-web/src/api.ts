@@ -146,6 +146,7 @@ export interface Papel {
   filialNome?: string | null;
   filiaisVinculadas?: FilialVinculo[];
   status: Status;
+  observacao?: string | null;
   pessoa: Pessoa;
 }
 

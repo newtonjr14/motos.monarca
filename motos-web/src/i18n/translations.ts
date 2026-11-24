@@ -179,6 +179,8 @@ export type TranslationKey =
   | "papel.section.document"
   | "form.tab.data"
   | "form.tab.address"
+  | "form.tab.note"
+  | "papel.noteHint"
   | "form.tab.document"
   | "produto.tab.cadastro"
   | "produto.tab.ficha"
@@ -987,6 +989,7 @@ export type TranslationKey =
   | "api.CAIXA_ADIANTAMENTO_SUPRIMENTO"
   | "api.FORNECEDOR_OBRIGATORIO"
   | "api.CODIGO_FORNECEDOR_VINCULADO"
+  | "api.OBSERVACAO_TAMANHO"
   | "api.CODIGO_FORNECEDOR_TAMANHO"
   | "api.CODIGO_FORNECEDOR_OBRIGATORIO"
   | "api.PARCELAS_QTD"
@@ -1392,6 +1395,8 @@ const pt: Record<TranslationKey, string> = {
   "papel.section.document": "Documento",
   "form.tab.data": "Dados",
   "form.tab.address": "Endereços",
+  "form.tab.note": "Observação",
+  "papel.noteHint": "O que a loja precisa lembrar. Pode ficar em branco. Até 500 caracteres.",
   "form.tab.document": "Documento",
   "produto.tab.cadastro": "Cadastro",
   "produto.tab.ficha": "Ficha técnica",
@@ -2199,6 +2204,7 @@ const pt: Record<TranslationKey, string> = {
   "api.CAIXA_ADIANTAMENTO_SUPRIMENTO": "Fornecedor só se informa na sangria",
   "api.FORNECEDOR_OBRIGATORIO": "Informe o fornecedor",
   "api.CODIGO_FORNECEDOR_VINCULADO": "O código {codigo} deste fornecedor já está no produto {produto}",
+  "api.OBSERVACAO_TAMANHO": "A observação deve ter no máximo 500 caracteres",
   "api.CODIGO_FORNECEDOR_TAMANHO": "O código do fornecedor deve ter no máximo 80 caracteres",
   "api.CODIGO_FORNECEDOR_OBRIGATORIO": "Informe o código do fornecedor",
   "api.PARCELAS_QTD": "Informe entre 1 e 120 parcelas",
@@ -2541,6 +2547,8 @@ const es: Record<TranslationKey, string> = {
   "papel.section.document": "Documento",
   "form.tab.data": "Datos",
   "form.tab.address": "Direcciones",
+  "form.tab.note": "Observación",
+  "papel.noteHint": "Lo que la tienda necesita recordar. Puede quedar en blanco. Hasta 500 caracteres.",
   "form.tab.document": "Documento",
   "produto.tab.cadastro": "Registro",
   "produto.tab.ficha": "Ficha técnica",
@@ -3358,6 +3366,7 @@ const es: Record<TranslationKey, string> = {
   "api.CAIXA_ADIANTAMENTO_SUPRIMENTO": "El proveedor solo se informa en la sangría",
   "api.FORNECEDOR_OBRIGATORIO": "Indique el proveedor",
   "api.CODIGO_FORNECEDOR_VINCULADO": "El código {codigo} de este proveedor ya está en el producto {produto}",
+  "api.OBSERVACAO_TAMANHO": "La observación debe tener como máximo 500 caracteres",
   "api.CODIGO_FORNECEDOR_TAMANHO": "El código del proveedor debe tener como máximo 80 caracteres",
   "api.CODIGO_FORNECEDOR_OBRIGATORIO": "Indique el código del proveedor",
   "api.PARCELAS_QTD": "Indique entre 1 y 120 cuotas",

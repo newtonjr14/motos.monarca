@@ -9,5 +9,6 @@ data class PapelCompleto(
     val filialNome: String?,
     val filiaisVinculadas: List<FilialVinculo>,
     val status: Status,
+    val observacao: String?,
     val pessoa: PessoaCompleta,
 )

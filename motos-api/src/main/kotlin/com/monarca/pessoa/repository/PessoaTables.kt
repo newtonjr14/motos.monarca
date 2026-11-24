@@ -46,6 +46,7 @@ object PessoaEnderecosTable : LongIdTable("pessoa_endereco") {
 object ClientesTable : LongIdTable("cliente") {
     val idPessoa = reference("id_pessoa", PessoasTable)
     val idFilialCadastro = optReference("id_filial_cadastro", FiliaisTable)
+    val observacao = varchar("observacao", 500).nullable()
     val status = varchar("status", 20).default("ativo")
 
     init {
@@ -56,6 +57,7 @@ object ClientesTable : LongIdTable("cliente") {
 object FornecedoresTable : LongIdTable("fornecedor") {
     val idPessoa = reference("id_pessoa", PessoasTable)
     val idFilialCadastro = optReference("id_filial_cadastro", FiliaisTable)
+    val observacao = varchar("observacao", 500).nullable()
     val status = varchar("status", 20).default("ativo")
 
     init {

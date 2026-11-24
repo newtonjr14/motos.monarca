@@ -143,6 +143,7 @@ data class PapelRequest(
     val idFilialCadastro: Long? = null,
     val confirmarVinculoFilial: Boolean = false,
     val status: Status = Status.ATIVO,
+    val observacao: String? = null,
     val pessoa: PessoaRequest? = null,
 )
 
@@ -154,5 +155,6 @@ data class PapelResponse(
     val filialNome: String? = null,
     val filiaisVinculadas: List<FilialVinculoResponse> = emptyList(),
     val status: Status,
+    val observacao: String? = null,
     val pessoa: PessoaResponse,
 )

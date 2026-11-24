@@ -780,7 +780,7 @@ function PapelPage({ recurso, titulo, singular, cidades, paises, navReset, onNav
     const q = search.toLowerCase();
     const doc = docPrincipal(p);
     const cidade = formatarCidade(cidades, enderecoPrincipal(p.pessoa)?.idCidade ?? null, true);
-    return `${p.pessoa.nomeRazaoSocial} ${p.pessoa.email ?? ""} ${p.pessoa.telefone ?? ""} ${doc?.numero ?? ""} ${doc?.tipoNome ?? ""} ${cidade}`.toLowerCase().includes(q);
+    return `${p.pessoa.nomeRazaoSocial} ${p.pessoa.email ?? ""} ${p.pessoa.telefone ?? ""} ${doc?.numero ?? ""} ${doc?.tipoNome ?? ""} ${cidade} ${p.observacao ?? ""}`.toLowerCase().includes(q);
   });
 
   const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (p, k) => {
@@ -820,6 +820,7 @@ function PapelPage({ recurso, titulo, singular, cidades, paises, navReset, onNav
     try {
       await atualizarPapel(recurso, item.id, {
         status: proximo,
+        observacao: item.observacao ?? null,
         pessoa: pessoaParaAtualizacao(item.pessoa),
       });
     } catch (e) {
@@ -1087,7 +1088,8 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
   const [idPessoaPendente, setIdPessoaPendente] = useState<number | null>(null);
   const [previewPessoaId, setPreviewPessoaId] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
-  const [guia, setGuia] = useState<"dados" | "enderecos">("dados");
+  const [observacao, setObservacao] = useState(editando?.observacao ?? "");
+  const [guia, setGuia] = useState<"dados" | "enderecos" | "observacao">("dados");
 
   useEffect(() => {
     if (idPais !== "" || !paisPadrao) return;
@@ -1234,7 +1236,11 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
     setSalvando(true);
     try {
       if (editando) {
-        await atualizarPapel(recurso, editando.id, { status, pessoa: corpoPessoa() });
+        await atualizarPapel(recurso, editando.id, {
+          status,
+          observacao: observacao.trim() || null,
+          pessoa: corpoPessoa(),
+        });
         // Abrir cadastro + Salvar não recriava o vínculo após exclusão da filial
         const jaNaFilial = (editando.filiaisVinculadas ?? []).some((f) => f.id === idFilialCadastro);
         if (!jaNaFilial) {
@@ -1243,6 +1249,7 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
             idFilialCadastro,
             confirmarVinculoFilial,
             status,
+            observacao: observacao.trim() || null,
           });
         }
       } else if (idPessoaExistente != null) {
@@ -1251,9 +1258,15 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
           idFilialCadastro,
           confirmarVinculoFilial,
           status,
+          observacao: observacao.trim() || null,
         });
       } else {
-        await criarPapel(recurso, { status, idFilialCadastro, pessoa: corpoPessoa() });
+        await criarPapel(recurso, {
+          status,
+          idFilialCadastro,
+          observacao: observacao.trim() || null,
+          pessoa: corpoPessoa(),
+        });
       }
       setConflito(null);
       setIdPessoaPendente(null);
@@ -1278,6 +1291,7 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
         setErro(msg);
         const codigo = e instanceof ApiError ? (e.body as { codigo?: string })?.codigo : undefined;
         if (codigo?.startsWith("ENDERECO_")) setGuia("enderecos");
+        if (codigo === "OBSERVACAO_TAMANHO") setGuia("observacao");
       }
     } finally {
       setSalvando(false);
@@ -1345,7 +1359,7 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
 
       <form className="rounded-lg p-5 space-y-5" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
         onSubmit={(e) => { e.preventDefault(); void salvar(); }}
-        onKeyDown={(e) => navegarGuiaNoTeclado(e, ["dados", "enderecos"], guia, setGuia)}>
+        onKeyDown={(e) => navegarGuiaNoTeclado(e, ["dados", "enderecos", "observacao"], guia, setGuia)}>
 
         <FormTabs
           value={guia}
@@ -1353,6 +1367,7 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
           tabs={[
             { id: "dados", label: t("form.tab.data") },
             { id: "enderecos", label: t("form.tab.address") },
+            { id: "observacao", label: t("form.tab.note") },
           ]}
         />
 
@@ -1616,6 +1631,20 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
           >
             {t("papel.addressAdd")}
           </button>
+        </div>
+
+        <div role="tabpanel" id="form-panel-observacao" aria-labelledby="form-tab-observacao" hidden={guia !== "observacao"}>
+          <Section title={t("form.tab.note")}>
+            <p className="text-xs" style={{ color: v("--text-muted") }}>{t("papel.noteHint")}</p>
+            <textarea
+              className="field"
+              rows={5}
+              maxLength={500}
+              value={observacao}
+              onChange={(e) => setObservacao(e.target.value)}
+            />
+            <p className="text-xs text-right" style={{ color: v("--text-muted") }}>{observacao.length}/500</p>
+          </Section>
         </div>
 
         {erro && (

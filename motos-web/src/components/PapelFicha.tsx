@@ -98,6 +98,7 @@ export default function PapelFicha({
     try {
       await atualizarPapel(recurso, item.id, {
         status: proximo,
+        observacao: item.observacao ?? null,
         pessoa: pessoaParaAtualizacao(p),
       });
       await onChanged();
@@ -228,6 +229,14 @@ export default function PapelFicha({
               )}
             </Section>
           </div>
+
+          {item.observacao?.trim() && (
+            <Section title={t("form.tab.note")}>
+              <p className="text-sm leading-relaxed break-words whitespace-pre-wrap" style={{ color: v("--text") }}>
+                {item.observacao.trim()}
+              </p>
+            </Section>
+          )}
 
           {outrosDocs.length > 0 && (
             <Section title={t("ficha.moreDocuments")}>

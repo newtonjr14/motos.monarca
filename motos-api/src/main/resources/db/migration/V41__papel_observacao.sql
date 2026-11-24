@@ -1,0 +1,2 @@
+ALTER TABLE cliente ADD COLUMN observacao VARCHAR(500);
+ALTER TABLE fornecedor ADD COLUMN observacao VARCHAR(500);

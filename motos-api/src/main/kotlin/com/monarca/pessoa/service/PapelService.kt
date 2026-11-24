@@ -47,7 +47,7 @@ class PapelService(
     suspend fun atualizarCliente(id: Long, request: PapelRequest): PapelResponse {
         val atual = repository.buscarCliente(id) ?: throw RecursoNaoEncontrado("Cliente $id não encontrado")
         atualizarPessoaSeInformada(atual.idPessoa, request)
-        repository.atualizarCliente(id, validarStatus(request.status))
+        repository.atualizarCliente(id, validarStatus(request.status), normalizarObservacao(request.observacao))
         return buscarCliente(id)
     }
 
@@ -73,7 +73,7 @@ class PapelService(
     suspend fun atualizarFornecedor(id: Long, request: PapelRequest): PapelResponse {
         val atual = repository.buscarFornecedor(id) ?: throw RecursoNaoEncontrado("Fornecedor $id não encontrado")
         atualizarPessoaSeInformada(atual.idPessoa, request)
-        repository.atualizarFornecedor(id, validarStatus(request.status))
+        repository.atualizarFornecedor(id, validarStatus(request.status), normalizarObservacao(request.observacao))
         return buscarFornecedor(id)
     }
 
@@ -126,6 +126,7 @@ class PapelService(
 
     private suspend fun criarPapel(tipo: TipoPapel, request: PapelRequest, rotulo: String, idUsuario: Long): PapelResponse {
         val status = validarStatus(request.status)
+        val observacao = normalizarObservacao(request.observacao)
         val idFilial = resolverFilialComAcesso(idUsuario, request.idFilialCadastro)
         val filialAlvo = empresaService.buscarFilial(idFilial)
         val idPessoa = garantirPessoa(request)
@@ -134,14 +135,17 @@ class PapelService(
             TipoPapel.FORNECEDOR -> repository.buscarFornecedorPorPessoa(idPessoa)
         }
         val id = when {
-            existente == null -> inserirPapel(tipo, idPessoa, status, idFilial)
+            existente == null -> inserirPapel(tipo, idPessoa, status, idFilial, observacao)
             existente.status == Status.DELETADO -> {
-                reativarPapel(tipo, existente.id, status)
+                reativarPapel(tipo, existente.id, status, observacao ?: existente.observacao)
                 vincularFilial(tipo, existente.id, idFilial, request, rotulo, existente, filialAlvo.nome)
                 existente.id
             }
             else -> {
                 vincularFilial(tipo, existente.id, idFilial, request, rotulo, existente, filialAlvo.nome)
+                if (observacao != null) {
+                    gravarObservacao(tipo, existente.id, existente.status, observacao)
+                }
                 existente.id
             }
         }
@@ -181,17 +185,34 @@ class PapelService(
         }
     }
 
-    private suspend fun inserirPapel(tipo: TipoPapel, idPessoa: Long, status: Status, idFilial: Long): Long =
-        when (tipo) {
-            TipoPapel.CLIENTE -> repository.inserirCliente(idPessoa, status, idFilial)
-            TipoPapel.FORNECEDOR -> repository.inserirFornecedor(idPessoa, status, idFilial)
-        }
+    private suspend fun inserirPapel(
+        tipo: TipoPapel,
+        idPessoa: Long,
+        status: Status,
+        idFilial: Long,
+        observacao: String?,
+    ): Long = when (tipo) {
+        TipoPapel.CLIENTE -> repository.inserirCliente(idPessoa, status, idFilial, observacao)
+        TipoPapel.FORNECEDOR -> repository.inserirFornecedor(idPessoa, status, idFilial, observacao)
+    }
 
-    private suspend fun reativarPapel(tipo: TipoPapel, id: Long, status: Status) {
+    private suspend fun reativarPapel(tipo: TipoPapel, id: Long, status: Status, observacao: String?) {
+        gravarObservacao(tipo, id, status, observacao)
+    }
+
+    private suspend fun gravarObservacao(tipo: TipoPapel, id: Long, status: Status, observacao: String?) {
         when (tipo) {
-            TipoPapel.CLIENTE -> repository.atualizarCliente(id, status)
-            TipoPapel.FORNECEDOR -> repository.atualizarFornecedor(id, status)
+            TipoPapel.CLIENTE -> repository.atualizarCliente(id, status, observacao)
+            TipoPapel.FORNECEDOR -> repository.atualizarFornecedor(id, status, observacao)
         }
+    }
+
+    private fun normalizarObservacao(valor: String?): String? {
+        val texto = valor?.trim()?.ifBlank { null } ?: return null
+        if (texto.length > 500) {
+            throw invalido("OBSERVACAO_TAMANHO", "A observação deve ter no máximo 500 caracteres")
+        }
+        return texto
     }
 
     private suspend fun buscar(tipo: TipoPapel, id: Long): PapelResponse = when (tipo) {
@@ -246,6 +267,7 @@ class PapelService(
         filialNome = filialNome,
         filiaisVinculadas = filiaisVinculadas.map { it.toResponse() },
         status = status,
+        observacao = observacao,
         pessoa = pessoaService.asResponse(pessoa),
     )
 

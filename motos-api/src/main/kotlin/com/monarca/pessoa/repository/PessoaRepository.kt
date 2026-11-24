@@ -55,8 +55,8 @@ interface PessoaRepository {
     suspend fun listarClientes(idFilial: Long?, filtrarPorFilial: Boolean): List<PapelCompleto>
     suspend fun buscarCliente(id: Long): PapelCompleto?
     suspend fun buscarClientePorPessoa(idPessoa: Long): PapelCompleto?
-    suspend fun inserirCliente(idPessoa: Long, status: Status, idFilialCadastro: Long): Long
-    suspend fun atualizarCliente(id: Long, status: Status): Boolean
+    suspend fun inserirCliente(idPessoa: Long, status: Status, idFilialCadastro: Long, observacao: String?): Long
+    suspend fun atualizarCliente(id: Long, status: Status, observacao: String?): Boolean
     suspend fun excluirCliente(id: Long, idFilial: Long?): Boolean
     suspend fun contarClientes(): Long
     suspend fun vincularClienteFilial(idCliente: Long, idFilial: Long): Boolean
@@ -66,8 +66,8 @@ interface PessoaRepository {
     suspend fun listarFornecedores(idFilial: Long?, filtrarPorFilial: Boolean): List<PapelCompleto>
     suspend fun buscarFornecedor(id: Long): PapelCompleto?
     suspend fun buscarFornecedorPorPessoa(idPessoa: Long): PapelCompleto?
-    suspend fun inserirFornecedor(idPessoa: Long, status: Status, idFilialCadastro: Long): Long
-    suspend fun atualizarFornecedor(id: Long, status: Status): Boolean
+    suspend fun inserirFornecedor(idPessoa: Long, status: Status, idFilialCadastro: Long, observacao: String?): Long
+    suspend fun atualizarFornecedor(id: Long, status: Status, observacao: String?): Boolean
     suspend fun excluirFornecedor(id: Long, idFilial: Long?): Boolean
     suspend fun contarFornecedores(): Long
     suspend fun vincularFornecedorFilial(idFornecedor: Long, idFilial: Long): Boolean
