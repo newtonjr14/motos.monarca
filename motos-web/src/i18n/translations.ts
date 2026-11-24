@@ -180,7 +180,6 @@ export type TranslationKey =
   | "form.tab.data"
   | "form.tab.address"
   | "form.tab.note"
-  | "papel.noteHint"
   | "form.tab.document"
   | "produto.tab.cadastro"
   | "produto.tab.ficha"
@@ -1396,7 +1395,6 @@ const pt: Record<TranslationKey, string> = {
   "form.tab.data": "Dados",
   "form.tab.address": "Endereços",
   "form.tab.note": "Observação",
-  "papel.noteHint": "O que a loja precisa lembrar. Pode ficar em branco. Até 500 caracteres.",
   "form.tab.document": "Documento",
   "produto.tab.cadastro": "Cadastro",
   "produto.tab.ficha": "Ficha técnica",
@@ -2548,7 +2546,6 @@ const es: Record<TranslationKey, string> = {
   "form.tab.data": "Datos",
   "form.tab.address": "Direcciones",
   "form.tab.note": "Observación",
-  "papel.noteHint": "Lo que la tienda necesita recordar. Puede quedar en blanco. Hasta 500 caracteres.",
   "form.tab.document": "Documento",
   "produto.tab.cadastro": "Registro",
   "produto.tab.ficha": "Ficha técnica",

@@ -1635,7 +1635,6 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
 
         <div role="tabpanel" id="form-panel-observacao" aria-labelledby="form-tab-observacao" hidden={guia !== "observacao"}>
           <Section title={t("form.tab.note")}>
-            <p className="text-xs" style={{ color: v("--text-muted") }}>{t("papel.noteHint")}</p>
             <textarea
               className="field"
               rows={5}
@@ -1643,7 +1642,18 @@ function PapelForm({ recurso, singular, cidades, paises, editando, onClose, onSa
               value={observacao}
               onChange={(e) => setObservacao(e.target.value)}
             />
-            <p className="text-xs text-right" style={{ color: v("--text-muted") }}>{observacao.length}/500</p>
+            <p
+              className="text-xs text-right tabular-nums"
+              style={{
+                color: observacao.length >= 500
+                  ? "#ef4444"
+                  : observacao.length >= 450
+                    ? v("--gold")
+                    : v("--text-muted"),
+              }}
+            >
+              {observacao.length}/500
+            </p>
           </Section>
         </div>
 
