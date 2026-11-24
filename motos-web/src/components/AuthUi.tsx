@@ -236,7 +236,6 @@ export default function LoginPage({
               autoComplete="username"
               value={loginValue}
               onChange={(e) => setLoginValue(e.target.value)}
-              placeholder="system"
             />
           </label>
           <label className="block">
