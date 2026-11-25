@@ -318,19 +318,6 @@ select.field::-ms-expand {
   background: var(--card2);
   border: 1px solid var(--border);
 }
-.produto-nome-linha {
-  display: block;
-  line-height: 1.35;
-}
-.produto-nome-marca {
-  color: var(--text-muted);
-  font-weight: 400;
-}
-.produto-nome-modelo {
-  color: var(--text);
-  font-weight: 600;
-}
-
 /* Listas estilo Google Drive */
 .drive-table {
   width: 100%;

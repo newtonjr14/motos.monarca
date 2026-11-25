@@ -1067,7 +1067,6 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
           <tbody>
             {paged.slice.map((p) => {
               const sel = selected === p.id;
-              const nomeAuto = p.nome.trim() === `${p.marca} ${p.modelo}`.trim();
               return (
                 <tr
                   key={p.id}
@@ -1077,17 +1076,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                 >
                   <Td mono gold>{p.id}</Td>
                   <Td mono>{p.codigo}</Td>
-                  {nomeAuto ? (
-                    <td className="drive-td drive-td-name" title={`${p.marca} ${p.modelo}`}>
-                      <span className="produto-nome-linha">
-                        <span className="produto-nome-marca">{p.marca}</span>
-                        {" "}
-                        <span className="produto-nome-modelo">{p.modelo}</span>
-                      </span>
-                    </td>
-                  ) : (
-                    <td className="drive-td drive-td-name text-[0.8125rem] font-medium" style={{ color: v("--text") }} title={p.nome}>{p.nome}</td>
-                  )}
+                  <td className="drive-td drive-td-name text-[0.8125rem] font-medium" style={{ color: v("--text") }} title={p.nome}>{p.nome}</td>
                   <Td sub>{p.tipo === "moto" ? t("produto.tipo.moto") : t("produto.tipo.bicicleta")}</Td>
                   <Td mono right>{formatMoeda(converterMoeda(p.precoLista, p.moedaPreco ?? "usd", moedaOp, cotacao), moedaOp)}</Td>
                   <Td mono right>{p.quantidadeDisponivel ?? 0} {t("estoque.unit")}</Td>
