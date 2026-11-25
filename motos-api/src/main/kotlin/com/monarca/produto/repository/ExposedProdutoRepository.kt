@@ -435,6 +435,8 @@ class ExposedProdutoRepository(
                 it[numeroMarchas] = bicicleta.numeroMarchas
                 it[tipoFreio] = bicicleta.tipoFreio
                 it[numeroSerieQuadro] = bicicleta.numeroSerieQuadro
+                it[anoFabricacao] = bicicleta.anoFabricacao
+                it[anoModelo] = bicicleta.anoModelo
             }
         } else {
             ProdutoBicicletasTable.insert {
@@ -451,6 +453,8 @@ class ExposedProdutoRepository(
                 it[numeroMarchas] = bicicleta.numeroMarchas
                 it[tipoFreio] = bicicleta.tipoFreio
                 it[numeroSerieQuadro] = bicicleta.numeroSerieQuadro
+                it[anoFabricacao] = bicicleta.anoFabricacao
+                it[anoModelo] = bicicleta.anoModelo
             }
         }
     }
@@ -595,6 +599,8 @@ class ExposedProdutoRepository(
                     numeroMarchas = it[ProdutoBicicletasTable.numeroMarchas],
                     tipoFreio = it[ProdutoBicicletasTable.tipoFreio],
                     numeroSerieQuadro = it[ProdutoBicicletasTable.numeroSerieQuadro],
+                    anoFabricacao = it[ProdutoBicicletasTable.anoFabricacao],
+                    anoModelo = it[ProdutoBicicletasTable.anoModelo],
                 )
             }
             .singleOrNull()

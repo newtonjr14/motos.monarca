@@ -576,7 +576,6 @@ export type TranslationKey =
   | "produto.descricao"
   | "produto.section.general"
   | "produto.foto"
-  | "produto.fotoHint"
   | "produto.fotoChoose"
   | "produto.fotoRemove"
   | "produto.section.price"
@@ -994,6 +993,8 @@ export type TranslationKey =
   | "api.FORNECEDOR_OBRIGATORIO"
   | "api.CODIGO_FORNECEDOR_VINCULADO"
   | "api.OBSERVACAO_TAMANHO"
+  | "api.DESCRICAO_TAMANHO"
+  | "api.ANOS_INCOMPLETOS"
   | "api.CODIGO_FORNECEDOR_TAMANHO"
   | "api.CODIGO_FORNECEDOR_OBRIGATORIO"
   | "api.PARCELAS_QTD"
@@ -1860,7 +1861,6 @@ const pt: Record<TranslationKey, string> = {
   "produto.descricao": "Descrição",
   "produto.section.general": "Dados do produto",
   "produto.foto": "Foto",
-  "produto.fotoHint": "Aparece na venda. Sem foto, continua o ícone.",
   "produto.fotoChoose": "Escolher foto",
   "produto.fotoRemove": "Remover foto",
   "produto.section.price": "Preço e IVA",
@@ -2213,6 +2213,8 @@ const pt: Record<TranslationKey, string> = {
   "api.FORNECEDOR_OBRIGATORIO": "Informe o fornecedor",
   "api.CODIGO_FORNECEDOR_VINCULADO": "O código {codigo} deste fornecedor já está no produto {produto}",
   "api.OBSERVACAO_TAMANHO": "A observação deve ter no máximo 500 caracteres",
+  "api.DESCRICAO_TAMANHO": "A descrição deve ter no máximo 2000 caracteres",
+  "api.ANOS_INCOMPLETOS": "Informe o ano de fabricação e o ano modelo juntos",
   "api.CODIGO_FORNECEDOR_TAMANHO": "O código do fornecedor deve ter no máximo 80 caracteres",
   "api.CODIGO_FORNECEDOR_OBRIGATORIO": "Informe o código do fornecedor",
   "api.PARCELAS_QTD": "Informe entre 1 e 120 parcelas",
@@ -3026,7 +3028,6 @@ const es: Record<TranslationKey, string> = {
   "produto.descricao": "Descripción",
   "produto.section.general": "Datos del producto",
   "produto.foto": "Foto",
-  "produto.fotoHint": "Aparece en la venta. Sin foto, sigue el ícono.",
   "produto.fotoChoose": "Elegir foto",
   "produto.fotoRemove": "Quitar foto",
   "produto.section.price": "Precio e IVA",
@@ -3379,6 +3380,8 @@ const es: Record<TranslationKey, string> = {
   "api.FORNECEDOR_OBRIGATORIO": "Indique el proveedor",
   "api.CODIGO_FORNECEDOR_VINCULADO": "El código {codigo} de este proveedor ya está en el producto {produto}",
   "api.OBSERVACAO_TAMANHO": "La observación debe tener como máximo 500 caracteres",
+  "api.DESCRICAO_TAMANHO": "La descripción debe tener como máximo 2000 caracteres",
+  "api.ANOS_INCOMPLETOS": "Indique el año de fabricación y el año modelo juntos",
   "api.CODIGO_FORNECEDOR_TAMANHO": "El código del proveedor debe tener como máximo 80 caracteres",
   "api.CODIGO_FORNECEDOR_OBRIGATORIO": "Indique el código del proveedor",
   "api.PARCELAS_QTD": "Indique entre 1 y 120 cuotas",

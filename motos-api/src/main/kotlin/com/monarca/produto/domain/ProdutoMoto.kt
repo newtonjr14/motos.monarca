@@ -14,6 +14,6 @@ data class ProdutoMoto(
     val capacidadeCargaKg: Int?,
     val assentos: Int?,
     val tipoFreio: String?,
-    val anoFabricacao: Int,
-    val anoModelo: Int,
+    val anoFabricacao: Int?,
+    val anoModelo: Int?,
 )

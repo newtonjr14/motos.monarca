@@ -22,6 +22,7 @@ interface MarcaRepository {
     suspend fun atualizarModelo(id: Long, modelo: Modelo): Boolean
     suspend fun excluirModelo(id: Long): Boolean
     suspend fun temProdutos(idModelo: Long): Boolean
+    suspend fun idsModelosComProduto(): Set<Long>
     suspend fun atualizarNomesProdutosDoModelo(idModelo: Long)
     suspend fun sincronizarMarcaDosProdutos(idModelo: Long, idMarca: Long)
 }

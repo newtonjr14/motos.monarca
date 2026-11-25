@@ -156,6 +156,8 @@ function specsDe(item?: Produto | null): Specs {
       tempoCargaHoras: item.bicicleta.tempoCargaHoras?.toString() ?? "",
       pesoKg: item.bicicleta.pesoKg?.toString() ?? "",
       tipoFreio: item.bicicleta.tipoFreio ?? "",
+      anoFabricacao: item.bicicleta.anoFabricacao?.toString() ?? "",
+      anoModelo: item.bicicleta.anoModelo?.toString() ?? "",
       aro: item.bicicleta.aro ?? "",
       tipoQuadro: item.bicicleta.tipoQuadro ?? "",
       numeroMarchas: item.bicicleta.numeroMarchas?.toString() ?? "",
@@ -349,8 +351,8 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       capacidadeCargaKg: num(specs.capacidadeCargaKg),
       assentos: num(specs.assentos),
       tipoFreio: specs.tipoFreio.trim() || null,
-      anoFabricacao: Number(specs.anoFabricacao),
-      anoModelo: Number(specs.anoModelo),
+      anoFabricacao: specs.anoFabricacao.trim() ? Number(specs.anoFabricacao) : null,
+      anoModelo: specs.anoModelo.trim() ? Number(specs.anoModelo) : null,
     } : null;
     const bicicleta = tipo === "bicicleta" ? {
       cor: specs.cor.trim() || null,
@@ -365,6 +367,8 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       numeroMarchas: num(specs.numeroMarchas),
       tipoFreio: specs.tipoFreio.trim() || null,
       numeroSerieQuadro: specs.numeroSerieQuadro.trim().toUpperCase() || null,
+      anoFabricacao: specs.anoFabricacao.trim() ? Number(specs.anoFabricacao) : null,
+      anoModelo: specs.anoModelo.trim() ? Number(specs.anoModelo) : null,
     } : null;
     return {
       codigo: codigo.trim().toUpperCase(),
@@ -405,11 +409,11 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       setGuia("cadastro");
       return;
     }
-    if (tipo === "moto") {
+    if (specs.anoFabricacao.trim() || specs.anoModelo.trim()) {
       const fab = Number(specs.anoFabricacao);
       const mod = Number(specs.anoModelo);
       const maxAno = new Date().getFullYear() + 1;
-      if (!Number.isInteger(fab) || !Number.isInteger(mod) || fab < 1990 || mod < 1990 || fab > maxAno || mod > maxAno || mod < fab) {
+      if (!specs.anoFabricacao.trim() || !specs.anoModelo.trim() || !Number.isInteger(fab) || !Number.isInteger(mod) || fab < 1990 || mod < 1990 || fab > maxAno || mod > maxAno || mod < fab) {
         setErro(t("produto.error.yearsRequired"));
         setGuia("ficha");
         return;
@@ -609,8 +613,7 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                   ? <img src={fotoPreview} alt="" className="w-full h-full object-cover" />
                   : <span className="text-xs" style={{ color: v("--text-muted") }}>—</span>}
               </div>
-              <div className="space-y-1 min-w-0">
-                <p className="text-xs" style={{ color: v("--text-muted") }}>{t("produto.fotoHint")}</p>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
                   <label className="btn-ghost px-3 py-1.5 text-xs cursor-pointer">
                     {t("produto.fotoChoose")}
@@ -745,7 +748,19 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
               </Field>
             </div>
             <Field label={t("produto.descricao")}>
-              <textarea className="field" rows={2} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+              <textarea className="field" rows={4} maxLength={2000} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+              <p
+                className="text-xs text-right tabular-nums"
+                style={{
+                  color: descricao.length >= 2000
+                    ? "#ef4444"
+                    : descricao.length >= 1800
+                      ? v("--gold")
+                      : v("--text-muted"),
+                }}
+              >
+                {descricao.length}/2000
+              </p>
             </Field>
             {editando && (
               <Field label={t("common.status")}>
@@ -760,18 +775,14 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
           <div role="tabpanel" id="form-panel-ficha" aria-labelledby="form-tab-ficha" hidden={guia !== "ficha"}>
           <Section title={t("produto.tab.ficha")}>
             <div className="form-grid-2">
-              {tipo === "moto" && (
-                <>
-                  <Field label={t("produto.anoFabricacao")} required>
-                    <input className="field" inputMode="numeric" maxLength={4} value={specs.anoFabricacao}
-                      onChange={(e) => setSpec("anoFabricacao", e.target.value.replace(/\D/g, "").slice(0, 4))} />
-                  </Field>
-                  <Field label={t("produto.anoModelo")} required>
-                    <input className="field" inputMode="numeric" maxLength={4} value={specs.anoModelo}
-                      onChange={(e) => setSpec("anoModelo", e.target.value.replace(/\D/g, "").slice(0, 4))} />
-                  </Field>
-                </>
-              )}
+              <Field label={t("produto.anoFabricacao")}>
+                <input className="field" inputMode="numeric" maxLength={4} value={specs.anoFabricacao}
+                  onChange={(e) => setSpec("anoFabricacao", e.target.value.replace(/\D/g, "").slice(0, 4))} />
+              </Field>
+              <Field label={t("produto.anoModelo")}>
+                <input className="field" inputMode="numeric" maxLength={4} value={specs.anoModelo}
+                  onChange={(e) => setSpec("anoModelo", e.target.value.replace(/\D/g, "").slice(0, 4))} />
+              </Field>
               {tipo === "bicicleta" && (
                 <Field label={t("produto.serieQuadro")}>
                   <input className="field font-mono uppercase" value={specs.numeroSerieQuadro}

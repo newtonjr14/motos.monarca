@@ -332,7 +332,7 @@ class ProdutoService(
             idModelo = modelo.modelo.id,
             marcaNome = marca.nome,
             modeloNome = modelo.modelo.nome,
-            descricao = request.descricao?.trim()?.takeIf { it.isNotEmpty() },
+            descricao = normalizarDescricao(request.descricao),
             tipo = request.tipo,
             controlaChassi = controlaChassi,
             idFilialCadastro = request.idFilialCadastro,
@@ -346,11 +346,7 @@ class ProdutoService(
 
     private fun validarMoto(request: ProdutoMotoRequest?, id: Long, idProduto: Long): ProdutoMoto {
         val req = request ?: throw invalido("MOTO_DADOS_OBRIGATORIOS", "Dados da moto são obrigatórios")
-        val anoFabricacao = validarAno(req.anoFabricacao, "Ano de fabricação")
-        val anoModelo = validarAno(req.anoModelo, "Ano modelo")
-        if (anoModelo < anoFabricacao) {
-            throw invalido("ANO_MODELO_ANTERIOR", "Ano modelo não pode ser anterior ao ano de fabricação")
-        }
+        val (anoFabricacao, anoModelo) = validarAnos(req.anoFabricacao, req.anoModelo)
         return ProdutoMoto(
             id = id,
             idProduto = idProduto,
@@ -372,6 +368,7 @@ class ProdutoService(
 
     private fun validarBicicleta(request: ProdutoBicicletaRequest?, id: Long, idProduto: Long): ProdutoBicicleta {
         val req = request ?: ProdutoBicicletaRequest()
+        val (anoFabricacao, anoModelo) = validarAnos(req.anoFabricacao, req.anoModelo)
         return ProdutoBicicleta(
             id = id,
             idProduto = idProduto,
@@ -387,7 +384,30 @@ class ProdutoService(
             numeroMarchas = inteiroOpcional(req.numeroMarchas, "Marchas"),
             tipoFreio = textoOpcional(req.tipoFreio),
             numeroSerieQuadro = req.numeroSerieQuadro?.trim()?.uppercase()?.takeIf { it.isNotEmpty() },
+            anoFabricacao = anoFabricacao,
+            anoModelo = anoModelo,
         )
+    }
+
+    private fun normalizarDescricao(valor: String?): String? {
+        val texto = valor?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (texto.length > 2000) {
+            throw invalido("DESCRICAO_TAMANHO", "A descrição deve ter no máximo 2000 caracteres")
+        }
+        return texto
+    }
+
+    private fun validarAnos(fabricacao: Int?, modelo: Int?): Pair<Int?, Int?> {
+        if (fabricacao == null && modelo == null) return null to null
+        if (fabricacao == null || modelo == null) {
+            throw invalido("ANOS_INCOMPLETOS", "Informe o ano de fabricação e o ano modelo juntos")
+        }
+        val fab = validarAno(fabricacao, "Ano de fabricação")
+        val mod = validarAno(modelo, "Ano modelo")
+        if (mod < fab) {
+            throw invalido("ANO_MODELO_ANTERIOR", "Ano modelo não pode ser anterior ao ano de fabricação")
+        }
+        return fab to mod
     }
 
     private fun validarAno(ano: Int, rotulo: String): Int {
@@ -577,6 +597,8 @@ class ProdutoService(
         numeroMarchas = numeroMarchas,
         tipoFreio = tipoFreio,
         numeroSerieQuadro = numeroSerieQuadro,
+        anoFabricacao = anoFabricacao,
+        anoModelo = anoModelo,
     )
 
     private fun ProdutoUnidade.toResponse() = ProdutoUnidadeResponse(

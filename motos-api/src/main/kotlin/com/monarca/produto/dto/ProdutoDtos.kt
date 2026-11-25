@@ -20,8 +20,8 @@ data class ProdutoMotoRequest(
     val capacidadeCargaKg: Int? = null,
     val assentos: Int? = null,
     val tipoFreio: String? = null,
-    val anoFabricacao: Int,
-    val anoModelo: Int,
+    val anoFabricacao: Int? = null,
+    val anoModelo: Int? = null,
 )
 
 @Serializable
@@ -38,6 +38,8 @@ data class ProdutoBicicletaRequest(
     val numeroMarchas: Int? = null,
     val tipoFreio: String? = null,
     val numeroSerieQuadro: String? = null,
+    val anoFabricacao: Int? = null,
+    val anoModelo: Int? = null,
 )
 
 @Serializable
@@ -97,8 +99,8 @@ data class ProdutoMotoResponse(
     val capacidadeCargaKg: Int? = null,
     val assentos: Int? = null,
     val tipoFreio: String? = null,
-    val anoFabricacao: Int,
-    val anoModelo: Int,
+    val anoFabricacao: Int? = null,
+    val anoModelo: Int? = null,
 )
 
 @Serializable
@@ -115,6 +117,8 @@ data class ProdutoBicicletaResponse(
     val numeroMarchas: Int? = null,
     val tipoFreio: String? = null,
     val numeroSerieQuadro: String? = null,
+    val anoFabricacao: Int? = null,
+    val anoModelo: Int? = null,
 )
 
 @Serializable

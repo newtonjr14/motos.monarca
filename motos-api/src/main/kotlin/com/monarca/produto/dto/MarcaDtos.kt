@@ -33,4 +33,5 @@ data class ModeloResponse(
     val nome: String,
     val tipo: TipoProduto,
     val status: Status,
+    val temProdutos: Boolean = false,
 )

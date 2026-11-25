@@ -163,6 +163,14 @@ class ExposedMarcaRepository(
             .isNotEmpty()
     }
 
+    override suspend fun idsModelosComProduto(): Set<Long> = suspendTransaction(database) {
+        ProdutosTable.selectAll()
+            .where { ProdutosTable.status neq Status.DELETADO.name.lowercase() }
+            .map { it[ProdutosTable.idModelo].value }
+            .toList()
+            .toSet()
+    }
+
     override suspend fun atualizarNomesProdutosDoModelo(idModelo: Long) = suspendTransaction(database) {
         atualizarNomes(ProdutosTable.idModelo eq idModelo)
     }

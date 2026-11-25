@@ -53,11 +53,15 @@ class MarcaService(
         }
     }
 
-    suspend fun listarModelos(idMarca: Long?, tipo: TipoProduto?): List<ModeloResponse> =
-        repository.listarModelos(idMarca, tipo).map { it.toResponse() }
+    suspend fun listarModelos(idMarca: Long?, tipo: TipoProduto?): List<ModeloResponse> {
+        val comProduto = repository.idsModelosComProduto()
+        return repository.listarModelos(idMarca, tipo).map { it.toResponse(it.modelo.id in comProduto) }
+    }
 
-    suspend fun buscarModelo(id: Long): ModeloResponse =
-        repository.buscarModelo(id)?.toResponse() ?: throw RecursoNaoEncontrado("Modelo $id não encontrado")
+    suspend fun buscarModelo(id: Long): ModeloResponse {
+        val detalhe = repository.buscarModelo(id) ?: throw RecursoNaoEncontrado("Modelo $id não encontrado")
+        return detalhe.toResponse(repository.temProdutos(id))
+    }
 
     suspend fun criarModelo(request: ModeloRequest): ModeloResponse {
         val modelo = validarModelo(request, 0)
@@ -122,12 +126,13 @@ class MarcaService(
 
     private fun Marca.toResponse() = MarcaResponse(id = id, nome = nome, status = status)
 
-    private fun ModeloDetalhe.toResponse() = ModeloResponse(
+    private fun ModeloDetalhe.toResponse(temProdutos: Boolean) = ModeloResponse(
         id = modelo.id,
         idMarca = modelo.idMarca,
         marcaNome = marcaNome,
         nome = modelo.nome,
         tipo = modelo.tipo,
         status = modelo.status,
+        temProdutos = temProdutos,
     )
 }

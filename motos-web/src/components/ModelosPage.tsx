@@ -130,7 +130,7 @@ export default function ModelosPage({ navReset }: { navReset: number }) {
               onBlur={() => setNome((x) => toTitleCase(x))} />
           </Field>
           <Field label={t("produto.tipo")} required>
-            <select className="field" value={tipo} disabled={Boolean(editando)}
+            <select className="field" value={tipo} disabled={editando?.temProdutos === true}
               onChange={(e) => setTipo(e.target.value as TipoProduto)}>
               <option value="moto">{t("produto.tipo.moto")}</option>
               <option value="bicicleta">{t("produto.tipo.bicicleta")}</option>

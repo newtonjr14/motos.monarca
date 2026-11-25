@@ -313,7 +313,7 @@ export default function ProdutoFicha({
 
               {item.descricao && (
                 <Section title={t("produto.descricao")}>
-                  <p className="text-sm leading-relaxed break-words" style={{ color: v("--text") }}>{item.descricao}</p>
+                  <p className="text-sm leading-relaxed break-words whitespace-pre-wrap" style={{ color: v("--text") }}>{item.descricao}</p>
                 </Section>
               )}
 
@@ -325,7 +325,9 @@ export default function ProdutoFicha({
                     {item.tipo === "moto" && item.moto && (
                       <>
                         <Dado label={`${t("produto.anoFabricacao")} / ${t("produto.anoModelo")}`}
-                          value={`${item.moto.anoFabricacao}/${item.moto.anoModelo}`} />
+                          value={item.moto.anoFabricacao != null && item.moto.anoModelo != null
+                            ? `${item.moto.anoFabricacao}/${item.moto.anoModelo}`
+                            : null} />
                         <Dado label={t("produto.cor")} value={item.moto.cor} />
                         <Dado label={t("produto.potencia")} value={item.moto.potenciaMotorW} />
                         <Dado label={t("produto.autonomia")} value={item.moto.autonomiaKm} />
@@ -341,6 +343,10 @@ export default function ProdutoFicha({
                     )}
                     {item.tipo === "bicicleta" && item.bicicleta && (
                       <>
+                        <Dado label={`${t("produto.anoFabricacao")} / ${t("produto.anoModelo")}`}
+                          value={item.bicicleta.anoFabricacao != null && item.bicicleta.anoModelo != null
+                            ? `${item.bicicleta.anoFabricacao}/${item.bicicleta.anoModelo}`
+                            : null} />
                         <Dado label={t("produto.serieQuadro")} value={item.bicicleta.numeroSerieQuadro} />
                         <Dado label={t("produto.cor")} value={item.bicicleta.cor} />
                         <Dado label={t("produto.potencia")} value={item.bicicleta.potenciaMotorW} />

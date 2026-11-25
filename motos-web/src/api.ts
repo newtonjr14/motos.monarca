@@ -590,8 +590,8 @@ export interface ProdutoMoto {
   capacidadeCargaKg: number | null;
   assentos: number | null;
   tipoFreio: string | null;
-  anoFabricacao: number;
-  anoModelo: number;
+  anoFabricacao: number | null;
+  anoModelo: number | null;
 }
 
 export interface ProdutoBicicleta {
@@ -607,6 +607,8 @@ export interface ProdutoBicicleta {
   numeroMarchas: number | null;
   tipoFreio: string | null;
   numeroSerieQuadro: string | null;
+  anoFabricacao: number | null;
+  anoModelo: number | null;
 }
 
 export interface ProdutoEstoqueSaldo {
@@ -756,6 +758,7 @@ export interface Modelo {
   nome: string;
   tipo: TipoProduto;
   status: Status;
+  temProdutos?: boolean;
 }
 
 export const listarMarcas = () => api<Marca[]>("/marcas");

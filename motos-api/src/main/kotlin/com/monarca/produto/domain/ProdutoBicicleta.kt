@@ -15,4 +15,6 @@ data class ProdutoBicicleta(
     val numeroMarchas: Int?,
     val tipoFreio: String?,
     val numeroSerieQuadro: String?,
+    val anoFabricacao: Int?,
+    val anoModelo: Int?,
 )

@@ -22,7 +22,7 @@ object ProdutosTable : LongIdTable("produto") {
     val nome = varchar("nome", 180)
     val idMarca = reference("id_marca", MarcasTable)
     val idModelo = reference("id_modelo", ModelosTable)
-    val descricao = varchar("descricao", 500).nullable()
+    val descricao = varchar("descricao", 2000).nullable()
     val tipo = varchar("tipo", 20)
     val controlaChassi = bool("controla_chassi").default(false)
     val idFilialCadastro = optReference("id_filial_cadastro", FiliaisTable)
@@ -69,8 +69,8 @@ object ProdutoMotosTable : LongIdTable("produto_moto") {
     val capacidadeCargaKg = integer("capacidade_carga_kg").nullable()
     val assentos = integer("assentos").nullable()
     val tipoFreio = varchar("tipo_freio", 60).nullable()
-    val anoFabricacao = integer("ano_fabricacao")
-    val anoModelo = integer("ano_modelo")
+    val anoFabricacao = integer("ano_fabricacao").nullable()
+    val anoModelo = integer("ano_modelo").nullable()
 
     init {
         uniqueIndex(idProduto)
@@ -91,6 +91,8 @@ object ProdutoBicicletasTable : LongIdTable("produto_bicicleta") {
     val numeroMarchas = integer("numero_marchas").nullable()
     val tipoFreio = varchar("tipo_freio", 60).nullable()
     val numeroSerieQuadro = varchar("numero_serie_quadro", 40).nullable()
+    val anoFabricacao = integer("ano_fabricacao").nullable()
+    val anoModelo = integer("ano_modelo").nullable()
 
     init {
         uniqueIndex(idProduto)

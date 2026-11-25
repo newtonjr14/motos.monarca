@@ -1,0 +1,4 @@
+ALTER TABLE produto ALTER COLUMN descricao TYPE VARCHAR(2000);
+
+ALTER TABLE produto_moto ALTER COLUMN ano_fabricacao DROP NOT NULL;
+ALTER TABLE produto_moto ALTER COLUMN ano_modelo DROP NOT NULL;
