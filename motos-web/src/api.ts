@@ -598,10 +598,12 @@ export interface ProdutoBicicleta {
   cor: string | null;
   potenciaMotorW: number | null;
   autonomiaKm: number | null;
+  velocidadeMaxKmh: number | null;
   capacidadeBateriaAh: number | null;
   voltagemBateria: number | null;
   tempoCargaHoras: number | null;
   pesoKg: number | null;
+  capacidadeCargaKg: number | null;
   aro: string | null;
   tipoQuadro: string | null;
   numeroMarchas: number | null;

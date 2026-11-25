@@ -351,10 +351,12 @@ export default function ProdutoFicha({
                         <Dado label={t("produto.cor")} value={item.bicicleta.cor} />
                         <Dado label={t("produto.potencia")} value={item.bicicleta.potenciaMotorW} />
                         <Dado label={t("produto.autonomia")} value={item.bicicleta.autonomiaKm} />
+                        <Dado label={t("produto.velocidade")} value={item.bicicleta.velocidadeMaxKmh} />
                         <Dado label={t("produto.bateria")} value={item.bicicleta.capacidadeBateriaAh} />
                         <Dado label={t("produto.voltagem")} value={item.bicicleta.voltagemBateria} />
                         <Dado label={t("produto.carga")} value={item.bicicleta.tempoCargaHoras} />
                         <Dado label={t("produto.peso")} value={item.bicicleta.pesoKg} />
+                        <Dado label={t("produto.capacidadeCarga")} value={item.bicicleta.capacidadeCargaKg} />
                         <Dado label={t("produto.aro")} value={item.bicicleta.aro} />
                         <Dado label={t("produto.quadro")} value={item.bicicleta.tipoQuadro} />
                         <Dado label={t("produto.marchas")} value={item.bicicleta.numeroMarchas} />

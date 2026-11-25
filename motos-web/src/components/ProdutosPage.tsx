@@ -151,10 +151,12 @@ function specsDe(item?: Produto | null): Specs {
       cor: item.bicicleta.cor ?? "",
       potenciaMotorW: item.bicicleta.potenciaMotorW?.toString() ?? "",
       autonomiaKm: item.bicicleta.autonomiaKm?.toString() ?? "",
+      velocidadeMaxKmh: item.bicicleta.velocidadeMaxKmh?.toString() ?? "",
       capacidadeBateriaAh: item.bicicleta.capacidadeBateriaAh?.toString() ?? "",
       voltagemBateria: item.bicicleta.voltagemBateria?.toString() ?? "",
       tempoCargaHoras: item.bicicleta.tempoCargaHoras?.toString() ?? "",
       pesoKg: item.bicicleta.pesoKg?.toString() ?? "",
+      capacidadeCargaKg: item.bicicleta.capacidadeCargaKg?.toString() ?? "",
       tipoFreio: item.bicicleta.tipoFreio ?? "",
       anoFabricacao: item.bicicleta.anoFabricacao?.toString() ?? "",
       anoModelo: item.bicicleta.anoModelo?.toString() ?? "",
@@ -358,10 +360,12 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
       cor: specs.cor.trim() || null,
       potenciaMotorW: num(specs.potenciaMotorW),
       autonomiaKm: num(specs.autonomiaKm),
+      velocidadeMaxKmh: num(specs.velocidadeMaxKmh),
       capacidadeBateriaAh: num(specs.capacidadeBateriaAh),
       voltagemBateria: num(specs.voltagemBateria),
       tempoCargaHoras: num(specs.tempoCargaHoras),
       pesoKg: num(specs.pesoKg),
+      capacidadeCargaKg: num(specs.capacidadeCargaKg),
       aro: specs.aro.trim() || null,
       tipoQuadro: specs.tipoQuadro.trim() || null,
       numeroMarchas: num(specs.numeroMarchas),
@@ -801,12 +805,10 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                 <input className="field" inputMode="numeric" value={specs.autonomiaKm}
                   onChange={(e) => setSpec("autonomiaKm", e.target.value)} />
               </Field>
-              {tipo === "moto" && (
-                <Field label={t("produto.velocidade")}>
-                  <input className="field" inputMode="numeric" value={specs.velocidadeMaxKmh}
-                    onChange={(e) => setSpec("velocidadeMaxKmh", e.target.value)} />
-                </Field>
-              )}
+              <Field label={t("produto.velocidade")}>
+                <input className="field" inputMode="numeric" value={specs.velocidadeMaxKmh}
+                  onChange={(e) => setSpec("velocidadeMaxKmh", e.target.value)} />
+              </Field>
               <Field label={t("produto.bateria")}>
                 <input className="field" inputMode="decimal" value={specs.capacidadeBateriaAh}
                   onChange={(e) => setSpec("capacidadeBateriaAh", e.target.value)} />
@@ -823,17 +825,15 @@ export default function ProdutosPage({ navReset }: { navReset: number }) {
                 <input className="field" inputMode="decimal" value={specs.pesoKg}
                   onChange={(e) => setSpec("pesoKg", e.target.value)} />
               </Field>
+              <Field label={t("produto.capacidadeCarga")}>
+                <input className="field" inputMode="numeric" value={specs.capacidadeCargaKg}
+                  onChange={(e) => setSpec("capacidadeCargaKg", e.target.value)} />
+              </Field>
               {tipo === "moto" && (
-                <>
-                  <Field label={t("produto.capacidadeCarga")}>
-                    <input className="field" inputMode="numeric" value={specs.capacidadeCargaKg}
-                      onChange={(e) => setSpec("capacidadeCargaKg", e.target.value)} />
-                  </Field>
-                  <Field label={t("produto.assentos")}>
-                    <input className="field" inputMode="numeric" value={specs.assentos}
-                      onChange={(e) => setSpec("assentos", e.target.value)} />
-                  </Field>
-                </>
+                <Field label={t("produto.assentos")}>
+                  <input className="field" inputMode="numeric" value={specs.assentos}
+                    onChange={(e) => setSpec("assentos", e.target.value)} />
+                </Field>
               )}
               {tipo === "bicicleta" && (
                 <>
