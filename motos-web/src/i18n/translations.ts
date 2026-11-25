@@ -21,6 +21,8 @@ export type TranslationKey =
   | "nav.relatorioVendas"
   | "nav.relatorioEstoque"
   | "nav.relatorioCaixa"
+  | "nav.relatorioClientes"
+  | "nav.relatorioFornecedores"
   | "relatorio.vendas"
   | "relatorio.receber"
   | "relatorio.pagar"
@@ -70,6 +72,7 @@ export type TranslationKey =
   | "relatorio.busca.estoque"
   | "relatorio.busca.movimentos"
   | "relatorio.busca.caixa"
+  | "relatorio.busca.pessoas"
   | "relatorio.caixa"
   | "relatorio.legendaGs"
   | "relatorio.legendaGsPagar"
@@ -1171,6 +1174,8 @@ const pt: Record<TranslationKey, string> = {
   "nav.relatorioVendas": "Vendas",
   "nav.relatorioEstoque": "Estoque",
   "nav.relatorioCaixa": "Movimentos de caixa",
+  "nav.relatorioClientes": "Clientes",
+  "nav.relatorioFornecedores": "Fornecedores",
   "relatorio.vendas": "Vendas",
   "relatorio.receber": "A receber",
   "relatorio.pagar": "A pagar",
@@ -1220,6 +1225,7 @@ const pt: Record<TranslationKey, string> = {
   "relatorio.busca.estoque": "Código, nome ou estoque",
   "relatorio.busca.movimentos": "Código, nome, estoque ou observação",
   "relatorio.busca.caixa": "Usuário, tipo, observação ou venda",
+  "relatorio.busca.pessoas": "Nome, documento, telefone, cidade ou observação",
   "relatorio.caixa": "Caixa",
   "relatorio.legendaGs": "Os cálculos consideram a cotação do dia de cada parcela.",
   "relatorio.legendaGsPagar": "Os cálculos consideram a cotação do dia de cada parcela.",
@@ -2322,6 +2328,8 @@ const es: Record<TranslationKey, string> = {
   "nav.relatorioVendas": "Ventas",
   "nav.relatorioEstoque": "Stock",
   "nav.relatorioCaixa": "Movimientos de caja",
+  "nav.relatorioClientes": "Clientes",
+  "nav.relatorioFornecedores": "Proveedores",
   "relatorio.vendas": "Ventas",
   "relatorio.receber": "A cobrar",
   "relatorio.pagar": "A pagar",
@@ -2371,6 +2379,7 @@ const es: Record<TranslationKey, string> = {
   "relatorio.busca.estoque": "Código, nombre o stock",
   "relatorio.busca.movimentos": "Código, nombre, stock u observación",
   "relatorio.busca.caixa": "Usuario, tipo, observación o venta",
+  "relatorio.busca.pessoas": "Nombre, documento, teléfono, ciudad u observación",
   "relatorio.caixa": "Caja",
   "relatorio.legendaGs": "Los cálculos consideran la cotización del día de cada cuota.",
   "relatorio.legendaGsPagar": "Los cálculos consideran la cotización del día de cada cuota.",
