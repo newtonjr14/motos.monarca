@@ -4,7 +4,7 @@ import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import type { SystemStatus } from "@/systemStatus";
 import { APP_VERSION } from "@/version";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const v = (name: string) => `var(${name})`;
@@ -312,6 +312,23 @@ export function UserMenu() {
   const [msg, setMsg] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function fecha(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function tecla(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", fecha);
+    document.addEventListener("keydown", tecla);
+    return () => {
+      document.removeEventListener("mousedown", fecha);
+      document.removeEventListener("keydown", tecla);
+    };
+  }, [open]);
 
   if (!user) return null;
 
@@ -375,10 +392,12 @@ export function UserMenu() {
 
   return (
     <>
-      <div className="relative">
+      <div className="relative" ref={menuRef}>
         <button
           type="button"
           onClick={() => setOpen((x) => !x)}
+          aria-expanded={open}
+          aria-haspopup="menu"
           className="flex items-center justify-center w-9 h-9 rounded-full cursor-pointer shrink-0 text-xs font-semibold leading-none"
           style={{
             background: v("--gold-bg"),
@@ -390,11 +409,10 @@ export function UserMenu() {
           {iniciais(user.nome)}
         </button>
         {open && (
-          <>
-            <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
             <div
               className="absolute right-0 mt-2 z-30 w-56 rounded-lg py-2 shadow-xl"
               style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}
+              role="menu"
             >
               <div className="px-4 py-2 border-b" style={{ borderColor: v("--border") }}>
                 <p className="text-sm font-medium truncate" style={{ color: v("--text") }}>{user.nome}</p>
@@ -413,7 +431,6 @@ export function UserMenu() {
                 {t("user.logout")}
               </button>
             </div>
-          </>
         )}
       </div>
 
