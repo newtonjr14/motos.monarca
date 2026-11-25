@@ -338,7 +338,7 @@ class ProdutoService(
             idFilialCadastro = request.idFilialCadastro,
             aliquotaIva = validarAliquota(request.aliquotaIva),
             moedaPreco = moedaPreco,
-            precoLista = validarDinheiro(request.precoLista, "Preço de lista"),
+            precoLista = validarDinheiro(request.precoLista, "Preço de venda"),
             custo = validarDinheiro(request.custo, "Custo"),
             status = status,
         )

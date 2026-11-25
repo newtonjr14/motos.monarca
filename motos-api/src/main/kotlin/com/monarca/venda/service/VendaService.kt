@@ -343,7 +343,7 @@ class VendaService(
                 throw invalido("PRODUTO_INATIVO", "O produto ${produto.codigo} não está ativo")
             }
             if (produto.precoLista <= 0) {
-                throw invalido("VENDA_PRECO_AUSENTE", "Informe o preço de lista do produto ${produto.codigo}")
+                throw invalido("VENDA_PRECO_AUSENTE", "Informe o preço de venda do produto ${produto.codigo}")
             }
             val saldos = produtoRepository.listarEstoqueDoProduto(idProduto, idFilial)
             val padrao = saldos.find { it.padrao }

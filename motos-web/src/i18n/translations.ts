@@ -23,6 +23,7 @@ export type TranslationKey =
   | "nav.relatorioCaixa"
   | "nav.relatorioClientes"
   | "nav.relatorioFornecedores"
+  | "nav.relatorioProdutos"
   | "relatorio.vendas"
   | "relatorio.receber"
   | "relatorio.pagar"
@@ -73,6 +74,7 @@ export type TranslationKey =
   | "relatorio.busca.movimentos"
   | "relatorio.busca.caixa"
   | "relatorio.busca.pessoas"
+  | "relatorio.busca.produtos"
   | "relatorio.caixa"
   | "relatorio.legendaGs"
   | "relatorio.legendaGsPagar"
@@ -1176,6 +1178,7 @@ const pt: Record<TranslationKey, string> = {
   "nav.relatorioCaixa": "Movimentos de caixa",
   "nav.relatorioClientes": "Clientes",
   "nav.relatorioFornecedores": "Fornecedores",
+  "nav.relatorioProdutos": "Produtos",
   "relatorio.vendas": "Vendas",
   "relatorio.receber": "A receber",
   "relatorio.pagar": "A pagar",
@@ -1226,6 +1229,7 @@ const pt: Record<TranslationKey, string> = {
   "relatorio.busca.movimentos": "Código, nome, estoque ou observação",
   "relatorio.busca.caixa": "Usuário, tipo, observação ou venda",
   "relatorio.busca.pessoas": "Nome, documento, telefone, cidade ou observação",
+  "relatorio.busca.produtos": "Código, nome, marca ou modelo",
   "relatorio.caixa": "Caixa",
   "relatorio.legendaGs": "Os cálculos consideram a cotação do dia de cada parcela.",
   "relatorio.legendaGsPagar": "Os cálculos consideram a cotação do dia de cada parcela.",
@@ -1743,7 +1747,7 @@ const pt: Record<TranslationKey, string> = {
   "api.CLIENTE_FILIAL": "O cliente não pertence a esta filial",
   "api.VENDA_ITENS_OBRIGATORIOS": "Informe ao menos um item",
   "api.VENDA_QTD_INVALIDA": "A quantidade deve ser maior que zero",
-  "api.VENDA_PRECO_AUSENTE": "Informe o preço de lista do produto",
+  "api.VENDA_PRECO_AUSENTE": "Informe o preço de venda do produto",
   "api.VENDA_TOTAL_INVALIDO": "O total da venda deve ser maior que zero",
   "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Informe ao menos uma forma de pagamento",
   "api.VENDA_VALOR_INVALIDO": "O valor do pagamento deve ser maior que zero",
@@ -1897,14 +1901,14 @@ const pt: Record<TranslationKey, string> = {
   "produto.error.required": "Informe código, marca e modelo",
   "produto.error.nameRequired": "Informe o nome do produto",
   "produto.error.yearsRequired": "Informe ano de fabricação e ano modelo válidos",
-  "produto.error.price": "Informe preço de lista e custo válidos (zero ou mais)",
+  "produto.error.price": "Informe preço de venda e custo válidos (zero ou mais)",
   "produto.error.qty": "Informe uma quantidade inicial válida (zero ou mais)",
   "produto.iva": "IVA",
   "produto.currency": "Moeda",
   "produto.currency.usd": "Dólar (USD)",
   "produto.currency.pyg": "Guarani (PYG)",
   "produto.currency.brl": "Real (BRL)",
-  "produto.listPrice": "Preço de lista",
+  "produto.listPrice": "Preço de venda",
   "produto.cost": "Custo",
   "produto.confirmLinkBranch": "O produto {codigo} já existe em {filiais}. Vincular a esta filial?",
   "produto.anoFabricacao": "Ano de fabricação",
@@ -2330,6 +2334,7 @@ const es: Record<TranslationKey, string> = {
   "nav.relatorioCaixa": "Movimientos de caja",
   "nav.relatorioClientes": "Clientes",
   "nav.relatorioFornecedores": "Proveedores",
+  "nav.relatorioProdutos": "Productos",
   "relatorio.vendas": "Ventas",
   "relatorio.receber": "A cobrar",
   "relatorio.pagar": "A pagar",
@@ -2380,6 +2385,7 @@ const es: Record<TranslationKey, string> = {
   "relatorio.busca.movimentos": "Código, nombre, stock u observación",
   "relatorio.busca.caixa": "Usuario, tipo, observación o venta",
   "relatorio.busca.pessoas": "Nombre, documento, teléfono, ciudad u observación",
+  "relatorio.busca.produtos": "Código, nombre, marca o modelo",
   "relatorio.caixa": "Caja",
   "relatorio.legendaGs": "Los cálculos consideran la cotización del día de cada cuota.",
   "relatorio.legendaGsPagar": "Los cálculos consideran la cotización del día de cada cuota.",
@@ -2897,7 +2903,7 @@ const es: Record<TranslationKey, string> = {
   "api.CLIENTE_FILIAL": "El cliente no pertenece a esta sucursal",
   "api.VENDA_ITENS_OBRIGATORIOS": "Indique al menos un ítem",
   "api.VENDA_QTD_INVALIDA": "La cantidad debe ser mayor que cero",
-  "api.VENDA_PRECO_AUSENTE": "Indique el precio de lista del producto",
+  "api.VENDA_PRECO_AUSENTE": "Indique el precio de venta del producto",
   "api.VENDA_TOTAL_INVALIDO": "El total de la venta debe ser mayor que cero",
   "api.VENDA_NEGOCIACAO_OBRIGATORIA": "Indique al menos una forma de pago",
   "api.VENDA_VALOR_INVALIDO": "El valor del pago debe ser mayor que cero",
@@ -3061,14 +3067,14 @@ const es: Record<TranslationKey, string> = {
   "produto.error.required": "Indique código, marca y modelo",
   "produto.error.nameRequired": "Indique el nombre del producto",
   "produto.error.yearsRequired": "Indique año de fabricación y año modelo válidos",
-  "produto.error.price": "Indique precio de lista y costo válidos (cero o más)",
+  "produto.error.price": "Indique precio de venta y costo válidos (cero o más)",
   "produto.error.qty": "Indique una cantidad inicial válida (cero o más)",
   "produto.iva": "IVA",
   "produto.currency": "Moneda",
   "produto.currency.usd": "Dólar (USD)",
   "produto.currency.pyg": "Guaraní (PYG)",
   "produto.currency.brl": "Real (BRL)",
-  "produto.listPrice": "Precio de lista",
+  "produto.listPrice": "Precio de venta",
   "produto.cost": "Costo",
   "produto.confirmLinkBranch": "El producto {codigo} ya existe en {filiais}. ¿Vincular a esta sucursal?",
   "produto.anoFabricacao": "Año de fabricación",

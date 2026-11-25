@@ -17,6 +17,7 @@ import HistoricoVendasPage from "@/components/HistoricoVendasPage";
 import RelatoriosPage from "@/components/RelatoriosPage";
 import CaixaRelatorioPage from "@/components/CaixaRelatorioPage";
 import PessoasRelatorioPage from "@/components/PessoasRelatorioPage";
+import ProdutosRelatorioPage from "@/components/ProdutosRelatorioPage";
 import { CotacaoAlerta, CotacaoChip, CotacaoHojeProvider } from "@/components/CotacaoBanner";
 import { FilialGate, FilialSwitcher } from "@/components/FilialUi";
 import CidadeSearchSelect from "@/components/CidadeSearchSelect";
@@ -233,7 +234,7 @@ const Icon = {
   more: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
 };
 
-type View = "dashboard" | "vendas" | "orcamentos" | "historico" | "devolucao" | "relatorioReceber" | "relatorioPagar" | "relatorioVendas" | "relatorioEstoque" | "relatorioClientes" | "relatorioFornecedores" | "relatorioCaixa" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
+type View = "dashboard" | "vendas" | "orcamentos" | "historico" | "devolucao" | "relatorioReceber" | "relatorioPagar" | "relatorioVendas" | "relatorioEstoque" | "relatorioProdutos" | "relatorioClientes" | "relatorioFornecedores" | "relatorioCaixa" | "caixa" | "contasReceber" | "contasPagar" | "entradaNota" | "facturas" | "clientes" | "fornecedores" | "produtos" | "marcas" | "modelos" | "estoques" | "cotacoes" | "finalizadores" | "caixas" | "usuarios" | "empresa" | "paises" | "divisoes" | "cidades" | "documentos";
 type Recurso = "clientes" | "fornecedores";
 type NavPermissao = string | readonly string[];
 type NavItem = { id: View; label: string; icon: keyof typeof Icon; permissao: NavPermissao };
@@ -313,6 +314,7 @@ const navGrupos: NavGrupo[] = [
       { id: "relatorioPagar", label: "Contas a pagar", icon: "contas", permissao: Permissao.FINANCEIRO_OPERAR },
       { id: "relatorioVendas", label: "Vendas", icon: "vendas", permissao: Permissao.VENDA_REGISTRAR },
       { id: "relatorioEstoque", label: "Estoque", icon: "estoques", permissao: [Permissao.ESTOQUE_CONSULTAR, Permissao.ESTOQUE_GERENCIAR] },
+      { id: "relatorioProdutos", label: "Produtos", icon: "produtos", permissao: Permissao.PRODUTO_GERENCIAR },
       { id: "relatorioClientes", label: "Clientes", icon: "clientes", permissao: [Permissao.PESSOA_GERENCIAR, Permissao.CLIENTE_CADASTRAR] },
       { id: "relatorioFornecedores", label: "Fornecedores", icon: "fornecedores", permissao: Permissao.PESSOA_GERENCIAR },
       { id: "relatorioCaixa", label: "Movimentos de caixa", icon: "caixa", permissao: [Permissao.CAIXA_OPERAR, Permissao.CAIXA_GERENCIAR] },
@@ -2994,6 +2996,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
     relatorioPagar: t("nav.relatorioPagar"),
     relatorioVendas: t("nav.relatorioVendas"),
     relatorioEstoque: t("nav.relatorioEstoque"),
+    relatorioProdutos: t("nav.relatorioProdutos"),
     relatorioClientes: t("nav.relatorioClientes"),
     relatorioFornecedores: t("nav.relatorioFornecedores"),
     relatorioCaixa: t("nav.relatorioCaixa"),
@@ -3099,6 +3102,9 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
           {view === "contasPagar" && <ContasPagarPage navReset={navReset} />}
           {view === "entradaNota" && <EntradaNotaPage navReset={navReset} />}
           {view === "facturas" && <FacturasPage navReset={navReset} />}
+          {view === "relatorioProdutos" && (
+            <ProdutosRelatorioPage navReset={navReset} onNavigate={navigateTo} />
+          )}
           {(view === "relatorioClientes" || view === "relatorioFornecedores") && (
             <PessoasRelatorioPage
               key={view}
