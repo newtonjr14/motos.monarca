@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Field } from "@/components/crud/Field";
+import F2InsideHint from "@/components/F2InsideHint";
+import SearchPickerModal, { type SearchPickerItem } from "@/components/SearchPickerModal";
 import { CatalogHeader, ListToolbar, TableHeadRow, TablePagination, Td, TituloFiltro, passaFiltroTitulo, useListSort, type FiltroTitulo } from "@/components/crud/ListUi";
 import TituloFicha, { chaveStatusLista, guaraniDoSaldo, linhasParcelaLista, textoCotacaoTitulo } from "@/components/TituloFicha";
 import { useCrudReset } from "@/hooks/useCrudReset";
@@ -21,9 +23,20 @@ import {
   type TituloPagar,
   type TituloPagarResumo,
 } from "@/api";
-import { formatMoeda, formatarDataIso, slicePage } from "@/format";
+import { formatMoeda, formatarDataIso, formatarDocumentoExibicao, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
+
+function textoPessoa(c: Papel): string {
+  const docs = c.pessoa.documentos.map((d) => `${d.tipoNome} ${d.numero}`).join(" ");
+  return `${c.pessoa.nomeRazaoSocial} ${c.pessoa.email ?? ""} ${c.pessoa.telefone ?? ""} ${docs}`;
+}
+
+function docPessoa(c: Papel): string | null {
+  const doc = c.pessoa.documentos[0];
+  if (!doc) return null;
+  return `${doc.tipoNome} ${formatarDocumentoExibicao(doc.tipoCodigo, doc.numero)}`;
+}
 
 export default function ContasPagarPage({ navReset }: { navReset: number }) {
   const { t } = useI18n();
@@ -46,6 +59,8 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
   const [diaVencimento, setDiaVencimento] = useState("10");
   const [observacao, setObservacao] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [listaPessoa, setListaPessoa] = useState(false);
+  const [buscaPessoa, setBuscaPessoa] = useState("");
 
   const resetLista = useCallback(() => {
     setFormAberto(false);
@@ -87,6 +102,23 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
   }, "vencimento", "asc");
   useEffect(() => { setPage(1); }, [search, filtroTitulo, sortKey, sortDir]);
 
+  const fornecedoresAtivos = useMemo(() => fornecedores.filter((c) => c.status === "ativo"), [fornecedores]);
+  const fornecedoresBusca = useMemo(() => {
+    const q = buscaPessoa.trim().toLowerCase();
+    const base = q ? fornecedoresAtivos.filter((c) => textoPessoa(c).toLowerCase().includes(q)) : fornecedoresAtivos;
+    return base.slice(0, 80);
+  }, [fornecedoresAtivos, buscaPessoa]);
+  const itensFornecedor: SearchPickerItem[] = useMemo(() => fornecedoresBusca.map((c) => ({
+    id: String(c.id),
+    label: (
+      <span>
+        <span className="block">{c.pessoa.nomeRazaoSocial}</span>
+        {docPessoa(c) && <span className="block text-xs font-mono" style={{ color: v("--text-muted") }}>{docPessoa(c)}</span>}
+      </span>
+    ),
+    selected: idFornecedor === c.id,
+  })), [fornecedoresBusca, idFornecedor]);
+
   const titulosNav = ordenados.reduce<number[]>((ids, e) => {
     if (!ids.includes(e.tituloId)) ids.push(e.tituloId);
     return ids;
@@ -101,6 +133,8 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
     setModoVencimento("intervalo_30");
     setDiaVencimento("10");
     setObservacao("");
+    setBuscaPessoa("");
+    setListaPessoa(false);
     setErro(null);
     setDetalhe(null);
     setFormAberto(true);
@@ -156,7 +190,9 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
   }
 
   if (formAberto) {
+    const escolhido = idFornecedor === "" ? undefined : fornecedores.find((c) => c.id === idFornecedor);
     return (
+      <>
       <div className="space-y-5 max-w-xl">
         <button type="button" className="text-xs cursor-pointer" style={{ color: v("--text-muted") }} onClick={() => setFormAberto(false)}>
           ← {t("common.back")}
@@ -166,13 +202,22 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
           onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
           {erro && <p className="text-sm" style={{ color: "#ef4444" }}>{erro}</p>}
           <Field label={t("nav.fornecedores")} required>
-            <select className="field" value={idFornecedor === "" ? "" : String(idFornecedor)}
-              onChange={(e) => setIdFornecedor(e.target.value ? Number(e.target.value) : "")}>
-              <option value="">{t("common.select")}</option>
-              {fornecedores.filter((c) => c.status === "ativo").map((c) => (
-                <option key={c.id} value={c.id}>{c.pessoa.nomeRazaoSocial}</option>
-              ))}
-            </select>
+            <button
+              type="button"
+              className="field flex items-center justify-between gap-2 text-left cursor-pointer"
+              onClick={() => { setBuscaPessoa(""); setListaPessoa(true); }}
+              onKeyDown={(e) => {
+                if (e.key !== "F2") return;
+                e.preventDefault();
+                setBuscaPessoa("");
+                setListaPessoa(true);
+              }}
+            >
+              <span className="truncate" style={{ color: escolhido ? v("--text") : v("--text-muted") }}>
+                {escolhido ? escolhido.pessoa.nomeRazaoSocial : t("common.select")}
+              </span>
+              <F2InsideHint />
+            </button>
           </Field>
           <Field label={t("titulo.moeda")} required>
             <select className="field" value={moeda} onChange={(e) => setMoeda(e.target.value as Moeda)}>
@@ -207,6 +252,17 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
           </div>
         </form>
       </div>
+      <SearchPickerModal
+        open={listaPessoa}
+        title={t("nav.fornecedores")}
+        searchPlaceholder={t("venda.clientSearchPlaceholder")}
+        query={buscaPessoa}
+        onQueryChange={setBuscaPessoa}
+        items={itensFornecedor}
+        onPick={(id) => { setIdFornecedor(Number(id)); setListaPessoa(false); setBuscaPessoa(""); }}
+        onClose={() => { setListaPessoa(false); setBuscaPessoa(""); }}
+      />
+      </>
     );
   }
 
