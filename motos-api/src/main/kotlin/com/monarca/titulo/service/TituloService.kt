@@ -40,6 +40,7 @@ import com.monarca.titulo.repository.TituloRepository
 import com.monarca.usuario.repository.UsuarioRepository
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeParseException
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.round
@@ -71,7 +72,13 @@ class TituloService(
         validarCliente(request.idCliente, idFilial)
         if (request.valor <= 0) throw invalido("TITULO_VALOR_INVALIDO", "O valor deve ser maior que zero")
         val valorPyg = paraPyg(request.valor, request.moeda, cotacao)
-        val parcelas = montarParcelas(request.parcelas, request.valor, valorPyg, request.moeda, hoje())
+        val parcelas = montarParcelasDesdePrimeira(
+            request.parcelas,
+            request.valor,
+            valorPyg,
+            request.moeda,
+            dataPrimeira(request.dataPrimeiraParcela),
+        )
         val id = repository.inserirReceber(
             TituloReceberNovo(
                 idFilial = idFilial,
@@ -213,7 +220,13 @@ class TituloService(
         validarFornecedor(request.idFornecedor, idFilial)
         if (request.valor <= 0) throw invalido("TITULO_VALOR_INVALIDO", "O valor deve ser maior que zero")
         val valorPyg = paraPyg(request.valor, request.moeda, cotacao)
-        val parcelas = montarParcelas(request.parcelas, request.valor, valorPyg, request.moeda, hoje())
+        val parcelas = montarParcelasDesdePrimeira(
+            request.parcelas,
+            request.valor,
+            valorPyg,
+            request.moeda,
+            dataPrimeira(request.dataPrimeiraParcela),
+        )
         val id = repository.inserirPagar(
             TituloPagarNovo(
                 idFilial = idFilial,
@@ -487,6 +500,44 @@ class TituloService(
             saldo < p.valor - 0.009 || saldo < p.saldo - 0.009
         }
         return if (algumPago) StatusTitulo.PARCIAL else StatusTitulo.ABERTO
+    }
+
+    private fun dataPrimeira(texto: String?): LocalDate {
+        val bruto = texto?.trim().orEmpty()
+        if (bruto.isEmpty()) return hoje()
+        return try {
+            LocalDate.parse(bruto)
+        } catch (_: DateTimeParseException) {
+            throw invalido("DATA_PRIMEIRA_INVALIDA", "Informe a data da primeira parcela")
+        }
+    }
+
+    private fun montarParcelasDesdePrimeira(
+        config: ParcelasConfigRequest,
+        valor: Double,
+        valorPyg: Double,
+        moeda: Moeda,
+        primeira: LocalDate,
+    ) = run {
+        if (config.quantidade < 1 || config.quantidade > 120) {
+            throw invalido("PARCELAS_QTD", "Informe entre 1 e 120 parcelas")
+        }
+        if (config.modoVencimento == ModoVencimento.DIA_FIXO) {
+            val dia = config.diaVencimento
+                ?: throw invalido("DIA_VENCIMENTO_OBRIGATORIO", "Informe o dia de vencimento")
+            if (dia !in 1..28) {
+                throw invalido("DIA_VENCIMENTO_INVALIDO", "O dia de vencimento deve ser entre 1 e 28")
+            }
+        }
+        GeradorParcelas.gerarDesdePrimeira(
+            valorTotal = valor,
+            valorTotalPyg = valorPyg,
+            quantidade = config.quantidade,
+            primeira = primeira,
+            modo = config.modoVencimento,
+            diaVencimento = config.diaVencimento,
+            moeda = moeda,
+        )
     }
 
     fun montarParcelas(

@@ -939,6 +939,8 @@ export type TranslationKey =
   | "titulo.error.cliente"
   | "titulo.error.fornecedor"
   | "titulo.error.valor"
+  | "titulo.primeiraParcela"
+  | "api.DATA_PRIMEIRA_INVALIDA"
   | "titulo.error.selecioneParcelas"
   | "titulo.status.aberto"
   | "titulo.status.parcial"
@@ -2159,6 +2161,8 @@ const pt: Record<TranslationKey, string> = {
   "titulo.error.cliente": "Selecione o cliente",
   "titulo.error.fornecedor": "Selecione o fornecedor",
   "titulo.error.valor": "Informe um valor válido",
+  "titulo.primeiraParcela": "Primeira parcela",
+  "api.DATA_PRIMEIRA_INVALIDA": "Informe a data da primeira parcela",
   "titulo.error.selecioneParcelas": "Selecione ao menos uma parcela",
   "titulo.status.aberto": "Aberto",
   "titulo.status.parcial": "Parcial",
@@ -3326,6 +3330,8 @@ const es: Record<TranslationKey, string> = {
   "titulo.error.cliente": "Seleccione el cliente",
   "titulo.error.fornecedor": "Seleccione el proveedor",
   "titulo.error.valor": "Indique un valor válido",
+  "titulo.primeiraParcela": "Primera cuota",
+  "api.DATA_PRIMEIRA_INVALIDA": "Indique la fecha de la primera cuota",
   "titulo.error.selecioneParcelas": "Seleccione al menos una cuota",
   "titulo.status.aberto": "Abierto",
   "titulo.status.parcial": "Parcial",

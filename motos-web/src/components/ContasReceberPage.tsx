@@ -27,6 +27,13 @@ import { formatMoeda, formatarDataIso, formatarDocumentoExibicao, slicePage } fr
 
 const v = (name: string) => `var(${name})`;
 
+function hojeIso(): string {
+  const d = new Date();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
 function textoPessoa(c: Papel): string {
   const docs = c.pessoa.documentos.map((d) => `${d.tipoNome} ${d.numero}`).join(" ");
   return `${c.pessoa.nomeRazaoSocial} ${c.pessoa.email ?? ""} ${c.pessoa.telefone ?? ""} ${docs}`;
@@ -57,6 +64,7 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
   const [qtdParcelas, setQtdParcelas] = useState("1");
   const [modoVencimento, setModoVencimento] = useState<ModoVencimento>("intervalo_30");
   const [diaVencimento, setDiaVencimento] = useState("10");
+  const [dataPrimeira, setDataPrimeira] = useState(hojeIso);
   const [observacao, setObservacao] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [listaPessoa, setListaPessoa] = useState(false);
@@ -132,6 +140,7 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
     setQtdParcelas("1");
     setModoVencimento("intervalo_30");
     setDiaVencimento("10");
+    setDataPrimeira(hojeIso());
     setObservacao("");
     setBuscaPessoa("");
     setListaPessoa(false);
@@ -166,6 +175,11 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
       setErro(t("api.PARCELAS_QTD"));
       return;
     }
+    const dia = Number.parseInt(diaVencimento, 10) || 0;
+    if (modoVencimento === "dia_fixo" && (dia < 1 || dia > 28)) {
+      setErro(t("api.DIA_VENCIMENTO_INVALIDO"));
+      return;
+    }
     setSalvando(true);
     try {
       await criarTituloReceber({
@@ -176,8 +190,9 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
         parcelas: {
           quantidade: qtd,
           modoVencimento,
-          diaVencimento: modoVencimento === "dia_fixo" ? (Number.parseInt(diaVencimento, 10) || 10) : null,
+          diaVencimento: modoVencimento === "dia_fixo" ? dia : null,
         },
+        dataPrimeiraParcela: dataPrimeira,
         observacao: observacao.trim() || null,
       });
       setFormAberto(false);
@@ -232,6 +247,9 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
           <Field label={t("venda.qtdParcelas")} required>
             <input className="field" value={qtdParcelas} onChange={(e) => setQtdParcelas(e.target.value.replace(/\D/g, ""))} />
           </Field>
+          <Field label={t("titulo.primeiraParcela")} required>
+            <input className="field" type="date" value={dataPrimeira} onChange={(e) => setDataPrimeira(e.target.value)} required />
+          </Field>
           <Field label={t("venda.modoVencimento")}>
             <select className="field" value={modoVencimento} onChange={(e) => setModoVencimento(e.target.value as ModoVencimento)}>
               <option value="intervalo_30">{t("venda.modo.intervalo30")}</option>
@@ -240,7 +258,8 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
           </Field>
           {modoVencimento === "dia_fixo" && (
             <Field label={t("venda.diaVencimento")}>
-              <input className="field" value={diaVencimento} onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, "").slice(0, 2))} />
+              <input className="field" inputMode="numeric" value={diaVencimento}
+                onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, "").slice(0, 2))} />
             </Field>
           )}
           <Field label={t("caixa.note")}>

@@ -21,6 +21,7 @@ data class TituloReceberRequest(
     val moeda: Moeda,
     val valor: Double,
     val parcelas: ParcelasConfigRequest,
+    val dataPrimeiraParcela: String? = null,
     val observacao: String? = null,
 )
 
@@ -31,6 +32,7 @@ data class TituloPagarRequest(
     val moeda: Moeda,
     val valor: Double,
     val parcelas: ParcelasConfigRequest,
+    val dataPrimeiraParcela: String? = null,
     val observacao: String? = null,
 )
 

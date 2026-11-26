@@ -47,6 +47,43 @@ object GeradorParcelas {
         }
     }
 
+    /** A data informada é o vencimento da parcela 1. No dia fixo, as seguintes usam o dia informado. */
+    fun gerarDesdePrimeira(
+        valorTotal: Double,
+        valorTotalPyg: Double,
+        quantidade: Int,
+        primeira: LocalDate,
+        modo: ModoVencimento,
+        diaVencimento: Int?,
+        moeda: Moeda,
+    ): List<ParcelaGerada> {
+        require(quantidade >= 1) { "quantidade" }
+        val vencimentos = (0 until quantidade).map { i ->
+            when (modo) {
+                ModoVencimento.INTERVALO_30 -> primeira.plusDays(30L * i)
+                ModoVencimento.DIA_FIXO -> {
+                    val dia = diaVencimento ?: throw IllegalArgumentException("dia")
+                    if (i == 0) primeira else diaFixoNosMesesSeguintes(primeira, dia, i)
+                }
+            }
+        }
+        val valores = ratear(valorTotal, quantidade, moeda)
+        val valoresPyg = ratear(valorTotalPyg, quantidade, Moeda.PYG)
+        return valores.indices.map { i ->
+            ParcelaGerada(
+                numero = i + 1,
+                vencimento = vencimentos[i].format(fmt),
+                valor = valores[i],
+                valorPyg = valoresPyg[i],
+            )
+        }
+    }
+
+    private fun diaFixoNosMesesSeguintes(primeira: LocalDate, dia: Int, meses: Int): LocalDate {
+        val alvo = primeira.plusMonths(meses.toLong())
+        return alvo.withDayOfMonth(minOf(dia, alvo.lengthOfMonth()))
+    }
+
     private fun vencimentoDiaFixo(dataBase: LocalDate, dia: Int, numeroParcela: Int): LocalDate {
         val d = dia.coerceIn(1, 28)
         var base = dataBase.withDayOfMonth(minOf(d, dataBase.lengthOfMonth()))
