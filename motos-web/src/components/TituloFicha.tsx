@@ -27,7 +27,6 @@ import {
 import { parcelaEmAberto } from "@/components/crud/ListUi";
 import { useI18n } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
-import { tf } from "@/i18n/format";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -254,12 +253,11 @@ export function StatusListaParcela({ status, vencimento }: { status: string; ven
 }
 
 export function AtrasoListaParcela({ status, vencimento }: { status: string; vencimento: string | null }) {
-  const { t } = useI18n();
   const atraso = diasDaParcela(status, vencimento);
   if (atraso > 0) {
     return (
       <span className="font-mono whitespace-nowrap" style={{ color: "#ef4444" }}>
-        {tf(t, "relatorio.dias", { n: String(atraso) })}
+        {atraso}
       </span>
     );
   }
