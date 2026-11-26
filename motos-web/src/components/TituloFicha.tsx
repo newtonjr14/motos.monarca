@@ -241,19 +241,29 @@ export function ResumoParcelasAbertas({ vencido, aVencer }: { vencido: number; a
   );
 }
 
+function diasDaParcela(status: string, vencimento: string | null): number {
+  return parcelaEmAberto(status) ? diasAtrasoCalendario(vencimento) : 0;
+}
+
 export function StatusListaParcela({ status, vencimento }: { status: string; vencimento: string | null }) {
   const { t } = useI18n();
-  const atraso = parcelaEmAberto(status) ? diasAtrasoCalendario(vencimento) : 0;
+  if (diasDaParcela(status, vencimento) > 0) {
+    return <span style={{ color: "#ef4444" }}>{t("titulo.parcela.vencida")}</span>;
+  }
+  return <>{t(chaveStatusLista(status))}</>;
+}
+
+export function AtrasoListaParcela({ status, vencimento }: { status: string; vencimento: string | null }) {
+  const { t } = useI18n();
+  const atraso = diasDaParcela(status, vencimento);
   if (atraso > 0) {
     return (
-      <span style={{ color: "#ef4444" }}>
-        {t("titulo.parcela.vencida")}
-        {" · "}
+      <span className="font-mono whitespace-nowrap" style={{ color: "#ef4444" }}>
         {tf(t, "relatorio.dias", { n: String(atraso) })}
       </span>
     );
   }
-  return <>{t(chaveStatusLista(status))}</>;
+  return <span style={{ color: v("--text-muted") }}>—</span>;
 }
 
 export default function TituloFicha({
@@ -604,6 +614,7 @@ export default function TituloFicha({
                   </th>
                   <th className="drive-th">#</th>
                   <th className="drive-th">{t("titulo.vencimento")}</th>
+                  <th className="drive-th">{t("relatorio.atraso")}</th>
                   <th className="drive-th drive-th-right">{t("titulo.valor")}</th>
                   <th className="drive-th drive-th-right">{t("titulo.saldo")}</th>
                   <th className="drive-th">{t("common.status")}</th>
@@ -612,7 +623,7 @@ export default function TituloFicha({
               <tbody>
                 {parcelasVisiveis.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="text-sm py-6 text-center" style={{ color: v("--text-muted") }}>
+                    <td colSpan={7} className="text-sm py-6 text-center" style={{ color: v("--text-muted") }}>
                       {t("titulo.filtro.vazio")}
                     </td>
                   </tr>
@@ -638,6 +649,7 @@ export default function TituloFicha({
                       </Td>
                       <Td>{p.numero}</Td>
                       <Td>{formatarDataIso(p.vencimento)}</Td>
+                      <Td><AtrasoListaParcela status={p.status} vencimento={p.vencimento} /></Td>
                       <Td right>
                         <div className="space-y-0.5">
                           <span className="font-mono text-sm">{formatMoeda(p.valor, item.moeda)}</span>

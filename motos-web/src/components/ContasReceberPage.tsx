@@ -3,7 +3,7 @@ import { Field } from "@/components/crud/Field";
 import F2InsideHint from "@/components/F2InsideHint";
 import SearchPickerModal, { type SearchPickerItem } from "@/components/SearchPickerModal";
 import { CatalogHeader, ListToolbar, TableHeadRow, TablePagination, Td, TituloFiltro, parcelaEmAberto, passaFiltroTitulo, useListSort, type FiltroTitulo } from "@/components/crud/ListUi";
-import TituloFicha, { ResumoParcelasAbertas, StatusListaParcela, guaraniDoSaldo, linhasParcelaLista, textoCotacaoTitulo, totaisAbertoGuarani } from "@/components/TituloFicha";
+import TituloFicha, { AtrasoListaParcela, ResumoParcelasAbertas, StatusListaParcela, guaraniDoSaldo, linhasParcelaLista, textoCotacaoTitulo, totaisAbertoGuarani } from "@/components/TituloFicha";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -107,10 +107,8 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
     if (k === "vencimento") return e.vencimento ?? "";
     if (k === "cotacao") return textoCotacaoTitulo(e.moeda, e.usdPyg, e.brlPyg);
     if (k === "guarani") return guaraniDoSaldo(e.saldo, e.moeda, e.usdPyg, e.brlPyg);
-    if (k === "status") {
-      const atraso = parcelaEmAberto(e.status) ? diasAtrasoCalendario(e.vencimento) : 0;
-      return atraso > 0 ? `0${String(atraso).padStart(5, "0")}` : e.status;
-    }
+    if (k === "atraso") return parcelaEmAberto(e.status) ? diasAtrasoCalendario(e.vencimento) : 0;
+    if (k === "status") return parcelaEmAberto(e.status) && diasAtrasoCalendario(e.vencimento) > 0 ? "vencida" : e.status;
     return e.vencimento ?? "";
   }, "vencimento", "asc");
   useEffect(() => { setPage(1); }, [search, filtroTitulo, sortKey, sortDir]);
@@ -314,6 +312,7 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
                 { label: "venda.client", sort: "cliente" },
                 { label: "titulo.parc", sort: "parcela" },
                 { label: "titulo.vencimento", sort: "vencimento" },
+                { label: "relatorio.atraso", sort: "atraso" },
                 { label: "titulo.cotacao", sort: "cotacao" },
                 { label: "titulo.valorNominal", align: "right" },
                 { label: "titulo.valorAberto", align: "right" },
@@ -328,6 +327,7 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
                 <Td>{e.pessoaNome}</Td>
                 <Td mono>{e.numero ?? "—"}</Td>
                 <Td sub>{e.vencimento ? formatarDataIso(e.vencimento) : "—"}</Td>
+                <Td><AtrasoListaParcela status={e.status} vencimento={e.vencimento} /></Td>
                 <Td mono>{textoCotacaoTitulo(e.moeda, e.usdPyg, e.brlPyg)}</Td>
                 <Td mono right>{formatMoeda(e.valor, e.moeda)}</Td>
                 <Td mono right>{formatMoeda(e.saldo, e.moeda)}</Td>
