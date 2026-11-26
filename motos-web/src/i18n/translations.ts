@@ -933,6 +933,11 @@ export type TranslationKey =
   | "titulo.filtro.abertas"
   | "titulo.filtro.pagas"
   | "titulo.filtro.parciais"
+  | "titulo.filtro.vencidas"
+  | "titulo.filtro.aVencer"
+  | "titulo.parcela.vencida"
+  | "titulo.resumo.vencido"
+  | "titulo.resumo.aVencer"
   | "titulo.filtro.vazio"
   | "titulo.desconto"
   | "titulo.acrescimo"
@@ -2163,6 +2168,11 @@ const pt: Record<TranslationKey, string> = {
   "titulo.filtro.abertas": "Abertas",
   "titulo.filtro.pagas": "Pagas",
   "titulo.filtro.parciais": "Parciais",
+  "titulo.filtro.vencidas": "Vencidas",
+  "titulo.filtro.aVencer": "A vencer",
+  "titulo.parcela.vencida": "Vencida",
+  "titulo.resumo.vencido": "Vencido",
+  "titulo.resumo.aVencer": "A vencer",
   "titulo.filtro.vazio": "Nenhuma parcela neste filtro",
   "titulo.desconto": "Desconto",
   "titulo.acrescimo": "Acréscimo",
@@ -3343,6 +3353,11 @@ const es: Record<TranslationKey, string> = {
   "titulo.filtro.abertas": "Abiertas",
   "titulo.filtro.pagas": "Pagadas",
   "titulo.filtro.parciais": "Parciales",
+  "titulo.filtro.vencidas": "Vencidas",
+  "titulo.filtro.aVencer": "Por vencer",
+  "titulo.parcela.vencida": "Vencida",
+  "titulo.resumo.vencido": "Vencido",
+  "titulo.resumo.aVencer": "Por vencer",
   "titulo.filtro.vazio": "Ninguna cuota en este filtro",
   "titulo.desconto": "Descuento",
   "titulo.acrescimo": "Recargo",

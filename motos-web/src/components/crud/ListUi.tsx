@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useI18n } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
-import { PAGE_SIZE } from "@/format";
+import { PAGE_SIZE, diasAtrasoCalendario } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
@@ -240,12 +240,20 @@ export function StatusFilter({ value, onChange }: {
   );
 }
 
-export type FiltroTitulo = "todos" | "abertos" | "quitados";
+export type FiltroTitulo = "todos" | "abertos" | "quitados" | "vencidas" | "aVencer";
 
-export function passaFiltroTitulo(status: string, filtro: FiltroTitulo): boolean {
+export function parcelaEmAberto(status: string): boolean {
+  return status === "aberto" || status === "aberta" || status === "parcial";
+}
+
+export function passaFiltroTitulo(status: string, filtro: FiltroTitulo, vencimento?: string | null): boolean {
   if (filtro === "todos") return true;
   if (filtro === "quitados") return status === "quitado" || status === "paga";
-  return status === "aberto" || status === "aberta" || status === "parcial";
+  if (!parcelaEmAberto(status)) return false;
+  const vencida = diasAtrasoCalendario(vencimento) > 0;
+  if (filtro === "vencidas") return vencida;
+  if (filtro === "aVencer") return !vencida;
+  return true;
 }
 
 export function TituloFiltro({ value, onChange }: {
@@ -254,6 +262,8 @@ export function TituloFiltro({ value, onChange }: {
 }) {
   const { t } = useI18n();
   const opcoes: { id: FiltroTitulo; label: TranslationKey }[] = [
+    { id: "vencidas", label: "titulo.filtro.vencidas" },
+    { id: "aVencer", label: "titulo.filtro.aVencer" },
     { id: "abertos", label: "titulo.filtro.abertas" },
     { id: "quitados", label: "titulo.filtro.pagas" },
     { id: "todos", label: "filter.status.all" },

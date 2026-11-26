@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Field } from "@/components/crud/Field";
 import F2InsideHint from "@/components/F2InsideHint";
 import SearchPickerModal, { type SearchPickerItem } from "@/components/SearchPickerModal";
-import { CatalogHeader, ListToolbar, TableHeadRow, TablePagination, Td, TituloFiltro, passaFiltroTitulo, useListSort, type FiltroTitulo } from "@/components/crud/ListUi";
-import TituloFicha, { chaveStatusLista, guaraniDoSaldo, linhasParcelaLista, textoCotacaoTitulo } from "@/components/TituloFicha";
+import { CatalogHeader, ListToolbar, TableHeadRow, TablePagination, Td, TituloFiltro, parcelaEmAberto, passaFiltroTitulo, useListSort, type FiltroTitulo } from "@/components/crud/ListUi";
+import TituloFicha, { ResumoParcelasAbertas, StatusListaParcela, guaraniDoSaldo, linhasParcelaLista, textoCotacaoTitulo, totaisAbertoGuarani } from "@/components/TituloFicha";
 import { useCrudReset } from "@/hooks/useCrudReset";
 import { useI18n } from "@/i18n";
 import { mensagemErroApi } from "@/i18n/apiMessages";
@@ -23,7 +23,7 @@ import {
   type TituloPagar,
   type TituloPagarResumo,
 } from "@/api";
-import { formatMoeda, formatarDataIso, formatarDocumentoExibicao, slicePage } from "@/format";
+import { diasAtrasoCalendario, formatMoeda, formatarDataIso, formatarDocumentoExibicao, slicePage } from "@/format";
 
 const v = (name: string) => `var(${name})`;
 
@@ -96,16 +96,21 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
   useEffect(() => { void carregar(); }, [idFilial]);
 
   const linhas = itens.flatMap((e) => linhasParcelaLista(e.fornecedorNome, e));
-  const filtered = linhas.filter((e) =>
-    passaFiltroTitulo(e.status, filtroTitulo) &&
-    `${e.pessoaNome} ${e.numero ?? ""} ${e.status}`.toLowerCase().includes(search.toLowerCase()));
+  const busca = search.toLowerCase();
+  const daBusca = linhas.filter((e) =>
+    `${e.pessoaNome} ${e.numero ?? ""} ${e.status}`.toLowerCase().includes(busca));
+  const filtered = daBusca.filter((e) => passaFiltroTitulo(e.status, filtroTitulo, e.vencimento));
+  const resumo = totaisAbertoGuarani(daBusca);
   const { items: ordenados, sortKey, sortDir, onSort } = useListSort(filtered, (e, k) => {
     if (k === "fornecedor") return e.pessoaNome;
     if (k === "parcela") return e.numero ?? 0;
     if (k === "vencimento") return e.vencimento ?? "";
     if (k === "cotacao") return textoCotacaoTitulo(e.moeda, e.usdPyg, e.brlPyg);
     if (k === "guarani") return guaraniDoSaldo(e.saldo, e.moeda, e.usdPyg, e.brlPyg);
-    if (k === "status") return e.status;
+    if (k === "status") {
+      const atraso = parcelaEmAberto(e.status) ? diasAtrasoCalendario(e.vencimento) : 0;
+      return atraso > 0 ? `0${String(atraso).padStart(5, "0")}` : e.status;
+    }
     return e.vencimento ?? "";
   }, "vencimento", "asc");
   useEffect(() => { setPage(1); }, [search, filtroTitulo, sortKey, sortDir]);
@@ -298,6 +303,7 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
         <TituloFiltro value={filtroTitulo} onChange={setFiltroTitulo} />
       </ListToolbar>
       <div className="rounded-lg overflow-hidden" style={{ background: v("--card"), border: `1px solid ${v("--border")}` }}>
+        <ResumoParcelasAbertas vencido={resumo.vencido} aVencer={resumo.aVencer} />
         <table className="drive-table w-full">
           <thead>
             <TableHeadRow
@@ -326,7 +332,7 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
                 <Td mono right>{formatMoeda(e.valor, e.moeda)}</Td>
                 <Td mono right>{formatMoeda(e.saldo, e.moeda)}</Td>
                 <Td mono right>{formatMoeda(guaraniDoSaldo(e.saldo, e.moeda, e.usdPyg, e.brlPyg), "pyg")}</Td>
-                <Td>{t(chaveStatusLista(e.status))}</Td>
+                <Td><StatusListaParcela status={e.status} vencimento={e.vencimento} /></Td>
               </tr>
             ))}
           </tbody>

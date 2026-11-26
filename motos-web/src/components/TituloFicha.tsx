@@ -19,12 +19,15 @@ import { Field } from "@/components/crud/Field";
 import { Td } from "@/components/crud/ListUi";
 import {
   converterMoeda,
+  diasAtrasoCalendario,
   formatarDataHoraEpoch,
   formatarDataIso,
   formatMoeda,
 } from "@/format";
+import { parcelaEmAberto } from "@/components/crud/ListUi";
 import { useI18n } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
+import { tf } from "@/i18n/format";
 import { mensagemErroApi } from "@/i18n/apiMessages";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -206,6 +209,51 @@ export function chaveStatusLista(status: string): TranslationKey {
     return `titulo.parcela.${status}` as TranslationKey;
   }
   return `titulo.status.${status}` as TranslationKey;
+}
+
+export function totaisAbertoGuarani(linhas: LinhaParcelaLista[]): { vencido: number; aVencer: number } {
+  let vencido = 0;
+  let aVencer = 0;
+  for (const e of linhas) {
+    if (!parcelaEmAberto(e.status) || e.saldo <= 0) continue;
+    const gs = guaraniDoSaldo(e.saldo, e.moeda, e.usdPyg, e.brlPyg);
+    if (diasAtrasoCalendario(e.vencimento) > 0) vencido += gs;
+    else aVencer += gs;
+  }
+  return { vencido, aVencer };
+}
+
+export function ResumoParcelasAbertas({ vencido, aVencer }: { vencido: number; aVencer: number }) {
+  const { t } = useI18n();
+  return (
+    <p className="px-4 py-2 text-xs flex flex-wrap gap-x-4 gap-y-1" style={{ borderBottom: border1(), color: v("--text-sub") }}>
+      <span>
+        <span style={{ color: "#ef4444" }}>{t("titulo.resumo.vencido")}</span>
+        {" "}
+        <span className="font-mono">{formatMoeda(vencido, "pyg")}</span>
+      </span>
+      <span>
+        {t("titulo.resumo.aVencer")}
+        {" "}
+        <span className="font-mono">{formatMoeda(aVencer, "pyg")}</span>
+      </span>
+    </p>
+  );
+}
+
+export function StatusListaParcela({ status, vencimento }: { status: string; vencimento: string | null }) {
+  const { t } = useI18n();
+  const atraso = parcelaEmAberto(status) ? diasAtrasoCalendario(vencimento) : 0;
+  if (atraso > 0) {
+    return (
+      <span style={{ color: "#ef4444" }}>
+        {t("titulo.parcela.vencida")}
+        {" · "}
+        {tf(t, "relatorio.dias", { n: String(atraso) })}
+      </span>
+    );
+  }
+  return <>{t(chaveStatusLista(status))}</>;
 }
 
 export default function TituloFicha({
@@ -604,7 +652,7 @@ export default function TituloFicha({
                           )}
                         </div>
                       </Td>
-                      <Td>{t(`titulo.parcela.${p.status}` as TranslationKey)}</Td>
+                      <Td><StatusListaParcela status={p.status} vencimento={p.vencimento} /></Td>
                     </tr>
                   );
                 })}

@@ -268,6 +268,17 @@ export function dataAsuncion(offsetDias = 0): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/** Dias entre o vencimento e hoje em Assunção. Zero quando ainda não venceu. */
+export function diasAtrasoCalendario(vencimento: string | null | undefined, hoje = dataAsuncion()): number {
+  if (!vencimento) return 0;
+  const dia = vencimento.slice(0, 10);
+  if (dia >= hoje) return 0;
+  const a = Date.parse(`${dia}T12:00:00Z`);
+  const b = Date.parse(`${hoje}T12:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.max(0, Math.round((b - a) / 86_400_000));
+}
+
 /** Data de calendário `yyyy-mm-dd` → `dd/mm/aaaa` (Brasil e Paraguai). */
 export function formatarDataIso(valor: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(valor.trim());
