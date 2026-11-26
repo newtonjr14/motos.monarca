@@ -352,6 +352,19 @@ class CaixaService(
         return detalhe.toResponse(nomesFinalizadores())
     }
 
+    suspend fun sessaoAbertaDoMesmoCaixa(idSessaoOrigem: Long, idUsuario: Long): Long {
+        val origem = repository.buscarSessao(idSessaoOrigem)
+            ?: throw RecursoNaoEncontrado("Sessão $idSessaoOrigem não encontrada")
+        exigirAcessoFilial(idUsuario, origem.idFilial)
+        exigirAcessoCaixa(idUsuario, origem.sessao.idCaixa)
+        val aberta = repository.buscarSessaoAberta(origem.sessao.idCaixa)
+            ?: throw invalido(
+                "CAIXA_FECHADO_ESTORNO",
+                "Abra esse caixa antes de estornar. O dia que já fechou não muda.",
+            )
+        return aberta.id
+    }
+
     suspend fun listarSessoes(idCaixa: Long, idUsuario: Long): List<CaixaSessaoResponse> {
         val caixa = repository.buscarCaixa(idCaixa) ?: throw RecursoNaoEncontrado("Caixa $idCaixa não encontrado")
         exigirAcessoFilial(idUsuario, caixa.caixa.idFilial)

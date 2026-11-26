@@ -110,3 +110,7 @@ fun ApplicationCall.podeEmitirFactura() {
 fun ApplicationCall.podeOperarFinanceiro() {
     requireQualquerPermissao(Permissao.FINANCEIRO_OPERAR, Permissao.FINANCEIRO_ESTORNO)
 }
+
+fun ApplicationCall.podeEstornarFinanceiro() {
+    requirePermissao(Permissao.FINANCEIRO_ESTORNO)
+}

@@ -730,6 +730,7 @@ class ExposedCaixaRepository(
                 TipoMovimentacaoCaixa.PAGAMENTO.name.lowercase(),
                 TipoMovimentacaoCaixa.SANGRIA.name.lowercase(),
                 TipoMovimentacaoCaixa.DEVOLUCAO.name.lowercase(),
+                TipoMovimentacaoCaixa.ESTORNO_RECEBIMENTO.name.lowercase(),
                 -> -1.0
                 else -> 1.0
             }

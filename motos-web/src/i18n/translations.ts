@@ -836,6 +836,8 @@ export type TranslationKey =
   | "caixa.mov.suprimento"
   | "caixa.mov.sangria"
   | "caixa.mov.devolucao"
+  | "caixa.mov.estorno_recebimento"
+  | "caixa.mov.estorno_pagamento"
   | "caixa.mov.recebimento"
   | "caixa.mov.pagamento"
   | "venda.new"
@@ -939,6 +941,11 @@ export type TranslationKey =
   | "titulo.error.cliente"
   | "titulo.error.fornecedor"
   | "titulo.error.valor"
+  | "titulo.pagamentos"
+  | "titulo.estornar"
+  | "titulo.estornado"
+  | "titulo.excluirConfirma"
+  | "titulo.estornoConfirma"
   | "titulo.primeiraParcela"
   | "api.DATA_PRIMEIRA_INVALIDA"
   | "titulo.error.selecioneParcelas"
@@ -1012,6 +1019,10 @@ export type TranslationKey =
   | "api.BAIXA_DESCONTO_MAIOR"
   | "api.BAIXA_AJUSTE_INVALIDO"
   | "api.PARCELA_JA_PAGA"
+  | "api.BAIXA_JA_ESTORNADA"
+  | "api.TITULO_NAO_EXCLUIVEL"
+  | "api.TITULO_COM_PAGAMENTO"
+  | "api.CAIXA_FECHADO_ESTORNO"
   | "api.ENTRADA_PY_DUPLICADA"
   | "api.ENTRADA_PY_CAMPOS"
   | "api.ENTRADA_EXTERIOR_NUMERO"
@@ -2058,6 +2069,8 @@ const pt: Record<TranslationKey, string> = {
   "caixa.mov.suprimento": "Suprimento",
   "caixa.mov.sangria": "Sangria",
   "caixa.mov.devolucao": "Devolução",
+  "caixa.mov.estorno_recebimento": "Estorno de recebimento",
+  "caixa.mov.estorno_pagamento": "Estorno de pagamento",
   "caixa.mov.recebimento": "Recebimento",
   "caixa.mov.pagamento": "Pagamento",
   "venda.new": "Nova venda",
@@ -2161,6 +2174,11 @@ const pt: Record<TranslationKey, string> = {
   "titulo.error.cliente": "Selecione o cliente",
   "titulo.error.fornecedor": "Selecione o fornecedor",
   "titulo.error.valor": "Informe um valor válido",
+  "titulo.pagamentos": "Pagamentos",
+  "titulo.estornar": "Estornar",
+  "titulo.estornado": "Estornado",
+  "titulo.excluirConfirma": "Excluir este lançamento? As parcelas saem junto.",
+  "titulo.estornoConfirma": "Estornar este pagamento? O caixa aberto de hoje registra o estorno e a parcela volta a ficar em aberto.",
   "titulo.primeiraParcela": "Primeira parcela",
   "api.DATA_PRIMEIRA_INVALIDA": "Informe a data da primeira parcela",
   "titulo.error.selecioneParcelas": "Selecione ao menos uma parcela",
@@ -2234,6 +2252,10 @@ const pt: Record<TranslationKey, string> = {
   "api.BAIXA_DESCONTO_MAIOR": "O desconto não pode exceder o saldo",
   "api.BAIXA_AJUSTE_INVALIDO": "Desconto e acréscimo não podem ser negativos",
   "api.PARCELA_JA_PAGA": "A parcela já está quitada",
+  "api.BAIXA_JA_ESTORNADA": "Esse pagamento já foi estornado",
+  "api.TITULO_NAO_EXCLUIVEL": "Só um lançamento avulso sem pagamento pode ser excluído",
+  "api.TITULO_COM_PAGAMENTO": "Esse lançamento já teve pagamento",
+  "api.CAIXA_FECHADO_ESTORNO": "Abra esse caixa antes de estornar. O dia que já fechou não muda.",
   "api.ENTRADA_PY_DUPLICADA": "Esta fatura já foi lançada para o fornecedor",
   "api.ENTRADA_PY_CAMPOS": "Informe timbrado, establecimiento, punto e número",
   "api.ENTRADA_EXTERIOR_NUMERO": "Informe o número do documento / packing list",
@@ -3227,6 +3249,8 @@ const es: Record<TranslationKey, string> = {
   "caixa.mov.suprimento": "Suministro",
   "caixa.mov.sangria": "Sangría",
   "caixa.mov.devolucao": "Devolución",
+  "caixa.mov.estorno_recebimento": "Reversión de cobro",
+  "caixa.mov.estorno_pagamento": "Reversión de pago",
   "caixa.mov.recebimento": "Cobro",
   "caixa.mov.pagamento": "Pago",
   "venda.new": "Nueva venta",
@@ -3330,6 +3354,11 @@ const es: Record<TranslationKey, string> = {
   "titulo.error.cliente": "Seleccione el cliente",
   "titulo.error.fornecedor": "Seleccione el proveedor",
   "titulo.error.valor": "Indique un valor válido",
+  "titulo.pagamentos": "Pagos",
+  "titulo.estornar": "Revertir",
+  "titulo.estornado": "Revertido",
+  "titulo.excluirConfirma": "¿Eliminar este lanzamiento? Las cuotas salen juntas.",
+  "titulo.estornoConfirma": "¿Revertir este pago? La caja abierta de hoy registra la reversión y la cuota vuelve a quedar abierta.",
   "titulo.primeiraParcela": "Primera cuota",
   "api.DATA_PRIMEIRA_INVALIDA": "Indique la fecha de la primera cuota",
   "titulo.error.selecioneParcelas": "Seleccione al menos una cuota",
@@ -3403,6 +3432,10 @@ const es: Record<TranslationKey, string> = {
   "api.BAIXA_DESCONTO_MAIOR": "El descuento no puede superar el saldo",
   "api.BAIXA_AJUSTE_INVALIDO": "El descuento y el recargo no pueden ser negativos",
   "api.PARCELA_JA_PAGA": "La cuota ya está liquidada",
+  "api.BAIXA_JA_ESTORNADA": "Ese pago ya fue revertido",
+  "api.TITULO_NAO_EXCLUIVEL": "Solo un lanzamiento suelto sin pago puede eliminarse",
+  "api.TITULO_COM_PAGAMENTO": "Ese lanzamiento ya tuvo pago",
+  "api.CAIXA_FECHADO_ESTORNO": "Abra esa caja antes de revertir. El día ya cerrado no cambia.",
   "api.ENTRADA_PY_DUPLICADA": "Esta factura ya fue registrada para el proveedor",
   "api.ENTRADA_PY_CAMPOS": "Indique timbrado, establecimiento, punto y número",
   "api.ENTRADA_EXTERIOR_NUMERO": "Indique el número del documento / packing list",

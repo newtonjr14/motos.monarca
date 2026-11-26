@@ -7,6 +7,8 @@ import com.monarca.caixa.repository.CaixaMovimentacaoFinalizadoresTable
 import com.monarca.caixa.repository.CaixaMovimentacoesTable
 import com.monarca.caixa.repository.FinalizadoresTable
 import com.monarca.common.enums.Status
+import com.monarca.localidade.service.RecursoNaoEncontrado
+import com.monarca.localidade.service.invalido
 import com.monarca.empresa.repository.FiliaisTable
 import com.monarca.pessoa.repository.ClientesTable
 import com.monarca.pessoa.repository.FornecedoresTable
@@ -25,6 +27,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
@@ -411,10 +414,7 @@ class ExposedTituloRepository(
             BaixasReceberTable
                 .innerJoin(FinalizadoresTable)
                 .selectAll()
-                .where {
-                    (BaixasReceberTable.idParcela inList idsParcelas) and
-                        (BaixasReceberTable.status eq Status.ATIVO.name.lowercase())
-                }
+                .where { BaixasReceberTable.idParcela inList idsParcelas }
                 .orderBy(BaixasReceberTable.criadoEm to SortOrder.ASC)
                 .map {
                     BaixaPersistida(
@@ -433,6 +433,7 @@ class ExposedTituloRepository(
                         idUsuario = it[BaixasReceberTable.idUsuario].value,
                         criadoEm = it[BaixasReceberTable.criadoEm],
                         observacao = it[BaixasReceberTable.observacao],
+                        status = it[BaixasReceberTable.status],
                     )
                 }
                 .toList()
@@ -484,10 +485,7 @@ class ExposedTituloRepository(
             BaixasPagarTable
                 .innerJoin(FinalizadoresTable)
                 .selectAll()
-                .where {
-                    (BaixasPagarTable.idParcela inList idsParcelas) and
-                        (BaixasPagarTable.status eq Status.ATIVO.name.lowercase())
-                }
+                .where { BaixasPagarTable.idParcela inList idsParcelas }
                 .orderBy(BaixasPagarTable.criadoEm to SortOrder.ASC)
                 .map {
                     BaixaPersistida(
@@ -506,6 +504,7 @@ class ExposedTituloRepository(
                         idUsuario = it[BaixasPagarTable.idUsuario].value,
                         criadoEm = it[BaixasPagarTable.criadoEm],
                         observacao = it[BaixasPagarTable.observacao],
+                        status = it[BaixasPagarTable.status],
                     )
                 }
                 .toList()
@@ -590,4 +589,184 @@ class ExposedTituloRepository(
             }
             .toList()
     }
+
+    override suspend fun buscarBaixaReceber(id: Long): BaixaComTitulo? = suspendTransaction(database) {
+        val row = BaixasReceberTable
+            .innerJoin(FinalizadoresTable)
+            .innerJoin(ParcelasReceberTable)
+            .selectAll()
+            .where { BaixasReceberTable.id eq id }
+            .singleOrNull() ?: return@suspendTransaction null
+        BaixaComTitulo(baixa = row.toBaixaReceber(), idTitulo = row[ParcelasReceberTable.idTitulo].value)
+    }
+
+    override suspend fun buscarBaixaPagar(id: Long): BaixaComTitulo? = suspendTransaction(database) {
+        val row = BaixasPagarTable
+            .innerJoin(FinalizadoresTable)
+            .innerJoin(ParcelasPagarTable)
+            .selectAll()
+            .where { BaixasPagarTable.id eq id }
+            .singleOrNull() ?: return@suspendTransaction null
+        BaixaComTitulo(baixa = row.toBaixaPagar(), idTitulo = row[ParcelasPagarTable.idTitulo].value)
+    }
+
+    override suspend fun estornarReceber(comando: EstornoComando) = suspendTransaction(database) {
+        aplicarEstorno(
+            comando = comando,
+            tipo = TipoMovimentacaoCaixa.ESTORNO_RECEBIMENTO,
+            tabela = "baixa_receber",
+            lerStatus = {
+                BaixasReceberTable.selectAll().where { BaixasReceberTable.id eq comando.idBaixa }.singleOrNull()
+                    ?.get(BaixasReceberTable.status)
+            },
+            atualizarParcela = {
+                ParcelasReceberTable.update({ ParcelasReceberTable.id eq comando.idParcela }) {
+                    it[saldo] = comando.saldoNovo
+                    it[status] = comando.statusParcela.name.lowercase()
+                }
+            },
+            atualizarTitulo = {
+                TitulosReceberTable.update({ TitulosReceberTable.id eq comando.idTitulo }) {
+                    it[status] = comando.statusTitulo.name.lowercase()
+                }
+            },
+            marcarBaixa = {
+                BaixasReceberTable.update({ BaixasReceberTable.id eq comando.idBaixa }) {
+                    it[status] = "estornado"
+                }
+            },
+            ligarBaixa = { idMov ->
+                CaixaMovimentacoesTable.update({ CaixaMovimentacoesTable.id eq idMov }) {
+                    it[idBaixaReceber] = comando.idBaixa
+                }
+            },
+        )
+    }
+
+    override suspend fun estornarPagar(comando: EstornoComando) = suspendTransaction(database) {
+        aplicarEstorno(
+            comando = comando,
+            tipo = TipoMovimentacaoCaixa.ESTORNO_PAGAMENTO,
+            tabela = "baixa_pagar",
+            lerStatus = {
+                BaixasPagarTable.selectAll().where { BaixasPagarTable.id eq comando.idBaixa }.singleOrNull()
+                    ?.get(BaixasPagarTable.status)
+            },
+            atualizarParcela = {
+                ParcelasPagarTable.update({ ParcelasPagarTable.id eq comando.idParcela }) {
+                    it[saldo] = comando.saldoNovo
+                    it[status] = comando.statusParcela.name.lowercase()
+                }
+            },
+            atualizarTitulo = {
+                TitulosPagarTable.update({ TitulosPagarTable.id eq comando.idTitulo }) {
+                    it[status] = comando.statusTitulo.name.lowercase()
+                }
+            },
+            marcarBaixa = {
+                BaixasPagarTable.update({ BaixasPagarTable.id eq comando.idBaixa }) {
+                    it[status] = "estornado"
+                }
+            },
+            ligarBaixa = { idMov ->
+                CaixaMovimentacoesTable.update({ CaixaMovimentacoesTable.id eq idMov }) {
+                    it[idBaixaPagar] = comando.idBaixa
+                }
+            },
+        )
+    }
+
+    override suspend fun excluirReceber(id: Long, idUsuario: Long) = suspendTransaction(database) {
+        ParcelasReceberTable.deleteWhere { ParcelasReceberTable.idTitulo eq id }
+        TitulosReceberTable.deleteWhere { TitulosReceberTable.id eq id }
+        gravarAuditLog("titulo_receber", id.toString(), AuditAction.SOFT_DELETE, userId = idUsuario)
+    }
+
+    override suspend fun excluirPagar(id: Long, idUsuario: Long) = suspendTransaction(database) {
+        ParcelasPagarTable.deleteWhere { ParcelasPagarTable.idTitulo eq id }
+        TitulosPagarTable.deleteWhere { TitulosPagarTable.id eq id }
+        gravarAuditLog("titulo_pagar", id.toString(), AuditAction.SOFT_DELETE, userId = idUsuario)
+    }
+
+    private suspend fun aplicarEstorno(
+        comando: EstornoComando,
+        tipo: TipoMovimentacaoCaixa,
+        tabela: String,
+        lerStatus: suspend () -> String?,
+        atualizarParcela: suspend () -> Unit,
+        atualizarTitulo: suspend () -> Unit,
+        marcarBaixa: suspend () -> Unit,
+        ligarBaixa: suspend (Long) -> Unit,
+    ) {
+        val status = lerStatus() ?: throw RecursoNaoEncontrado("Pagamento ${comando.idBaixa} não encontrado")
+        if (status != Status.ATIVO.name.lowercase()) {
+            throw invalido("BAIXA_JA_ESTORNADA", "Esse pagamento já foi estornado")
+        }
+        atualizarParcela()
+        atualizarTitulo()
+        marcarBaixa()
+        if (comando.valor > 0.009) {
+            val mov = CaixaMovimentacoesTable.insert {
+                it[idCaixaSessao] = comando.idSessaoDestino
+                it[CaixaMovimentacoesTable.tipo] = tipo.name.lowercase()
+                it[idUsuario] = comando.idUsuario
+                it[criadoEm] = System.currentTimeMillis()
+                it[CaixaMovimentacoesTable.status] = Status.ATIVO.name.lowercase()
+            }
+            val idMov = mov[CaixaMovimentacoesTable.id].value
+            ligarBaixa(idMov)
+            CaixaMovimentacaoFinalizadoresTable.insert {
+                it[idCaixaMovimentacao] = idMov
+                it[idFinalizador] = comando.idFinalizador
+                it[moeda] = comando.moeda.name.lowercase()
+                it[valor] = comando.valor
+                it[valorPyg] = comando.valorPyg
+            }
+        }
+        gravarAuditLog(
+            tabela,
+            comando.idBaixa.toString(),
+            AuditAction.UPDATE,
+            newValues = """{"status":"estornado","valor":${comando.valor}}""",
+            userId = comando.idUsuario,
+        )
+    }
+
+    private fun ResultRow.toBaixaReceber() = BaixaPersistida(
+        id = this[BaixasReceberTable.id].value,
+        idParcela = this[BaixasReceberTable.idParcela].value,
+        idFinalizador = this[BaixasReceberTable.idFinalizador].value,
+        finalizadorNome = this[FinalizadoresTable.nome],
+        idCaixaSessao = this[BaixasReceberTable.idCaixaSessao].value,
+        moeda = Moeda.valueOf(this[BaixasReceberTable.moeda].uppercase()),
+        valor = this[BaixasReceberTable.valor],
+        valorPyg = this[BaixasReceberTable.valorPyg],
+        desconto = this[BaixasReceberTable.desconto],
+        descontoPyg = this[BaixasReceberTable.descontoPyg],
+        acrescimo = this[BaixasReceberTable.acrescimo],
+        acrescimoPyg = this[BaixasReceberTable.acrescimoPyg],
+        idUsuario = this[BaixasReceberTable.idUsuario].value,
+        criadoEm = this[BaixasReceberTable.criadoEm],
+        observacao = this[BaixasReceberTable.observacao],
+        status = this[BaixasReceberTable.status],
+    )
+
+    private fun ResultRow.toBaixaPagar() = BaixaPersistida(
+        id = this[BaixasPagarTable.id].value,
+        idParcela = this[BaixasPagarTable.idParcela].value,
+        idFinalizador = this[BaixasPagarTable.idFinalizador].value,
+        finalizadorNome = this[FinalizadoresTable.nome],
+        idCaixaSessao = this[BaixasPagarTable.idCaixaSessao].value,
+        moeda = Moeda.valueOf(this[BaixasPagarTable.moeda].uppercase()),
+        valor = this[BaixasPagarTable.valor],
+        valorPyg = this[BaixasPagarTable.valorPyg],
+        desconto = this[BaixasPagarTable.desconto],
+        descontoPyg = this[BaixasPagarTable.descontoPyg],
+        acrescimo = this[BaixasPagarTable.acrescimo],
+        acrescimoPyg = this[BaixasPagarTable.acrescimoPyg],
+        idUsuario = this[BaixasPagarTable.idUsuario].value,
+        criadoEm = this[BaixasPagarTable.criadoEm],
+        observacao = this[BaixasPagarTable.observacao],
+        status = this[BaixasPagarTable.status],
+    )
 }

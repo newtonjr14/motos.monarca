@@ -27,10 +27,12 @@ import com.monarca.titulo.dto.RelatorioParcelaResponse
 import com.monarca.titulo.dto.TituloReceberRequest
 import com.monarca.titulo.dto.TituloReceberResponse
 import com.monarca.titulo.dto.TituloReceberResumoResponse
+import com.monarca.titulo.repository.BaixaComTitulo
 import com.monarca.titulo.repository.BaixaRelatorioLinha
 import com.monarca.titulo.repository.BaixaNova
 import com.monarca.titulo.repository.BaixaParcelaAplicacao
 import com.monarca.titulo.repository.BaixaPersistida
+import com.monarca.titulo.repository.EstornoComando
 import com.monarca.titulo.repository.ParcelaPersistida
 import com.monarca.titulo.repository.TituloPagarCompleto
 import com.monarca.titulo.repository.TituloPagarNovo
@@ -43,6 +45,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeParseException
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.round
 
 class TituloService(
@@ -352,6 +355,102 @@ class TituloService(
             throw invalido("BAIXA_VALOR_INVALIDO", "O valor da baixa deve ser maior que zero")
         }
         return ratearQuitacao(parcelas, max(0.0, request.valor), desconto, acrescimo, request.moeda, usdPyg, brlPyg)
+    }
+
+    suspend fun excluirReceber(id: Long, idUsuario: Long) {
+        val titulo = repository.buscarReceber(id) ?: throw RecursoNaoEncontrado("Título a receber $id não encontrado")
+        exigirAcessoFilial(idUsuario, titulo.idFilial)
+        exigirExclusao(titulo.origem, titulo.baixas)
+        repository.excluirReceber(id, idUsuario)
+    }
+
+    suspend fun excluirPagar(id: Long, idUsuario: Long) {
+        val titulo = repository.buscarPagar(id) ?: throw RecursoNaoEncontrado("Título a pagar $id não encontrado")
+        exigirAcessoFilial(idUsuario, titulo.idFilial)
+        exigirExclusao(titulo.origem, titulo.baixas)
+        repository.excluirPagar(id, idUsuario)
+    }
+
+    suspend fun estornarReceber(idBaixa: Long, idUsuario: Long): TituloReceberResponse {
+        val local = repository.buscarBaixaReceber(idBaixa)
+            ?: throw RecursoNaoEncontrado("Recebimento $idBaixa não encontrado")
+        val titulo = repository.buscarReceber(local.idTitulo)
+            ?: throw RecursoNaoEncontrado("Título a receber ${local.idTitulo} não encontrado")
+        val comando = prepararEstorno(local, titulo.parcelas, titulo.moeda, titulo.idFilial, idUsuario)
+        repository.estornarReceber(comando)
+        return buscarReceber(titulo.id, idUsuario)
+    }
+
+    suspend fun estornarPagar(idBaixa: Long, idUsuario: Long): TituloPagarResponse {
+        val local = repository.buscarBaixaPagar(idBaixa)
+            ?: throw RecursoNaoEncontrado("Pagamento $idBaixa não encontrado")
+        val titulo = repository.buscarPagar(local.idTitulo)
+            ?: throw RecursoNaoEncontrado("Título a pagar ${local.idTitulo} não encontrado")
+        val comando = prepararEstorno(local, titulo.parcelas, titulo.moeda, titulo.idFilial, idUsuario)
+        repository.estornarPagar(comando)
+        return buscarPagar(titulo.id, idUsuario)
+    }
+
+    private fun exigirExclusao(origem: OrigemTitulo, baixas: List<BaixaPersistida>) {
+        if (origem != OrigemTitulo.MANUAL) {
+            throw invalido("TITULO_NAO_EXCLUIVEL", "Só um lançamento avulso sem pagamento pode ser excluído")
+        }
+        if (baixas.isNotEmpty()) {
+            throw invalido("TITULO_COM_PAGAMENTO", "Esse lançamento já teve pagamento")
+        }
+    }
+
+    private suspend fun prepararEstorno(
+        local: BaixaComTitulo,
+        parcelas: List<ParcelaPersistida>,
+        moeda: Moeda,
+        idFilial: Long,
+        idUsuario: Long,
+    ): EstornoComando {
+        val baixa = local.baixa
+        if (baixa.status != Status.ATIVO.name.lowercase()) {
+            throw invalido("BAIXA_JA_ESTORNADA", "Esse pagamento já foi estornado")
+        }
+        exigirAcessoFilial(idUsuario, idFilial)
+        val parcela = parcelas.find { it.id == baixa.idParcela }
+            ?: throw RecursoNaoEncontrado("Parcela ${baixa.idParcela} não encontrada")
+        val saldoNovo = saldoAposEstorno(parcela, baixa, moeda)
+        val statusParcela = when {
+            saldoNovo <= 0.009 -> StatusParcela.PAGA
+            saldoNovo >= parcela.valor - 0.009 -> StatusParcela.ABERTA
+            else -> StatusParcela.PARCIAL
+        }
+        val saldos = parcelas.associate { it.id to it.saldo }.toMutableMap()
+        saldos[parcela.id] = saldoNovo
+        val idSessao = caixaService.sessaoAbertaDoMesmoCaixa(baixa.idCaixaSessao, idUsuario)
+        return EstornoComando(
+            idBaixa = baixa.id,
+            idParcela = parcela.id,
+            idTitulo = local.idTitulo,
+            saldoNovo = saldoNovo,
+            statusParcela = statusParcela,
+            statusTitulo = statusTituloApos(parcelas, saldos),
+            idSessaoDestino = idSessao,
+            idUsuario = idUsuario,
+            idFinalizador = baixa.idFinalizador,
+            moeda = baixa.moeda,
+            valor = baixa.valor,
+            valorPyg = baixa.valorPyg,
+        )
+    }
+
+    private fun saldoAposEstorno(parcela: ParcelaPersistida, baixa: BaixaPersistida, moedaTitulo: Moeda): Double {
+        val quita = if (baixa.moeda == moedaTitulo) {
+            baixa.valor + baixa.desconto - baixa.acrescimo
+        } else if (parcela.valor > 0.0 && parcela.valorPyg > 0.0) {
+            (baixa.valorPyg + baixa.descontoPyg - baixa.acrescimoPyg) * (parcela.valor / parcela.valorPyg)
+        } else {
+            baixa.valor
+        }
+        val bruto = parcela.saldo + quita
+        val folga = if (moedaTitulo == Moeda.PYG) 1.0 else 0.01
+        val ajustado = if (parcela.valor - bruto <= folga) parcela.valor else min(parcela.valor, bruto)
+        return arredondarMoeda(max(0.0, ajustado), moedaTitulo)
     }
 
     private fun toleranciaPyg(usdPyg: Double, brlPyg: Double): Double =
@@ -776,5 +875,6 @@ class TituloService(
         acrescimoPyg = acrescimoPyg,
         criadoEm = criadoEm,
         observacao = observacao,
+        status = status,
     )
 }

@@ -1,6 +1,11 @@
 import {
   baixarPagamento,
   baixarRecebimento,
+  estornarPagamento,
+  estornarRecebimento,
+  excluirTituloPagar,
+  excluirTituloReceber,
+  Permissao,
   type Caixa,
   type Cotacao,
   type Finalizador,
@@ -9,10 +14,12 @@ import {
   type TituloPagar,
   type TituloReceber,
 } from "@/api";
+import { useAuth } from "@/auth/AuthContext";
 import { Field } from "@/components/crud/Field";
 import { Td } from "@/components/crud/ListUi";
 import {
   converterMoeda,
+  formatarDataHoraEpoch,
   formatarDataIso,
   formatMoeda,
 } from "@/format";
@@ -209,6 +216,7 @@ export default function TituloFicha({
   nav,
   onClose,
   onUpdated,
+  onExcluido,
 }: {
   modo: "receber" | "pagar";
   item: TituloReceber | TituloPagar;
@@ -217,8 +225,12 @@ export default function TituloFicha({
   nav?: { index: number; total: number; onPrev: () => void; onNext: () => void };
   onClose: () => void;
   onUpdated: (atualizado: TituloReceber | TituloPagar) => Promise<void>;
+  onExcluido?: () => Promise<void>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { hasPermission } = useAuth();
+  const podeEstornar = hasPermission(Permissao.FINANCEIRO_ESTORNO);
+  const podeExcluir = item.origem === "manual" && item.baixas.length === 0;
   const nome = modo === "receber"
     ? (item as TituloReceber).clienteNome
     : (item as TituloPagar).fornecedorNome;
@@ -414,6 +426,38 @@ export default function TituloFicha({
     }
   }
 
+  async function excluir() {
+    if (!window.confirm(t("titulo.excluirConfirma"))) return;
+    setSalvando(true);
+    setErro(null);
+    try {
+      if (modo === "receber") await excluirTituloReceber(item.id);
+      else await excluirTituloPagar(item.id);
+      if (onExcluido) await onExcluido();
+      else onClose();
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function estornar(idBaixa: number) {
+    if (!window.confirm(t("titulo.estornoConfirma"))) return;
+    setSalvando(true);
+    setErro(null);
+    try {
+      const atualizado = modo === "receber"
+        ? await estornarRecebimento(idBaixa)
+        : await estornarPagamento(idBaixa);
+      await onUpdated(atualizado);
+    } catch (e) {
+      setErro(mensagemErroApi(e, t, "common.error.saveFailed"));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   const acaoBaixa = modo === "receber" ? t("titulo.receberSelecionadas") : t("titulo.pagarSelecionadas");
 
   return (
@@ -568,6 +612,47 @@ export default function TituloFicha({
             </table>
           </div>
 
+          {item.baixas.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium" style={{ color: v("--text") }}>{t("titulo.pagamentos")}</p>
+              <div className="overflow-x-auto rounded-md" style={{ border: border1() }}>
+                <table className="drive-table w-full">
+                  <tbody>
+                    {item.baixas.map((b) => {
+                      const numero = item.parcelas.find((p) => p.id === b.idParcela)?.numero;
+                      const estornada = b.status === "estornado";
+                      return (
+                        <tr key={b.id} style={estornada ? { opacity: 0.55 } : undefined}>
+                          <Td>#{numero ?? ""}</Td>
+                          <Td>{formatarDataHoraEpoch(b.criadoEm, locale === "es" ? "es-PY" : "pt-BR")}</Td>
+                          <Td>{b.finalizadorNome}</Td>
+                          <Td right>
+                            <span className="font-mono text-sm">{formatMoeda(b.valor, b.moeda)}</span>
+                          </Td>
+                          <Td>
+                            {estornada ? (
+                              <span style={{ color: v("--text-muted") }}>{t("titulo.estornado")}</span>
+                            ) : podeEstornar ? (
+                              <button
+                                type="button"
+                                className="text-sm cursor-pointer"
+                                style={{ color: v("--danger"), background: "none", border: "none", padding: 0 }}
+                                disabled={salvando}
+                                onClick={() => void estornar(b.id)}
+                              >
+                                {t("titulo.estornar")}
+                              </button>
+                            ) : null}
+                          </Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {selecionadas.length > 0 && (
             <div className="rounded-md px-3 py-2 space-y-1" style={{ background: v("--card2"), border: border1() }}>
               <p className="text-sm" style={{ color: v("--text") }}>
@@ -591,6 +676,17 @@ export default function TituloFicha({
             >
               {modo === "receber" ? t("titulo.receberSelecionadas") : t("titulo.pagarSelecionadas")}
             </button>
+            {podeExcluir && (
+              <button
+                type="button"
+                className="btn-ghost flex-1 py-2 text-sm"
+                style={{ color: v("--danger") }}
+                disabled={salvando}
+                onClick={() => void excluir()}
+              >
+                {t("common.delete")}
+              </button>
+            )}
             <button type="button" className="btn-ghost flex-1 py-2 text-sm" onClick={onClose}>
               {t("ficha.close")}
             </button>

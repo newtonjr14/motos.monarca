@@ -30,6 +30,7 @@ export const Permissao = {
   CAIXA_GERENCIAR: "caixa:gerenciar",
   CAIXA_OPERAR: "caixa:operar",
   FINANCEIRO_OPERAR: "financeiro:operar",
+  FINANCEIRO_ESTORNO: "financeiro:estorno",
   ESTOQUE_CONSULTAR: "estoque:consultar",
   RELATORIO_FINANCEIRO: "relatorio:financeiro",
 } as const;
@@ -857,7 +858,9 @@ export type TipoMovimentacaoCaixa =
   | "transferencia_entrada"
   | "suprimento"
   | "sangria"
-  | "devolucao";
+  | "devolucao"
+  | "estorno_recebimento"
+  | "estorno_pagamento";
 export type StatusSessaoCaixa = "aberto" | "fechado";
 export type StatusVenda = "finalizada" | "cancelada" | "aberta" | "orcamento" | "utilizada";
 
@@ -1207,6 +1210,7 @@ export interface BaixaTitulo {
   acrescimoPyg?: number;
   criadoEm: number;
   observacao?: string | null;
+  status?: string;
 }
 
 export interface TituloReceberResumo {
@@ -1277,6 +1281,10 @@ export const criarTituloReceber = (body: unknown) =>
   api<TituloReceber>("/titulos-receber", { method: "POST", body: JSON.stringify(body) });
 export const baixarRecebimento = (body: unknown) =>
   api<TituloReceber>("/recebimentos", { method: "POST", body: JSON.stringify(body) });
+export const excluirTituloReceber = (id: number) =>
+  api<void>(`/titulos-receber/${id}`, { method: "DELETE" });
+export const estornarRecebimento = (id: number) =>
+  api<TituloReceber>(`/recebimentos/${id}/estornar`, { method: "POST" });
 
 export const listarTitulosPagar = (idFilial?: number) => {
   const q = idFilial != null ? `?idFilial=${idFilial}` : "";
@@ -1287,6 +1295,10 @@ export const criarTituloPagar = (body: unknown) =>
   api<TituloPagar>("/titulos-pagar", { method: "POST", body: JSON.stringify(body) });
 export const baixarPagamento = (body: unknown) =>
   api<TituloPagar>("/pagamentos", { method: "POST", body: JSON.stringify(body) });
+export const excluirTituloPagar = (id: number) =>
+  api<void>(`/titulos-pagar/${id}`, { method: "DELETE" });
+export const estornarPagamento = (id: number) =>
+  api<TituloPagar>(`/pagamentos/${id}/estornar`, { method: "POST" });
 
 export interface BaixaRelatorio {
   id: number;

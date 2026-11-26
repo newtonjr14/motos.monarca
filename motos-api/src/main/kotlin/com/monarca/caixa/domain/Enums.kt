@@ -52,6 +52,12 @@ enum class TipoMovimentacaoCaixa {
 
     @SerialName("devolucao")
     DEVOLUCAO,
+
+    @SerialName("estorno_recebimento")
+    ESTORNO_RECEBIMENTO,
+
+    @SerialName("estorno_pagamento")
+    ESTORNO_PAGAMENTO,
 }
 
 @Serializable

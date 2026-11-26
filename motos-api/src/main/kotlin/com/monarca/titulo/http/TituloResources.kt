@@ -45,8 +45,16 @@ class BaixasPagar(
 
 @Serializable
 @Resource("/recebimentos")
-class Recebimentos
+class Recebimentos {
+    @Serializable
+    @Resource("{id}/estornar")
+    class Estornar(val parent: Recebimentos = Recebimentos(), val id: Long)
+}
 
 @Serializable
 @Resource("/pagamentos")
-class Pagamentos
+class Pagamentos {
+    @Serializable
+    @Resource("{id}/estornar")
+    class Estornar(val parent: Pagamentos = Pagamentos(), val id: Long)
+}

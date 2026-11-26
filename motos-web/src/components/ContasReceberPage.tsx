@@ -354,6 +354,10 @@ export default function ContasReceberPage({ navReset }: { navReset: number }) {
             setDetalhe(atualizado as TituloReceber);
             await carregar();
           }}
+          onExcluido={async () => {
+            setDetalhe(null);
+            await carregar();
+          }}
         />
       )}
     </div>

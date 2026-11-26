@@ -63,6 +63,27 @@ data class BaixaPersistida(
     val idUsuario: Long,
     val criadoEm: Long,
     val observacao: String?,
+    val status: String = "ativo",
+)
+
+data class BaixaComTitulo(
+    val baixa: BaixaPersistida,
+    val idTitulo: Long,
+)
+
+data class EstornoComando(
+    val idBaixa: Long,
+    val idParcela: Long,
+    val idTitulo: Long,
+    val saldoNovo: Double,
+    val statusParcela: StatusParcela,
+    val statusTitulo: StatusTitulo,
+    val idSessaoDestino: Long,
+    val idUsuario: Long,
+    val idFinalizador: Long,
+    val moeda: Moeda,
+    val valor: Double,
+    val valorPyg: Double,
 )
 
 data class TituloReceberCompleto(
@@ -172,4 +193,11 @@ interface TituloRepository {
 
     suspend fun listarBaixasReceber(idFilial: Long): List<BaixaRelatorioLinha>
     suspend fun listarBaixasPagar(idFilial: Long): List<BaixaRelatorioLinha>
+
+    suspend fun buscarBaixaReceber(id: Long): BaixaComTitulo?
+    suspend fun buscarBaixaPagar(id: Long): BaixaComTitulo?
+    suspend fun estornarReceber(comando: EstornoComando)
+    suspend fun estornarPagar(comando: EstornoComando)
+    suspend fun excluirReceber(id: Long, idUsuario: Long)
+    suspend fun excluirPagar(id: Long, idUsuario: Long)
 }

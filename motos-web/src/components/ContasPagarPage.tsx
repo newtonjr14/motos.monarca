@@ -354,6 +354,10 @@ export default function ContasPagarPage({ navReset }: { navReset: number }) {
             setDetalhe(atualizado as TituloPagar);
             await carregar();
           }}
+          onExcluido={async () => {
+            setDetalhe(null);
+            await carregar();
+          }}
         />
       )}
     </div>

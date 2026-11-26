@@ -76,6 +76,7 @@ data class BaixaResponse(
     val acrescimoPyg: Double = 0.0,
     val criadoEm: Long,
     val observacao: String? = null,
+    val status: String = "ativo",
 )
 
 @Serializable

@@ -1,6 +1,7 @@
 package com.monarca.titulo.http
 
 import com.monarca.auth.JWT_AUTH
+import com.monarca.auth.podeEstornarFinanceiro
 import com.monarca.auth.podeOperarFinanceiro
 import com.monarca.auth.usuarioAutenticado
 import com.monarca.auth.withAudit
@@ -20,6 +21,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
+import io.ktor.server.resources.delete
 import io.ktor.server.resources.get
 import io.ktor.server.resources.post
 import io.ktor.server.routing.routing
@@ -40,6 +42,15 @@ fun Application.configureTitulo() {
                 call.handleTitulo {
                     call.podeOperarFinanceiro()
                     call.respond(service.buscarReceber(resource.id, call.usuarioAutenticado().id))
+                }
+            }
+            delete<TitulosReceber.Id> { resource ->
+                call.handleTitulo {
+                    call.podeOperarFinanceiro()
+                    call.withAudit {
+                        service.excluirReceber(resource.id, call.usuarioAutenticado().id)
+                        call.respond(HttpStatusCode.NoContent)
+                    }
                 }
             }
             post<TitulosReceber> {
@@ -72,6 +83,14 @@ fun Application.configureTitulo() {
                     }
                 }
             }
+            post<Recebimentos.Estornar> { resource ->
+                call.handleTitulo {
+                    call.podeEstornarFinanceiro()
+                    call.withAudit {
+                        call.respond(service.estornarReceber(resource.id, call.usuarioAutenticado().id))
+                    }
+                }
+            }
 
             get<TitulosPagar> {
                 call.handleTitulo {
@@ -84,6 +103,15 @@ fun Application.configureTitulo() {
                 call.handleTitulo {
                     call.podeOperarFinanceiro()
                     call.respond(service.buscarPagar(resource.id, call.usuarioAutenticado().id))
+                }
+            }
+            delete<TitulosPagar.Id> { resource ->
+                call.handleTitulo {
+                    call.podeOperarFinanceiro()
+                    call.withAudit {
+                        service.excluirPagar(resource.id, call.usuarioAutenticado().id)
+                        call.respond(HttpStatusCode.NoContent)
+                    }
                 }
             }
             post<TitulosPagar> {
@@ -113,6 +141,14 @@ fun Application.configureTitulo() {
                     val request = call.receive<BaixaTituloRequest>()
                     call.withAudit {
                         call.respond(service.baixarPagar(request, call.usuarioAutenticado().id))
+                    }
+                }
+            }
+            post<Pagamentos.Estornar> { resource ->
+                call.handleTitulo {
+                    call.podeEstornarFinanceiro()
+                    call.withAudit {
+                        call.respond(service.estornarPagar(resource.id, call.usuarioAutenticado().id))
                     }
                 }
             }
