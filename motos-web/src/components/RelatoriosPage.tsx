@@ -478,7 +478,7 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
 
   const atrasoTxt = (vencimento: string) => {
     const atraso = diasAtraso(vencimento);
-    return atraso && atraso > 0 ? tf(t, "relatorio.dias", { n: String(atraso) }) : "—";
+    return atraso && atraso > 0 ? String(atraso) : "—";
   };
 
   function montarFolha(): FolhaRelatorio {
@@ -704,7 +704,7 @@ export default function RelatoriosPage({ navReset, relatorio }: { navReset: numb
                   <Td mono gold>{e.id}</Td>
                   <Td mono>{formatarDataIso(e.vencimento)}</Td>
                   <td className="drive-td font-mono text-xs" style={{ color: atraso && atraso > 0 ? "#ef4444" : v("--text-muted") }}>
-                    {atraso && atraso > 0 ? tf(t, "relatorio.dias", { n: String(atraso) }) : "—"}
+                    {atraso && atraso > 0 ? String(atraso) : "—"}
                   </td>
                   <td className="drive-td nome-clip" title={e.pessoaNome} style={{ color: v("--text-sub") }}>{e.pessoaNome}</td>
                   <Td mono>{e.idDocumento ?? "—"}</Td>

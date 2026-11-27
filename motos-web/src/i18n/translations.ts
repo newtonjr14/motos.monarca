@@ -50,7 +50,6 @@ export type TranslationKey =
   | "relatorio.comSaldo"
   | "relatorio.todosSaldos"
   | "relatorio.finalizador"
-  | "relatorio.dias"
   | "relatorio.pdf"
   | "relatorio.excel"
   | "relatorio.exportar"
@@ -1224,7 +1223,6 @@ const pt: Record<TranslationKey, string> = {
   "relatorio.comSaldo": "Com saldo",
   "relatorio.todosSaldos": "Todos",
   "relatorio.finalizador": "Finalizador",
-  "relatorio.dias": "{n} d",
   "relatorio.pdf": "PDF",
   "relatorio.excel": "Excel",
   "relatorio.exportar": "Exportar",
@@ -2399,7 +2397,6 @@ const es: Record<TranslationKey, string> = {
   "relatorio.comSaldo": "Con saldo",
   "relatorio.todosSaldos": "Todos",
   "relatorio.finalizador": "Forma de pago",
-  "relatorio.dias": "{n} d",
   "relatorio.pdf": "PDF",
   "relatorio.excel": "Excel",
   "relatorio.exportar": "Exportar",
