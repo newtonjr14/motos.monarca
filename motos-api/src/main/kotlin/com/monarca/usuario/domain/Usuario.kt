@@ -10,5 +10,6 @@ data class Usuario(
     val senhaHash: String,
     val perfil: PerfilUsuario,
     val idioma: IdiomaUsuario,
+    val tema: TemaUsuario = TemaUsuario.ESCURO,
     val status: Status,
 )

@@ -10,6 +10,7 @@ export type TipoPessoa = "fisica" | "juridica";
 export type Status = "ativo" | "inativo" | "deletado";
 export type PerfilFiscal = "py_iva";
 export type IdiomaUsuario = "pt" | "es";
+export type TemaUsuario = "claro" | "escuro";
 export type PerfilUsuario = "administrador" | "gestor" | "operador" | "vendedor";
 export type Moeda = "usd" | "pyg" | "brl";
 
@@ -57,6 +58,7 @@ export interface PerfilAutenticado {
   email: string;
   perfil: PerfilUsuario;
   idioma: IdiomaUsuario;
+  tema?: TemaUsuario;
   permissoes: string[];
   filiais: FilialAcesso[];
 }
@@ -309,6 +311,7 @@ export interface Usuario {
   email: string;
   perfil: PerfilUsuario;
   idioma: IdiomaUsuario;
+  tema?: TemaUsuario;
   status: Status;
   filiais: FilialAcesso[];
   caixas?: UsuarioCaixaAcesso[];
@@ -342,10 +345,10 @@ export const alterarSenha = (senhaAtual: string, senhaNova: string) =>
     body: JSON.stringify({ senhaAtual, senhaNova }),
   });
 
-export const editarPerfil = (nome: string, idioma: IdiomaUsuario) =>
+export const editarPerfil = (nome: string, idioma: IdiomaUsuario, tema?: TemaUsuario) =>
   api<PerfilAutenticado>("/auth/perfil", {
     method: "PUT",
-    body: JSON.stringify({ nome, idioma }),
+    body: JSON.stringify(tema ? { nome, idioma, tema } : { nome, idioma }),
   });
 
 export const listarPaises = (options?: { logoutOn401?: boolean }) =>

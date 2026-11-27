@@ -3,6 +3,7 @@ package com.monarca.usuario.dto
 import com.monarca.common.enums.Status
 import com.monarca.usuario.domain.IdiomaUsuario
 import com.monarca.usuario.domain.PerfilUsuario
+import com.monarca.usuario.domain.TemaUsuario
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -22,6 +23,7 @@ data class UsuarioResponse(
     val email: String,
     val perfil: PerfilUsuario,
     val idioma: IdiomaUsuario,
+    val tema: TemaUsuario = TemaUsuario.ESCURO,
     val status: Status,
     val filiais: List<FilialAcessoResponse> = emptyList(),
     val caixas: List<com.monarca.caixa.dto.CaixaAcessoResponse> = emptyList(),
@@ -35,6 +37,7 @@ data class UsuarioRequest(
     val senha: String? = null,
     val perfil: PerfilUsuario,
     val idioma: IdiomaUsuario = IdiomaUsuario.PT,
+    val tema: TemaUsuario? = null,
     val status: Status = Status.ATIVO,
     val idsFiliais: List<Long>? = null,
     val idsCaixas: List<Long>? = null,

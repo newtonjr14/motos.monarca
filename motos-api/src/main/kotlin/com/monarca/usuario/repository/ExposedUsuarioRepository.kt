@@ -8,6 +8,7 @@ import com.monarca.usuario.SystemBootstrapConfig
 import com.monarca.usuario.SystemUser
 import com.monarca.usuario.domain.FilialAcesso
 import com.monarca.usuario.domain.IdiomaUsuario
+import com.monarca.usuario.domain.TemaUsuario
 import com.monarca.usuario.domain.PerfilUsuario
 import com.monarca.usuario.domain.Usuario
 import kotlinx.coroutines.flow.map
@@ -100,6 +101,7 @@ class ExposedUsuarioRepository(
         perfil: PerfilUsuario,
         idioma: IdiomaUsuario,
         status: Status,
+        tema: TemaUsuario,
     ): Long {
         val id = suspendTransaction(database) {
             val inserted = UsuariosTable.insert {
@@ -109,6 +111,7 @@ class ExposedUsuarioRepository(
                 it[UsuariosTable.senhaHash] = senhaHash
                 it[UsuariosTable.perfil] = perfil.name.lowercase()
                 it[UsuariosTable.idioma] = idioma.name.lowercase()
+                it[UsuariosTable.tema] = tema.name.lowercase()
                 it[UsuariosTable.status] = status.name.lowercase()
             }
             inserted[UsuariosTable.id].value
@@ -116,7 +119,7 @@ class ExposedUsuarioRepository(
         audit.registrarInsert(
             tableName = "usuario",
             recordId = id.toString(),
-            newValues = snapshot(nome, login, email, perfil, idioma, status),
+            newValues = snapshot(nome, login, email, perfil, idioma, tema, status),
         )
         return id
     }
@@ -130,6 +133,7 @@ class ExposedUsuarioRepository(
         perfil: PerfilUsuario,
         idioma: IdiomaUsuario,
         status: Status,
+        tema: TemaUsuario,
     ): Boolean {
         val anterior = buscar(id)
         val ok = suspendTransaction(database) {
@@ -142,6 +146,7 @@ class ExposedUsuarioRepository(
                 it[UsuariosTable.senhaHash] = senhaHash
                 it[UsuariosTable.perfil] = perfil.name.lowercase()
                 it[UsuariosTable.idioma] = idioma.name.lowercase()
+                it[UsuariosTable.tema] = tema.name.lowercase()
                 it[UsuariosTable.status] = status.name.lowercase()
             } > 0
         }
@@ -150,7 +155,7 @@ class ExposedUsuarioRepository(
                 tableName = "usuario",
                 recordId = id.toString(),
                 oldValues = snapshot(anterior),
-                newValues = snapshot(nome, login, email, perfil, idioma, status),
+                newValues = snapshot(nome, login, email, perfil, idioma, tema, status),
             )
         }
         return ok
@@ -165,7 +170,7 @@ class ExposedUsuarioRepository(
             } > 0
         }
 
-    override suspend fun atualizarPerfil(id: Long, nome: String, idioma: IdiomaUsuario): Boolean {
+    override suspend fun atualizarPerfil(id: Long, nome: String, idioma: IdiomaUsuario, tema: TemaUsuario?): Boolean {
         val anterior = buscar(id)
         val ok = suspendTransaction(database) {
             UsuariosTable.update({
@@ -173,14 +178,16 @@ class ExposedUsuarioRepository(
             }) {
                 it[UsuariosTable.nome] = nome
                 it[UsuariosTable.idioma] = idioma.name.lowercase()
+                if (tema != null) it[UsuariosTable.tema] = tema.name.lowercase()
             } > 0
         }
         if (ok && anterior != null) {
+            val temaNovo = tema ?: anterior.tema
             audit.registrarUpdate(
                 tableName = "usuario",
                 recordId = id.toString(),
-                oldValues = """{"nome":"${anterior.nome}","idioma":"${anterior.idioma.name.lowercase()}"}""",
-                newValues = """{"nome":"$nome","idioma":"${idioma.name.lowercase()}"}""",
+                oldValues = """{"nome":"${anterior.nome}","idioma":"${anterior.idioma.name.lowercase()}","tema":"${anterior.tema.name.lowercase()}"}""",
+                newValues = """{"nome":"$nome","idioma":"${idioma.name.lowercase()}","tema":"${temaNovo.name.lowercase()}"}""",
             )
         }
         return ok
@@ -339,6 +346,7 @@ class ExposedUsuarioRepository(
                     senhaHash = existente.senhaHash,
                     perfil = PerfilUsuario.ADMINISTRADOR,
                     idioma = existente.idioma,
+                    tema = existente.tema,
                     status = Status.ATIVO,
                 )
             }
@@ -353,6 +361,7 @@ class ExposedUsuarioRepository(
             perfil = PerfilUsuario.ADMINISTRADOR,
             idioma = IdiomaUsuario.PT,
             status = Status.ATIVO,
+            tema = TemaUsuario.ESCURO,
         )
     }
 
@@ -364,11 +373,12 @@ class ExposedUsuarioRepository(
         senhaHash = this[UsuariosTable.senhaHash],
         perfil = PerfilUsuario.valueOf(this[UsuariosTable.perfil].uppercase()),
         idioma = IdiomaUsuario.valueOf(this[UsuariosTable.idioma].uppercase()),
+        tema = TemaUsuario.valueOf(this[UsuariosTable.tema].uppercase()),
         status = Status.valueOf(this[UsuariosTable.status].uppercase()),
     )
 
     private fun snapshot(usuario: Usuario): String =
-        snapshot(usuario.nome, usuario.login, usuario.email, usuario.perfil, usuario.idioma, usuario.status)
+        snapshot(usuario.nome, usuario.login, usuario.email, usuario.perfil, usuario.idioma, usuario.tema, usuario.status)
 
     private fun snapshot(
         nome: String,
@@ -376,6 +386,7 @@ class ExposedUsuarioRepository(
         email: String,
         perfil: PerfilUsuario,
         idioma: IdiomaUsuario,
+        tema: TemaUsuario,
         status: Status,
-    ): String = """{"nome":"$nome","login":"$login","email":"$email","perfil":"${perfil.name.lowercase()}","idioma":"${idioma.name.lowercase()}","status":"${status.name.lowercase()}"}"""
+    ): String = """{"nome":"$nome","login":"$login","email":"$email","perfil":"${perfil.name.lowercase()}","idioma":"${idioma.name.lowercase()}","tema":"${tema.name.lowercase()}","status":"${status.name.lowercase()}"}"""
 }

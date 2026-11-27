@@ -5,6 +5,7 @@ import {
   logout as apiLogout,
   perfil as apiPerfil,
   type IdiomaUsuario,
+  type TemaUsuario,
   type PerfilAutenticado,
   type PerfilUsuario,
 } from "@/api";
@@ -18,7 +19,7 @@ type AuthContextValue = {
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   alterarSenha: (senhaAtual: string, senhaNova: string) => Promise<void>;
-  editarPerfil: (nome: string, idioma: IdiomaUsuario) => Promise<void>;
+  editarPerfil: (nome: string, idioma: IdiomaUsuario, tema?: TemaUsuario) => Promise<void>;
   hasPermission: (codigo: string) => boolean;
   perfilLabel: (perfil: PerfilUsuario) => string;
 };
@@ -77,8 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await logout();
   }, [logout]);
 
-  const editarPerfil = useCallback(async (nome: string, idioma: IdiomaUsuario) => {
-    const updated = await apiEditarPerfil(nome, idioma);
+  const editarPerfil = useCallback(async (nome: string, idioma: IdiomaUsuario, tema?: TemaUsuario) => {
+    const updated = await apiEditarPerfil(nome, idioma, tema);
     setUser(updated);
   }, []);
 

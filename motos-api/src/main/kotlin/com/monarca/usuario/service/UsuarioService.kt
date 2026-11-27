@@ -12,6 +12,7 @@ import com.monarca.usuario.Senha
 import com.monarca.usuario.SystemUser
 import com.monarca.usuario.domain.FilialAcesso
 import com.monarca.usuario.domain.IdiomaUsuario
+import com.monarca.usuario.domain.TemaUsuario
 import com.monarca.usuario.domain.PerfilUsuario
 import com.monarca.usuario.domain.Usuario
 import com.monarca.usuario.dto.FilialAcessoResponse
@@ -67,7 +68,7 @@ class UsuarioService(
             throw invalido("USUARIO_EMAIL_DUPLICADO", "Já existe um usuário com o e-mail $email", "email" to email)
         }
 
-        val id = repository.inserir(nome, login, email, senhaHash, request.perfil, request.idioma, status)
+        val id = repository.inserir(nome, login, email, senhaHash, request.perfil, request.idioma, status, request.tema ?: TemaUsuario.ESCURO)
         repository.substituirFiliais(id, resolverIdsFiliais(request.idsFiliais, obrigatorio = false))
         caixaService.substituirAcessosUsuario(id, request.idsCaixas, request.idCaixaPadrao)
         return buscar(id, atual)
@@ -92,7 +93,7 @@ class UsuarioService(
             throw invalido("USUARIO_EMAIL_DUPLICADO", "Já existe um usuário com o e-mail $email", "email" to email)
         }
 
-        repository.atualizar(id, nome, login, email, senhaHash, request.perfil, request.idioma, status)
+        repository.atualizar(id, nome, login, email, senhaHash, request.perfil, request.idioma, status, request.tema ?: alvo.tema)
         request.idsFiliais?.let { ids ->
             if (ids.isEmpty()) {
                 throw invalido("FILIAIS_OBRIGATORIAS", "Selecione ao menos uma filial")
@@ -225,6 +226,7 @@ class UsuarioService(
         email = email,
         perfil = perfil,
         idioma = idioma,
+        tema = tema,
         status = status,
         filiais = repository.listarFiliais(id).map { it.toResponse() },
         caixas = caixaService.listarMeusCaixas(id, null),

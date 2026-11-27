@@ -10,6 +10,7 @@ object UsuariosTable : LongIdTable("usuario") {
     val senhaHash = varchar("senha_hash", 255)
     val perfil = varchar("perfil", 20)
     val idioma = varchar("idioma", 5).default("pt")
+    val tema = varchar("tema", 10).default("escuro")
     val status = varchar("status", 20).default("ativo")
 }
 

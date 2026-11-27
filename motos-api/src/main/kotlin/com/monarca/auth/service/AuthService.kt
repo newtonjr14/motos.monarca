@@ -93,7 +93,7 @@ class AuthService(
             ?: throw RecursoNaoEncontrado("Usuário $id não encontrado")
 
         val nome = validarNome(request.nome)
-        usuarioRepository.atualizarPerfil(id, nome, request.idioma)
+        usuarioRepository.atualizarPerfil(id, nome, request.idioma, request.tema)
     }
 
     suspend fun logout(refreshToken: String?) {
@@ -160,6 +160,7 @@ class AuthService(
         email = email,
         perfil = perfil,
         idioma = idioma,
+        tema = tema,
         permissoes = Rbac.codigos(perfil).toList().sorted(),
         filiais = usuarioRepository.listarFiliais(id).map {
             FilialAcessoResponse(

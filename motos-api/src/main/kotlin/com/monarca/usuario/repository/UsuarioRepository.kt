@@ -4,6 +4,7 @@ import com.monarca.common.enums.Status
 import com.monarca.usuario.domain.FilialAcesso
 import com.monarca.usuario.domain.IdiomaUsuario
 import com.monarca.usuario.domain.PerfilUsuario
+import com.monarca.usuario.domain.TemaUsuario
 import com.monarca.usuario.domain.Usuario
 
 interface UsuarioRepository {
@@ -23,6 +24,7 @@ interface UsuarioRepository {
         perfil: PerfilUsuario,
         idioma: IdiomaUsuario,
         status: Status,
+        tema: TemaUsuario = TemaUsuario.ESCURO,
     ): Long
     suspend fun atualizar(
         id: Long,
@@ -33,9 +35,10 @@ interface UsuarioRepository {
         perfil: PerfilUsuario,
         idioma: IdiomaUsuario,
         status: Status,
+        tema: TemaUsuario = TemaUsuario.ESCURO,
     ): Boolean
     suspend fun atualizarSenha(id: Long, senhaHash: String): Boolean
-    suspend fun atualizarPerfil(id: Long, nome: String, idioma: IdiomaUsuario): Boolean
+    suspend fun atualizarPerfil(id: Long, nome: String, idioma: IdiomaUsuario, tema: TemaUsuario? = null): Boolean
     suspend fun excluir(id: Long): Boolean
     suspend fun listarFiliais(idUsuario: Long): List<FilialAcesso>
     suspend fun temAcessoFilial(idUsuario: Long, idFilial: Long): Boolean

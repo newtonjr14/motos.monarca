@@ -109,13 +109,18 @@ import {
 import type { TranslationKey } from "@/i18n";
 const v = (name: string) => `var(${name})`;
 
+function aplicarTema(light: boolean) {
+  document.documentElement.classList.toggle("light", light);
+  localStorage.setItem("monarca.theme", light ? "light" : "dark");
+}
+
 function useTheme() {
-  const [light, setLight] = useState(() => localStorage.getItem("monarca.theme") === "light");
-  useEffect(() => {
-    document.documentElement.classList.toggle("light", light);
-    localStorage.setItem("monarca.theme", light ? "light" : "dark");
-  }, [light]);
-  return { light, toggle: () => setLight((x) => !x) };
+  const [light, setLightState] = useState(() => localStorage.getItem("monarca.theme") === "light");
+  const setLight = useCallback((next: boolean) => {
+    aplicarTema(next);
+    setLightState(next);
+  }, []);
+  return { light, setLight };
 }
 
 function Badge({ children, color }: { children: React.ReactNode; color: "gold" | "green" | "sky" | "red" | "slate" }) {
@@ -2928,7 +2933,7 @@ function VendasEmBreve() {
   );
 }
 
-function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
+function AppShell({ systemStatus, light, onToggleTheme }: { systemStatus: SystemStatus; light: boolean; onToggleTheme: () => void }) {
   const { t } = useI18n();
   const { hasPermission } = useAuth();
   const { filial } = useFilial();
@@ -2941,7 +2946,6 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
   const [navReset, setNavReset] = useState(0);
   const [retomarVendaId, setRetomarVendaId] = useState<number | null>(null);
   const [orcamentosVenda, setOrcamentosVenda] = useState<{ ids: number[]; confirmarVencido: boolean } | null>(null);
-  const { light, toggle } = useTheme();
   const [clientes, setClientes] = useState<Papel[]>([]);
   const [fornecedores, setFornecedores] = useState<Papel[]>([]);
   const [cidades, setCidades] = useState<Cidade[]>([]);
@@ -3042,7 +3046,7 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
             <div className="flex items-center gap-2">
               <CotacaoChip />
               <FilialSwitcher />
-              <ThemeToggle light={light} onToggle={toggle} compact />
+              <ThemeToggle light={light} onToggle={onToggleTheme} compact />
               <LanguageSelector />
               <UserMenu />
             </div>
@@ -3138,14 +3142,25 @@ function AppShell({ systemStatus }: { systemStatus: SystemStatus }) {
 }
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, editarPerfil } = useAuth();
   const { t, setLocale } = useI18n();
-  const { light, toggle } = useTheme();
+  const { light, setLight } = useTheme();
   const systemStatus = useSystemHeartbeat();
 
   useEffect(() => {
     if (user?.idioma) setLocale(user.idioma);
   }, [user?.idioma, setLocale]);
+
+  useEffect(() => {
+    if (user?.tema === "claro" || user?.tema === "escuro") setLight(user.tema === "claro");
+  }, [user?.tema, setLight]);
+
+  function toggleTheme() {
+    const next = !light;
+    setLight(next);
+    if (!user) return;
+    void editarPerfil(user.nome, user.idioma, next ? "claro" : "escuro").catch(() => setLight(!next));
+  }
 
   if (loading) {
     return (
@@ -3156,14 +3171,14 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginPage light={light} onToggleTheme={toggle} systemStatus={systemStatus} />;
+    return <LoginPage light={light} onToggleTheme={toggleTheme} systemStatus={systemStatus} />;
   }
 
   return (
     <CotacaoHojeProvider>
       <FilialProvider>
-        <FilialGate light={light} onToggleTheme={toggle} systemStatus={systemStatus}>
-          <AppShell systemStatus={systemStatus} />
+        <FilialGate light={light} onToggleTheme={toggleTheme} systemStatus={systemStatus}>
+          <AppShell systemStatus={systemStatus} light={light} onToggleTheme={toggleTheme} />
         </FilialGate>
       </FilialProvider>
     </CotacaoHojeProvider>

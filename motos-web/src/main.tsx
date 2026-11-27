@@ -5,6 +5,10 @@ import { AuthProvider } from "./auth/AuthContext";
 import { I18nProvider } from "./i18n";
 import "./index.css";
 
+if (localStorage.getItem("monarca.theme") === "light") {
+  document.documentElement.classList.add("light");
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
