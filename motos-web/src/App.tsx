@@ -3155,6 +3155,10 @@ export default function App() {
     if (user?.tema === "claro" || user?.tema === "escuro") setLight(user.tema === "claro");
   }, [user?.tema, setLight]);
 
+  useEffect(() => {
+    if (!loading && !user) setLight(true);
+  }, [loading, user, setLight]);
+
   function toggleTheme() {
     const next = !light;
     setLight(next);
