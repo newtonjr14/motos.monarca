@@ -132,8 +132,7 @@ export default function RelatorioFolha({ folha, onClose }: { folha: FolhaRelator
                     <th
                       key={`${f.label}-${i}`}
                       colSpan={f.span}
-                      className="border px-1 py-0.5 text-center font-semibold"
-                      style={{ borderColor: "#ccc", background: f.label ? "#f4f4f4" : "transparent" }}
+                      className="px-1 pt-1 pb-0.5 text-center font-semibold"
                     >
                       {f.label}
                     </th>
@@ -144,8 +143,8 @@ export default function RelatorioFolha({ folha, onClose }: { folha: FolhaRelator
                 {folha.colunas.map((c, i) => (
                   <th
                     key={c}
-                    className={`border px-1 py-1 font-semibold ${direita.has(i) ? "text-right" : "text-left"}`}
-                    style={{ borderColor: "#ccc", background: "#fafafa" }}
+                    className={`px-1 py-1 font-semibold ${direita.has(i) ? "text-right" : "text-left"}`}
+                    style={{ borderTop: "1px solid #111", borderBottom: "1px solid #111" }}
                   >
                     {c}
                   </th>
@@ -155,34 +154,37 @@ export default function RelatorioFolha({ folha, onClose }: { folha: FolhaRelator
             <tbody>
               {folha.secao && (
                 <tr>
-                  <td colSpan={folha.colunas.length} className="border px-1 py-1 font-semibold" style={{ borderColor: "#ccc" }}>
+                  <td colSpan={folha.colunas.length} className="px-1 pt-2 pb-1 font-semibold">
                     {folha.secao}
                   </td>
                 </tr>
               )}
-              {folha.linhas.map((linha, ri) => (
-                <tr key={ri}>
-                  {linha.map((c, i) => (
-                    <td
-                      key={i}
-                      className={`border px-1 py-0.5 font-mono ${destaques.has(ri) ? "font-semibold" : ""} ${direita.has(i) ? "text-right" : "text-left"}`}
-                      style={{ borderColor: "#e5e5e5", background: destaques.has(ri) ? "#f7f7f7" : "transparent" }}
-                    >
-                      {c}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {folha.linhas.map((linha, ri) => {
+                const totalDoGrupo = destaques.has(ri) && !destaques.has(ri - 1);
+                return (
+                  <tr key={ri}>
+                    {linha.map((c, i) => (
+                      <td
+                        key={i}
+                        className={`px-1 py-0.5 font-mono ${destaques.has(ri) ? "font-semibold" : ""} ${direita.has(i) ? "text-right" : "text-left"}`}
+                        style={{ borderTop: totalDoGrupo ? "1px solid #111" : undefined }}
+                      >
+                        {c}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
             {folha.rodapes.length > 0 && (
               <tfoot>
-                {folha.rodapes.map((r) => (
+                {folha.rodapes.map((r, ri) => (
                   <tr key={r.rotulo + r.celulas.join("|")}>
                     {r.celulas.map((c, i) => (
                       <td
                         key={i}
-                        className={`border px-1 py-0.5 font-semibold font-mono ${direita.has(i) ? "text-right" : "text-left"}`}
-                        style={{ borderColor: "#ccc", background: "#f7f7f7" }}
+                        className={`px-1 py-0.5 font-semibold font-mono ${direita.has(i) ? "text-right" : "text-left"}`}
+                        style={{ borderTop: ri === 0 ? "1px solid #111" : undefined }}
                       >
                         {i === 0 ? r.rotulo : c}
                       </td>
@@ -203,8 +205,8 @@ export default function RelatorioFolha({ folha, onClose }: { folha: FolhaRelator
                       {anexo.colunas.map((c, i) => (
                         <th
                           key={c}
-                          className={`border px-1 py-1 font-semibold ${direitaAnexo.has(i) ? "text-right" : "text-left"}`}
-                          style={{ borderColor: "#ccc", background: "#fafafa" }}
+                          className={`px-1 py-1 font-semibold ${direitaAnexo.has(i) ? "text-right" : "text-left"}`}
+                          style={{ borderTop: "1px solid #111", borderBottom: "1px solid #111" }}
                         >
                           {c}
                         </th>
@@ -217,8 +219,7 @@ export default function RelatorioFolha({ folha, onClose }: { folha: FolhaRelator
                         {linha.map((c, i) => (
                           <td
                             key={i}
-                            className={`border px-1 py-0.5 font-mono ${direitaAnexo.has(i) ? "text-right" : "text-left"}`}
-                            style={{ borderColor: "#e5e5e5" }}
+                            className={`px-1 py-0.5 font-mono ${direitaAnexo.has(i) ? "text-right" : "text-left"}`}
                           >
                             {c}
                           </td>
